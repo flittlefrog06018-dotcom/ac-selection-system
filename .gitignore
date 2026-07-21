@@ -1,0 +1,14 @@
+# Python 虛擬環境與快取
+backend/.venv/
+backend/__pycache__/
+*.pyc
+
+# React 套件與打包產物
+frontend/node_modules/
+frontend/dist/
+
+# 系統與暫存檔
+.DS_Store
+Thumbs.db
+temp/
+static/
