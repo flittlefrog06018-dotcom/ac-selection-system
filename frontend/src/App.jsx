@@ -78,7 +78,29 @@ const lookupModelCapKw = (modelName) => {
   return matched ? matched.cap : 0.0;
 };
 
+// 🎯 測試存取保護密碼 (預設為 daikin2026，可改為任意密碼或改為 "" 取消密碼)
+const SYSTEM_ACCESS_PASSWORD = "daikin2026";
+
 function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return !SYSTEM_ACCESS_PASSWORD || sessionStorage.getItem("app_authenticated") === "true";
+  });
+  const [inputPassword, setInputPassword] = useState("");
+  const [passError, setPassError] = useState(false);
+
+  const handlePasswordSubmit = (e) => {
+    e.preventDefault();
+    if (inputPassword === SYSTEM_ACCESS_PASSWORD) {
+      sessionStorage.setItem("app_authenticated", "true");
+      setIsAuthenticated(true);
+      setPassError(false);
+      toast.success("🔐 身份驗證成功，歡迎存取大金空調選機系統！");
+    } else {
+      setPassError(true);
+      toast.error("❌ 存取密碼錯誤，請重新輸入！");
+    }
+  };
+
   const [file, setFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [rows, setRows] = useState([]);
@@ -342,6 +364,75 @@ function App() {
     { bg: 'rgba(249, 115, 22, 0.32)', border: '#f97316', badgeBg: '#c2410c', badgeText: '#ffffff' },
     { bg: 'rgba(168, 85, 247, 0.32)', border: '#a855f7', badgeBg: '#7e22ce', badgeText: '#ffffff' },
   ];
+
+  if (!isAuthenticated) {
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+        backgroundColor: '#0f172a',
+        fontFamily: "'Segoe UI', Roboto, sans-serif"
+      }}>
+        <ToastContainer theme="dark" position="top-right" autoClose={4000} />
+        <div style={{
+          backgroundColor: '#1e293b',
+          padding: '40px 30px',
+          borderRadius: '16px',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+          border: '1px solid #334155',
+          textAlign: 'center',
+          maxWidth: '380px',
+          width: '90%'
+        }}>
+          <div style={{ fontSize: '48px', marginBottom: '15px' }}>🔒</div>
+          <h2 style={{ color: '#f8fafc', margin: '0 0 10px 0', fontSize: '20px' }}>大金空調選機系統存取保護</h2>
+          <p style={{ color: '#94a3b8', fontSize: '13px', marginBottom: '25px', lineHeight: '1.5' }}>
+            本系統設有測試存取限制，請輸入存取密碼以解鎖進入頁面。
+          </p>
+          <form onSubmit={handlePasswordSubmit}>
+            <input
+              type="password"
+              placeholder="請輸入測試存取密碼"
+              value={inputPassword}
+              onChange={(e) => setInputPassword(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '12px 15px',
+                borderRadius: '8px',
+                border: passError ? '2px solid #ef4444' : '1px solid #475569',
+                backgroundColor: '#0f172a',
+                color: '#fff',
+                fontSize: '15px',
+                textAlign: 'center',
+                boxSizing: 'border-box',
+                marginBottom: '15px',
+                outline: 'none'
+              }}
+            />
+            <button
+              type="submit"
+              style={{
+                width: '100%',
+                padding: '12px',
+                borderRadius: '8px',
+                border: 'none',
+                backgroundColor: '#3b82f6',
+                color: '#fff',
+                fontWeight: 'bold',
+                fontSize: '15px',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s'
+              }}
+            >
+              🚀 解鎖進入系統
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.container}>
