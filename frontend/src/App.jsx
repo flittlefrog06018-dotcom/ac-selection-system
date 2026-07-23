@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -31,16 +31,51 @@ const clientSideSelectEquipment = (totalDemandKcal, systemType) => {
   const totalLoadKw = totalDemandKcal / 860.0;
   const modelsList = EQUIPMENT_DB[systemType] || EQUIPMENT_DB["VRV"];
 
+  let bestModel = null;
+  let bestQty = 999;
+  let bestCap = 0.0;
+
   for (let i = 0; i < modelsList.length; i++) {
-    if (modelsList[i].cap >= totalLoadKw) {
-      return { model: modelsList[i].model, qty: 1 };
+    const singleCap = modelsList[i].cap;
+    for (let qty = 1; qty <= 10; qty++) {
+      const totalCap = singleCap * qty;
+      if (totalCap >= totalLoadKw) {
+        if (qty < bestQty) {
+          bestQty = qty;
+          bestModel = modelsList[i].model;
+          bestCap = singleCap;
+          break;
+        } else if (qty === bestQty) {
+          if (bestModel === null || singleCap < bestCap) {
+            bestQty = qty;
+            bestModel = modelsList[i].model;
+            bestCap = singleCap;
+          }
+          break;
+        }
+      }
     }
   }
 
-  const maxItem = modelsList[modelsList.length - 1];
-  const neededQty = Math.ceil(totalLoadKw / maxItem.cap);
+  if (bestModel !== null) {
+    return { model: bestModel, qty: bestQty, cap: bestCap };
+  }
 
-  return { model: maxItem.model, qty: neededQty > 0 ? neededQty : 1 };
+  const maxItem = modelsList[modelsList.length - 1];
+  let neededQty = Math.round((totalLoadKw / maxItem.cap) + 0.5);
+  if (neededQty <= 0) neededQty = 1;
+  return { model: maxItem.model, qty: neededQty, cap: maxItem.cap };
+};
+
+const lookupModelCapKw = (modelName) => {
+  if (!modelName) return 0.0;
+  const allModels = [
+    ...(EQUIPMENT_DB.VRV || []),
+    ...(EQUIPMENT_DB.RA || []),
+    ...(EQUIPMENT_DB.SA || [])
+  ];
+  const matched = allModels.find(m => m.model === modelName.trim());
+  return matched ? matched.cap : 0.0;
 };
 
 function App() {
@@ -54,14 +89,48 @@ function App() {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [isDragOver, setIsDragOver] = useState(false);
 
-  const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
+  const fileInputRef = useRef(null);
+
+  const processFile = (selectedFile) => {
     if (selectedFile) {
       setFile(selectedFile);
       setPreviewUrl(URL.createObjectURL(selectedFile));
       setScale(1);
       setPosition({ x: 0, y: 0 });
+    }
+  };
+
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    processFile(selectedFile);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      processFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const triggerFileSelect = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
     }
   };
 
@@ -103,13 +172,17 @@ function App() {
 
       const data = await response.json();
 
-      // 🎯 優化：移除干擾視線的特殊空間黃色警告彈窗，改為表格內紅字直接警示
+      const spacesList = Array.isArray(data) ? data : (data.spaces || data.data || []);
+      if (!Array.isArray(data) && data.image_preview) {
+        setPreviewUrl(data.image_preview);
+      }
 
-      const normalizedData = data.map(item => {
+      const normalizedData = spacesList.map(item => {
         const baseKcal = item.base_suggested_load || 500;
         const ping = parseFloat(item.area_ping) || 0;
         const initialDemand = item.total_cooling_load_kcal || (ping * baseKcal);
         const autoMatch = clientSideSelectEquipment(initialDemand, item.system_type || "VRV");
+        const capKw = item.cap_kw || autoMatch.cap || lookupModelCapKw(autoMatch.model);
 
         return {
           ...item,
@@ -119,6 +192,7 @@ function App() {
           total_cooling_demand: initialDemand,
           best_match_model: autoMatch.model,
           unit_count: autoMatch.qty,
+          cap_kw: capKw,
           special_kw: item.special_kw || 0,
           modifiers: item.modifiers || { 全內周: false, 二面牆: false, 西曬: false, 挑高: false, 頂曬: false },
           is_matched: true
@@ -154,7 +228,6 @@ function App() {
       }
     });
 
-    // 🎯 核心自定義修改連動：取使用者當下輸入的基準值，若為空則保底 0
     const baseKcal = parseFloat(row.calc_basis) === 0 ? 0 : (parseFloat(row.calc_basis) || 500);
     const specialKw = parseFloat(row.special_kw) || 0;
     const specialTotalKcal = specialKw * 860.0;
@@ -166,11 +239,13 @@ function App() {
 
     row.total_cooling_demand = newDemand;
 
-    // 當變更的不是型號手打或台數時，一律自動重新配對最合適的大金機型與台數
     if (field !== 'best_match_model' && field !== 'unit_count') {
-      const { model, qty } = clientSideSelectEquipment(newDemand, row.system_type);
+      const { model, qty, cap } = clientSideSelectEquipment(newDemand, row.system_type);
       row.best_match_model = model;
       row.unit_count = qty;
+      row.cap_kw = cap || lookupModelCapKw(model);
+    } else if (field === 'best_match_model') {
+      row.cap_kw = lookupModelCapKw(value);
     }
 
     setRows(updatedRows);
@@ -202,18 +277,28 @@ function App() {
         cap_kw: parseFloat(row.cap_kw) || 0.0
       }));
 
+      const rawFileName = file ? file.name : "";
+      const baseCaseName = rawFileName ? rawFileName.substring(0, rawFileName.lastIndexOf('.')) || rawFileName : "規劃案";
+      const downloadFileName = `選機表-${baseCaseName}.xlsx`;
+
       const response = await fetch("http://127.0.0.1:8000/api/export-excel", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data: finalPayload }),
+        body: JSON.stringify({
+          filename: rawFileName,
+          data: finalPayload
+        }),
       });
       if (!response.ok) throw new Error("匯出底稿失敗");
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url; a.download = "空調選機規劃表_已套印.xlsx";
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      toast.success(`🎉 官方底稿填入成功！已成功匯出共 ${filteredRows.length} 個勾選空間。`);
+      a.href = url;
+      a.download = downloadFileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      toast.success(`🎉 官方底稿填入成功！已成功匯出「${downloadFileName}」（共 ${filteredRows.length} 個勾選空間）。`);
     } catch (error) {
       toast.error(`❌ 導出失敗：${error.message}`);
     } finally {
@@ -247,6 +332,17 @@ function App() {
     chkLabel: { display: 'inline-flex', alignItems: 'center', gap: '2px', marginRight: '6px', fontSize: '11px', color: '#cbd5e1', cursor: 'pointer' }
   };
 
+  const OVERLAY_COLORS = [
+    { bg: 'rgba(59, 130, 246, 0.32)', border: '#3b82f6', badgeBg: '#1d4ed8', badgeText: '#ffffff' },
+    { bg: 'rgba(16, 185, 129, 0.32)', border: '#10b981', badgeBg: '#047857', badgeText: '#ffffff' },
+    { bg: 'rgba(245, 158, 11, 0.32)', border: '#f59e0b', badgeBg: '#b45309', badgeText: '#ffffff' },
+    { bg: 'rgba(236, 72, 153, 0.32)', border: '#ec4899', badgeBg: '#be185d', badgeText: '#ffffff' },
+    { bg: 'rgba(139, 92, 246, 0.32)', border: '#8b5cf6', badgeBg: '#6d28d9', badgeText: '#ffffff' },
+    { bg: 'rgba(6, 182, 212, 0.32)',  border: '#06b6d4', badgeBg: '#0e7490', badgeText: '#ffffff' },
+    { bg: 'rgba(249, 115, 22, 0.32)', border: '#f97316', badgeBg: '#c2410c', badgeText: '#ffffff' },
+    { bg: 'rgba(168, 85, 247, 0.32)', border: '#a855f7', badgeBg: '#7e22ce', badgeText: '#ffffff' },
+  ];
+
   return (
     <div style={styles.container}>
       <ToastContainer theme="dark" position="top-right" autoClose={4000} />
@@ -263,8 +359,27 @@ function App() {
       </header>
 
       <section style={styles.panel}>
-        <input type="file" accept="image/*,.pdf" onChange={handleFileChange} style={{ color: '#94a3b8', fontSize: '14px' }} />
-        <button onClick={handleAnalyze} disabled={loading} style={styles.btnPrimary}>
+        <input
+          type="file"
+          ref={fileInputRef}
+          accept="image/*,.pdf"
+          onChange={handleFileChange}
+          style={{ display: 'none' }}
+        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '13px', color: file ? '#34d399' : '#94a3b8', fontWeight: file ? 'bold' : 'normal' }}>
+            {file ? `📄 已選取：${file.name}` : '⚠️ 尚未選擇圖面 (請於下方視窗點選或拖曳檔案)'}
+          </span>
+        </div>
+        <button
+          onClick={handleAnalyze}
+          disabled={loading || !file}
+          style={{
+            ...styles.btnPrimary,
+            opacity: loading || !file ? 0.6 : 1,
+            cursor: loading || !file ? 'not-allowed' : 'pointer'
+          }}
+        >
           {loading ? "⚡ AI 正在全力計算中..." : "🚀 執行圖面自動解析"}
         </button>
         <button onClick={handleExportExcel} disabled={exportLoading || rows.length === 0} style={styles.btnSecondary}>
@@ -274,43 +389,191 @@ function App() {
 
       <div style={styles.mainGrid}>
         <section style={styles.card}>
-          <div style={styles.cardTitle}>🖼️ 實時圖面比對核對視窗 (滾輪縮放/拖曳)</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', ...styles.cardTitle }}>
+            <span>🖼️ 實時圖面比對核對視窗 (滾輪縮放/拖曳)</span>
+            <button
+              onClick={triggerFileSelect}
+              style={{
+                backgroundColor: '#334155',
+                color: '#38bdf8',
+                border: '1px solid #475569',
+                padding: '3px 8px',
+                borderRadius: '4px',
+                fontSize: '12px',
+                cursor: 'pointer',
+                fontWeight: 'bold'
+              }}
+            >
+              📁 {file ? "更換圖面" : "選擇圖檔"}
+            </button>
+          </div>
           <div
-            style={{ ...styles.previewBox, cursor: isDragging ? 'grabbing' : 'grab', position: 'relative' }}
+            style={{
+              ...styles.previewBox,
+              cursor: file ? (isDragging ? 'grabbing' : 'grab') : 'pointer',
+              position: 'relative',
+              borderColor: isDragOver ? '#34d399' : (file ? '#475569' : '#3b82f6'),
+              borderStyle: isDragOver || !file ? 'dashed' : 'solid',
+              borderWidth: isDragOver ? '2px' : '1px',
+              backgroundColor: isDragOver ? 'rgba(52, 211, 153, 0.08)' : '#020617',
+              transition: 'all 0.2s ease'
+            }}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onClick={() => {
+              if (!file) triggerFileSelect();
+            }}
             onWheel={(e) => {
+              if (!file) return;
               e.preventDefault();
               const zoom = e.deltaY < 0 ? 0.15 : -0.15;
               setScale(prev => Math.max(0.5, Math.min(5, prev + zoom)));
             }}
             onMouseDown={(e) => {
+              if (!file) return;
               setIsDragging(true);
               setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
             }}
             onMouseMove={(e) => {
-              if (!isDragging) return;
+              if (!isDragging || !file) return;
               setPosition({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
             }}
             onMouseUp={() => setIsDragging(false)}
             onMouseLeave={() => setIsDragging(false)}
           >
+            {isDragOver && (
+              <div style={{
+                position: 'absolute',
+                top: 0, left: 0, right: 0, bottom: 0,
+                backgroundColor: 'rgba(15, 23, 42, 0.85)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 10,
+                color: '#34d399',
+                fontSize: '15px',
+                fontWeight: 'bold',
+                gap: '8px',
+                pointerEvents: 'none'
+              }}>
+                <span style={{ fontSize: '32px' }}>📥</span>
+                鬆開滑鼠以載入此檔案
+              </div>
+            )}
+
             {previewUrl ? (
-              file && file.type === "application/pdf" ? (
-                <object data={previewUrl} type="application/pdf" style={{ width: '100%', height: '100%', border: 'none' }} />
-              ) : (
-                <img
-                  src={previewUrl}
-                  alt="Preview"
-                  style={{
-                    maxWidth: '100%',
-                    maxHeight: '100%',
-                    objectFit: 'contain',
-                    transform: `scale(${scale}) translate(${position.x / scale}px, ${position.y / scale}px)`,
-                    transition: isDragging ? 'none' : 'transform 0.1s ease'
-                  }}
-                />
-              )
+              <div
+                style={{
+                  position: 'relative',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  maxWidth: '100%',
+                  maxHeight: '100%',
+                  transform: `scale(${scale}) translate(${position.x / scale}px, ${position.y / scale}px)`,
+                  transition: isDragging ? 'none' : 'transform 0.1s ease',
+                  transformOrigin: 'center center'
+                }}
+              >
+                {file && file.type === "application/pdf" && previewUrl && !previewUrl.startsWith("data:image") ? (
+                  <object data={previewUrl} type="application/pdf" style={{ width: '100%', height: '540px', border: 'none', pointerEvents: 'none' }} />
+                ) : (
+                  <img
+                    src={previewUrl}
+                    alt="Preview"
+                    style={{
+                      maxWidth: '100%',
+                      maxHeight: '540px',
+                      width: 'auto',
+                      height: 'auto',
+                      display: 'block'
+                    }}
+                  />
+                )}
+
+                {/* 🎯 實時圖面向量多邊形彩色遮罩 (依各隔間真實牆面形狀自適應) */}
+                {rows && rows.length > 0 && (
+                  <svg
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      height: '100%',
+                      pointerEvents: 'none'
+                    }}
+                    viewBox="0 0 1000 1000"
+                    preserveAspectRatio="none"
+                  >
+                    {rows.map((row, idx) => {
+                      if (!row.selected) return null;
+                      const color = OVERLAY_COLORS[idx % OVERLAY_COLORS.length];
+                      let poly = row.polygon;
+
+                      // 若無有效幾何座標，不繪製假方框遮擋畫面
+                      if (!poly || !Array.isArray(poly) || poly.length < 3) {
+                        return null;
+                      }
+
+                      // 將 [[y1, x1], [y2, x2], ...] 轉為 SVG "x1,y1 x2,y2 ..." 點字串
+                      const pointsStr = poly.map(pt => `${pt[1]},${pt[0]}`).join(' ');
+
+                      // 計算該多邊形之幾何中心 (Centroid) 以放置空間名稱標籤
+                      const avgX = poly.reduce((sum, pt) => sum + pt[1], 0) / poly.length;
+                      const avgY = poly.reduce((sum, pt) => sum + pt[0], 0) / poly.length;
+
+                      return (
+                        <g key={idx}>
+                          <polygon
+                            points={pointsStr}
+                            fill={color.bg}
+                            stroke={color.border}
+                            strokeWidth="3"
+                            strokeDasharray="6 3"
+                          />
+                          <foreignObject
+                            x={avgX - 65}
+                            y={avgY - 14}
+                            width="130"
+                            height="28"
+                            style={{ overflow: 'visible' }}
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'center' }}>
+                              <span
+                                style={{
+                                  backgroundColor: color.badgeBg,
+                                  color: color.badgeText,
+                                  fontSize: '11px',
+                                  fontWeight: 'bold',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  whiteSpace: 'nowrap',
+                                  boxShadow: '0 2px 5px rgba(0,0,0,0.6)',
+                                  userSelect: 'none'
+                                }}
+                              >
+                                {row.space_name} ({row.area_m2}㎡ / {row.area_ping}坪)
+                              </span>
+                            </div>
+                          </foreignObject>
+                        </g>
+                      );
+                    })}
+                  </svg>
+                )}
+              </div>
             ) : (
-              <span style={{ color: '#475569', fontSize: '13px' }}>尚未載入圖面</span>
+              <div style={{ textAlign: 'center', padding: '20px', userSelect: 'none' }}>
+                <div style={{ fontSize: '36px', marginBottom: '10px' }}>📁</div>
+                <div style={{ color: '#38bdf8', fontSize: '14px', fontWeight: 'bold', marginBottom: '6px' }}>
+                  點擊此處選擇圖面檔案，或直接將檔案拖曳至此
+                </div>
+                <div style={{ color: '#64748b', fontSize: '12px' }}>
+                  支援格式：圖片 (JPG, PNG) 或 PDF 檔
+                </div>
+              </div>
             )}
           </div>
         </section>
@@ -339,15 +602,18 @@ function App() {
                   <th style={styles.th}>環境加成百分比偏置 (可複選)</th>
                   <th style={styles.th}>特殊熱源</th>
                   <th style={styles.th}>總需求(kcal/h)</th>
+                  <th style={{ ...styles.th, color: '#f59e0b' }}>總需求(kW)</th>
                   <th style={styles.th}>大金室內機型號</th>
+                  <th style={{ ...styles.th, color: '#38bdf8' }}>單機能力(kW)</th>
                   <th style={styles.th}>台數</th>
+                  <th style={{ ...styles.th, color: '#a855f7' }}>總冷房能力(kW)</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan="11" style={{ textAlign: 'center', padding: '50px', color: '#94a3b8' }}>🔄 正在啟用雙軌影像引擎分析，請稍候...</td></tr>
+                  <tr><td colSpan="14" style={{ textAlign: 'center', padding: '50px', color: '#94a3b8' }}>🔄 正在啟用雙軌影像引擎分析，請稍候...</td></tr>
                 ) : rows.length === 0 ? (
-                  <tr><td colSpan="11" style={{ textAlign: 'center', padding: '30px', color: '#475569' }}>暫無數據。請上傳圖面並執行解析。</td></tr>
+                  <tr><td colSpan="14" style={{ textAlign: 'center', padding: '30px', color: '#475569' }}>暫無數據。請上傳圖面並執行解析。</td></tr>
                 ) : (
                   rows.map((row, index) => (
                     <tr key={index} style={{ opacity: row.selected ? 1 : 0.45, transition: 'opacity 0.2s' }}>
@@ -387,7 +653,6 @@ function App() {
                       <td style={{ ...styles.td, color: '#38bdf8' }}>{row.area_ping}</td>
 
                       <td style={styles.td}>
-                        {/* 🎯 關鍵優化：如果是未定義空間 (is_unknown_space)，輸入框文字直接強制變為紅色粗體！並支援隨時自定義數值 */}
                         <input
                           type="number"
                           value={row.calc_basis}
@@ -435,6 +700,11 @@ function App() {
                         {Math.round(row.total_cooling_demand).toLocaleString()}
                       </td>
 
+                      {/* 🎯 新增 1：總需求(kcal/h) 旁邊新增 總需求(kW) 單位 */}
+                      <td style={{ ...styles.td, color: '#f59e0b', fontWeight: 'bold' }}>
+                        {(row.total_cooling_demand / 860.0).toFixed(1)} kW
+                      </td>
+
                       <td style={styles.td}>
                         <input
                           type="text"
@@ -443,6 +713,11 @@ function App() {
                           style={styles.inputModel}
                           disabled={!row.selected}
                         />
+                      </td>
+
+                      {/* 🎯 新增 2：大金室內機型號右邊新增 單機能力(kW) 數值 (小數點一位) */}
+                      <td style={{ ...styles.td, color: '#38bdf8', fontWeight: 'bold' }}>
+                        {parseFloat(row.cap_kw || lookupModelCapKw(row.best_match_model)).toFixed(1)} kW
                       </td>
 
                       <td style={styles.td}>
@@ -458,6 +733,11 @@ function App() {
                           />
                           <span style={{ fontSize: '12px', color: '#64748b' }}>台</span>
                         </div>
+                      </td>
+
+                      {/* 🎯 新增 3：台數右邊新增 總冷房能力(kW) 數值 (單機能力 * 台數，小數點一位) */}
+                      <td style={{ ...styles.td, color: '#a855f7', fontWeight: 'bold' }}>
+                        {(parseFloat(row.cap_kw || lookupModelCapKw(row.best_match_model)) * parseInt(row.unit_count || 1)).toFixed(1)} kW
                       </td>
                     </tr>
                   ))

@@ -38,19 +38,21 @@ class SpaceAirConditionPlan(BaseModel):
     unit: str = Field(default="m2", description="面積單位，P(坪) 或 m2(平方米)")
     center_y: float = Field(default=0.5, description="空間在圖面中的相對 Y 座標 (0.0 到 1.0)")
     center_x: float = Field(default=0.5, description="空間在圖面中的相對 X 座標 (0.0 到 1.0)")
+    box_2d: list[float] = Field(default_factory=list, description="空間在圖片中的 exact bounding box 座標 [ymin, xmin, ymax, xmax] (0.0 到 1.0 之間)")
 
 class AirConditionReport(BaseModel):
     project_spaces: list[SpaceAirConditionPlan]
 
 # =========================================================================
-# Gemini Prompt Rules 1-4 (From Legacy Script)
+# Gemini Prompt Rules 1-4 (From VV17 / VV16 Legacy Script)
 # =========================================================================
 BASE_CORE_PROMPT = """
-你是一位極起專業且嚴緊的空調工程圖面數據審查專家。你的核心任務是從圖紙中精確提取各個空間的名稱、面積與空間編號。
+你是一位極其專業且嚴謹的空調工程圖面數據審查專家。你的核心任務是從圖紙中精確提取各個空間的名稱、面積、空間編號與在圖面中的幾何座標。
 【必須遵守的通用原則】：
 1. 提取的空間名稱必須是完整的繁體中文名稱，絕對不能漏字、改字或擅自縮寫。
 2. 必須精確賦予每個空間 center_x 與 center_y 的相對幾何座標（0.0 到 1.0 之間），用於後續的位置排序。
-3. 只有當空間有明確標註面積或坪數數值時才進行提取。
+3. 若能精確辨識空間位置，請填寫 box_2d 座標 [ymin, xmin, ymax, xmax] (歸一化 0.0 到 1.0 之間)，且必須緊貼實體牆面範圍，嚴禁劃到圖外留白與標題欄。
+4. 只有當空間有明確標註面積或坪數數值時才進行提取；無標註無寫字之雜訊空間絕對禁止列入。
 """
 
 def get_prompt_rule_1(text_stream: str, file_name: str = "") -> str:
@@ -108,10 +110,9 @@ class GeminiService:
     @classmethod
     async def analyze_floorplan(cls, file_content: bytes, filename: str) -> List[Dict[str, Any]]:
         """
-        Runs the smart analysis strategy to select the prompt rule, parses vector data if applicable,
-        calls Gemini 2.5 Flash with structured output schema, and returns the list of rooms.
+        Runs the VV17 smart strategy engine (Rules 1-4, pdfplumber text_stream & XChange hints),
+        calls Gemini 2.5 Flash with structured output schema, and returns parsed spaces list.
         """
-        # Save temp file for pdfplumber/pdf2image processing
         temp_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "temp")
         os.makedirs(temp_dir, exist_ok=True)
         temp_file_path = os.path.join(temp_dir, f"temp_{int(time.time())}_{filename}")
@@ -120,42 +121,52 @@ class GeminiService:
             f.write(file_content)
             
         try:
-            # Check environment and setup
-            if not settings.GEMINI_API_KEY or genai is None:
+            api_key = settings.GEMINI_API_KEY if hasattr(settings, "GEMINI_API_KEY") and settings.GEMINI_API_KEY else "AQ.Ab8RN6Kd9HoU-3YA2zqXngcI24DFbBF_svgySXxRMxo6zs0w7A"
+            if not api_key or genai is None:
                 logger.warning("Gemini SDK not configured or API key empty. Using Mock data.")
                 return cls._get_mock_spaces(filename)
                 
-            client = genai.Client(api_key=settings.GEMINI_API_KEY)
+            client = genai.Client(api_key=api_key)
             ext = os.path.splitext(filename)[1].lower()
             
-            # 1. Processing JPG/PNG
+            # 1. Processing JPG/PNG (Rule 4: 手繪現場草圖專用護欄 + 客廳/餐廳 2與3 誤判防禦)
             if ext in [".jpg", ".jpeg", ".png"]:
                 pil_image = Image.open(temp_file_path)
                 prompt = get_prompt_rule_4()
                 result = cls._call_gemini_structured(client, pil_image, prompt)
-                
-                # Apply legacy logic adjustments for JPG
                 return cls._apply_jpg_adjustments(result)
                 
-            # 2. Processing PDF
+            # 2. Processing PDF (Rule 1/2/3: CAD/XChange 註解/手寫雙軌分析)
             elif ext == ".pdf":
                 if convert_from_path is None or pdfplumber is None:
-                    logger.warning("pdf2image or pdfplumber is not installed. Falling back to simple image extraction.")
-                    return cls._get_mock_spaces(filename)
+                    logger.warning("pdf2image or pdfplumber is not installed.")
+                    return []
                     
-                # Convert first page to image
-                poppler_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "utils", "poppler", "bin")
-                if not os.path.exists(poppler_path):
-                    poppler_path = None # Rely on system environment
+                poppler_candidates = [
+                    r"C:\Users\flitt\OneDrive\桌面\floorplan_test\utils\poppler\bin",
+                    os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "utils", "poppler", "bin"),
+                    os.path.join(os.getcwd(), "utils", "poppler", "bin")
+                ]
+                poppler_path = None
+                for p in poppler_candidates:
+                    if os.path.exists(p):
+                        poppler_path = p
+                        break
                     
                 try:
                     images = convert_from_path(temp_file_path, first_page=1, last_page=1, dpi=300, poppler_path=poppler_path)
                     pil_image = images[0]
                 except Exception as ex:
                     logger.error(f"pdf2image conversion failed: {ex}")
-                    return cls._get_mock_spaces(filename)
+                    # Try fallback using convert_from_bytes
+                    try:
+                        from pdf2image import convert_from_bytes
+                        images = convert_from_bytes(file_content, dpi=300, poppler_path=poppler_path)
+                        pil_image = images[0]
+                    except Exception as ex2:
+                        logger.error(f"pdf2image fallback conversion failed: {ex2}")
+                        return []
                     
-                # Extract text and XChange hints
                 text_stream = ""
                 xchange_hints = []
                 try:
@@ -170,7 +181,7 @@ class GeminiService:
                 except Exception as ex:
                     logger.warning(f"pdfplumber extraction failed: {ex}")
                     
-                # Determine strategy and prompt
+                # 🎯 VV17 智慧策略選擇器：動態切換 Rule 1, Rule 2 或 Rule 3 Prompt
                 if xchange_hints:
                     prompt = get_prompt_rule_2(text_stream, "\n".join(xchange_hints), filename)
                 elif len(text_stream.strip()) > 30:
@@ -183,22 +194,24 @@ class GeminiService:
                 
             else:
                 logger.error(f"Unsupported file extension: {ext}")
-                return cls._get_mock_spaces(filename)
+                return []
                 
         except Exception as e:
             logger.error(f"Failed in analyze_floorplan: {e}")
-            return cls._get_mock_spaces(filename)
+            import traceback
+            logger.error(traceback.format_exc())
+            return []
         finally:
             if os.path.exists(temp_file_path):
                 try:
                     os.remove(temp_file_path)
-                except:
+                except Exception:
                     pass
 
     @classmethod
     def _call_gemini_structured(cls, client: Any, image: Image.Image, prompt: str, max_retries: int = 3) -> List[Dict[str, Any]]:
         """
-        Calls Gemini using structured schemas.
+        Calls Gemini 2.5 Flash using structured output schema.
         """
         for attempt in range(max_retries):
             try:
@@ -212,11 +225,9 @@ class GeminiService:
                     ),
                 )
                 
-                # Parse output
                 data = json.loads(response.text)
                 spaces = data.get("project_spaces", [])
                 
-                # Convert Pydantic fields to dict
                 result = []
                 for s in spaces:
                     result.append({
@@ -226,6 +237,7 @@ class GeminiService:
                         "unit": s.get("unit", "m2"),
                         "center_x": float(s.get("center_x", 0.5)),
                         "center_y": float(s.get("center_y", 0.5)),
+                        "box_2d": s.get("box_2d", []),
                     })
                 return result
                 
