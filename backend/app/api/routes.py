@@ -476,3 +476,44 @@ async def export_excel(payload: ExportRequest):
         print("[Backend Error] Excel export failed traceback:")
         print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"底稿寫入失敗：{str(e)}")
+
+
+class SplitSpaceRequest(BaseModel):
+    space: Dict[str, Any]
+    p1: List[float]
+    p2: List[float]
+
+# 🎯 4. Anti-Gravity 互動校正介面 API (開放空間劃線分割)
+@router.post("/split-space")
+async def split_space_endpoint(payload: SplitSpaceRequest):
+    try:
+        from app.services.cv_segmentation_service import CVSegmentationService
+        p1_tuple = (payload.p1[0], payload.p1[1]) if len(payload.p1) >= 2 else (0.0, 0.0)
+        p2_tuple = (payload.p2[0], payload.p2[1]) if len(payload.p2) >= 2 else (100.0, 100.0)
+        
+        split_results = CVSegmentationService.split_space_by_line(payload.space, p1_tuple, p2_tuple)
+        
+        final_spaces = []
+        for sp in split_results:
+            area_m2 = sp.get("area_m2", 0.0)
+            area_ping = round(area_m2 * 0.3025, 2)
+            space_name = sp.get("name", "開放空間")
+            
+            base_load, _ = get_base_load_by_name(space_name)
+            total_load_kcal = round(area_ping * base_load, 1)
+            total_load_kw = total_load_kcal / 860.0
+            
+            model, qty, cap_kw = auto_select_equipment_v15_backend(total_load_kw, "VRV")
+            
+            sp["ping"] = area_ping
+            sp["base_suggested_load"] = base_load
+            sp["final_kcal_per_ping"] = base_load
+            sp["total_cooling_load_kcal"] = total_load_kcal
+            sp["recommended_model"] = model
+            sp["qty"] = qty
+            sp["cap_kw"] = cap_kw
+            final_spaces.append(sp)
+            
+        return {"status": "success", "spaces": final_spaces}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"開放空間分割失敗：{str(e)}")

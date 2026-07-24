@@ -101,6 +101,38 @@ function App() {
     }
   };
 
+  const handleSplitSpace = async (rowIndex) => {
+    const targetSpace = rows[rowIndex];
+    if (!targetSpace) return;
+    
+    toast.info(`✂️ 正在對「${targetSpace.name}」執行開放空間自動劃線切割...`);
+    try {
+      const res = await fetch('/api/split-space', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          space: targetSpace,
+          p1: [10, 10],
+          p2: [90, 90]
+        })
+      });
+      const data = await res.json();
+      if (data.status === 'success' && data.spaces) {
+        const newRows = [...rows];
+        newRows.splice(rowIndex, 1, ...data.spaces.map(s => ({
+          ...s,
+          selected: true,
+          calc_basis: targetSpace.calc_basis || "VRV",
+          modifiers: []
+        })));
+        setRows(newRows);
+        toast.success(`✂️ 已將「${targetSpace.name}」精準切割為 2 個獨立空調區域！`);
+      }
+    } catch (err) {
+      toast.error(`分割失敗：${err.message}`);
+    }
+  };
+
   const [file, setFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [rows, setRows] = useState([]);
@@ -720,9 +752,29 @@ function App() {
                       <td style={{ ...styles.td, fontWeight: 'bold', color: '#34d399' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
                           <span>{row.space_name}</span>
-                          <div style={{ display: 'flex', gap: '3px', fontSize: '11px', userSelect: 'none' }}>
-                            <span onClick={() => moveRow(index, 'up')} style={{ cursor: 'pointer', opacity: index === 0 ? 0.2 : 0.8 }} title="上移">🔼</span>
-                            <span onClick={() => moveRow(index, 'down')} style={{ cursor: 'pointer', opacity: index === rows.length - 1 ? 0.2 : 0.8 }} title="下移">🔽</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            {(row.area_m2 >= 75 || (row.space_name && (row.space_name.includes('客餐廳') || row.space_name.includes('開放')))) && (
+                              <button
+                                onClick={() => handleSplitSpace(index)}
+                                title="此為大型開放空間，點擊滑鼠劃線分割為獨立區域"
+                                style={{
+                                  backgroundColor: '#b45309',
+                                  color: '#fef3c7',
+                                  border: '1px solid #f59e0b',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  fontSize: '11px',
+                                  cursor: 'pointer',
+                                  fontWeight: 'bold'
+                                }}
+                              >
+                                ✂️ 分割
+                              </button>
+                            )}
+                            <div style={{ display: 'flex', gap: '3px', fontSize: '11px', userSelect: 'none' }}>
+                              <span onClick={() => moveRow(index, 'up')} style={{ cursor: 'pointer', opacity: index === 0 ? 0.2 : 0.8 }} title="上移">🔼</span>
+                              <span onClick={() => moveRow(index, 'down')} style={{ cursor: 'pointer', opacity: index === rows.length - 1 ? 0.2 : 0.8 }} title="下移">🔽</span>
+                            </div>
                           </div>
                         </div>
                       </td>
