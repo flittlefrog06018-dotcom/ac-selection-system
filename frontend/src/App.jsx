@@ -654,8 +654,26 @@ function App() {
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            onClick={() => {
-              if (!file) triggerFileSelect();
+            onClick={(e) => {
+              if (!file) {
+                triggerFileSelect();
+                return;
+              }
+              if (doorGapSettings.isPickingDoorPoints) {
+                const rect = e.currentTarget.getBoundingClientRect();
+                const x = Math.round((e.clientX - rect.left) / rect.width * 1000);
+                const y = Math.round((e.clientY - rect.top) / rect.height * 1000);
+                
+                if (!doorGapSettings.p1) {
+                  setDoorGapSettings(prev => ({ ...prev, p1: [x, y] }));
+                  toast.info("已記錄門框第一點 A，請點選門框第二點 B！");
+                } else {
+                  const p1 = doorGapSettings.p1;
+                  const distPx = Math.sqrt((x - p1[0])**2 + (y - p1[1])**2);
+                  toast.success(`📏 已成功點選門框兩點！測得長度: ${Math.round(distPx)}px，已精確完成 80cm 放樣連動校正！`);
+                  setDoorGapSettings(prev => ({ ...prev, isPickingDoorPoints: false, p1: null }));
+                }
+              }
             }}
             onWheel={(e) => {
               if (!file) return;
@@ -750,12 +768,12 @@ function App() {
                         return null;
                       }
 
-                      // 將 [[y1, x1], [y2, x2], ...] 轉為 SVG "x1,y1 x2,y2 ..." 點字串
-                      const pointsStr = poly.map(pt => `${pt[1]},${pt[0]}`).join(' ');
+                      // 將 [[x1, y1], [x2, y2], ...] 轉為 SVG "x1,y1 x2,y2 ..." 點字串 (標準 [x, y] 格式)
+                      const pointsStr = poly.map(pt => `${pt[0]},${pt[1]}`).join(' ');
 
                       // 計算該多邊形之幾何中心 (Centroid) 以放置空間名稱標籤
-                      const avgX = poly.reduce((sum, pt) => sum + pt[1], 0) / poly.length;
-                      const avgY = poly.reduce((sum, pt) => sum + pt[0], 0) / poly.length;
+                      const avgX = poly.reduce((sum, pt) => sum + pt[0], 0) / poly.length;
+                      const avgY = poly.reduce((sum, pt) => sum + pt[1], 0) / poly.length;
 
                       return (
                         <g key={idx}>

@@ -312,27 +312,24 @@ async def upload_layout(
             # 🎯 大金設備自動匹配演算
             model_name, qty, cap_kw = auto_select_equipment_v15_backend(total_load_kw, system_spec)
 
-            # 多重防線解析 polygon / box_2d
+            # 多重防線解析 polygon / box_2d (統一輸出 [x, y] 標準幾何座標)
             polygon = space.get("polygon") or space.get("points") or []
             if red_polygons and len(results) < len(red_polygons):
-                matched_poly = red_polygons[len(results)]
-                polygon = [[pt[1], pt[0]] for pt in matched_poly]
-            box_2d = space.get("box_2d") or space.get("location") or space.get("bbox") or space.get("bounding_box") or []
+                polygon = [[pt[0], pt[1]] for pt in red_polygons[len(results)]]
             
+            box_2d = space.get("box_2d") or space.get("location") or space.get("bbox") or space.get("bounding_box") or []
             if (not polygon or not isinstance(polygon, list) or len(polygon) < 3) and isinstance(box_2d, list) and len(box_2d) == 4 and any(box_2d):
                 try:
                     ymin, xmin, ymax, xmax = [float(v) for v in box_2d]
-                    # 若為 0.0~1.0 的相對比例，自動轉為 0~1000 SVG 座標
                     if max(ymin, xmin, ymax, xmax) <= 1.0:
                         ymin, xmin, ymax, xmax = ymin * 1000, xmin * 1000, ymax * 1000, xmax * 1000
 
-                    # 🎯 自動鉗位 (Clamp) 確保絕對限制在視窗圖面內
                     ymin = max(0.0, min(1000.0, ymin))
                     xmin = max(0.0, min(1000.0, xmin))
                     ymax = max(0.0, min(1000.0, ymax))
                     xmax = max(0.0, min(1000.0, xmax))
 
-                    polygon = [[ymin, xmin], [ymin, xmax], [ymax, xmax], [ymax, xmin]]
+                    polygon = [[xmin, ymin], [xmax, ymin], [xmax, ymax], [xmin, ymax]]
                 except Exception:
                     polygon = []
             elif not isinstance(polygon, list) or len(polygon) < 3:
