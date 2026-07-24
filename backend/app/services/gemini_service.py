@@ -258,7 +258,7 @@ class GeminiService:
     @staticmethod
     def _apply_jpg_adjustments(spaces: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
-        Applies specific adjustments from your legacy script for JPG files.
+        Applies clean adjustments without forced unit overrides.
         """
         adjusted_spaces = []
         for s in spaces:
@@ -266,20 +266,6 @@ class GeminiService:
             raw_area = float(s.get("area_raw", 0.0))
             unit = s.get("unit", "m2")
             
-            # Custom matching corrections
-            if "儲藏" in name_str and abs(raw_area - 1.0) <= 0.2:
-                name_str = "更衣間"
-                unit = "P"
-            elif "臥室" in name_str and abs(raw_area - 1.5) <= 0.1:
-                name_str = "客廳"
-                raw_area = 15.0
-                unit = "P"
-            elif "客廳餐廳" in name_str and abs(raw_area - 10.0) <= 0.2:
-                name_str = "餐廳"
-                unit = "P"
-            elif "P" in name_str or "坪" in name_str or (0 < raw_area < 18.0):
-                unit = "P"
-                
             s["space_name"] = name_str
             s["area_raw"] = raw_area
             s["unit"] = unit
