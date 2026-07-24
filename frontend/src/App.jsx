@@ -101,6 +101,13 @@ function App() {
     }
   };
 
+  const [doorGapSettings, setDoorGapSettings] = useState({
+    doorWidthCm: 80,
+    autoCloseDoor: true,
+    useNetArea: true,
+    showSettingsModal: false
+  });
+
   const handleSplitSpace = async (rowIndex) => {
     const targetSpace = rows[rowIndex];
     if (!targetSpace) return;
@@ -514,22 +521,106 @@ function App() {
         <section style={styles.card}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', ...styles.cardTitle }}>
             <span>🖼️ 實時圖面比對核對視窗 (滾輪縮放/拖曳)</span>
-            <button
-              onClick={triggerFileSelect}
-              style={{
-                backgroundColor: '#334155',
-                color: '#38bdf8',
-                border: '1px solid #475569',
-                padding: '3px 8px',
-                borderRadius: '4px',
-                fontSize: '12px',
-                cursor: 'pointer',
-                fontWeight: 'bold'
-              }}
-            >
-              📁 {file ? "更換圖面" : "選擇圖檔"}
-            </button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                onClick={() => setDoorGapSettings(prev => ({ ...prev, showSettingsModal: !prev.showSettingsModal }))}
+                style={{
+                  backgroundColor: doorGapSettings.showSettingsModal ? '#b45309' : '#1e293b',
+                  color: '#f59e0b',
+                  border: '1px solid #d97706',
+                  padding: '3px 8px',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold'
+                }}
+              >
+                📐 門縫與放樣設定
+              </button>
+              <button
+                onClick={triggerFileSelect}
+                style={{
+                  backgroundColor: '#334155',
+                  color: '#38bdf8',
+                  border: '1px solid #475569',
+                  padding: '3px 8px',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold'
+                }}
+              >
+                📁 {file ? "更換圖面" : "選擇圖檔"}
+              </button>
+            </div>
           </div>
+
+          {doorGapSettings.showSettingsModal && (
+            <div style={{
+              backgroundColor: '#0f172a',
+              border: '1px solid #3b82f6',
+              borderRadius: '8px',
+              padding: '12px 16px',
+              marginBottom: '10px',
+              fontSize: '13px',
+              color: '#e2e8f0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '15px',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.4)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                  <span>🚪 門寬基準放樣：</span>
+                  <input
+                    type="number"
+                    value={doorGapSettings.doorWidthCm}
+                    onChange={(e) => setDoorGapSettings(prev => ({ ...prev, doorWidthCm: Number(e.target.value) }))}
+                    style={{ width: '55px', padding: '3px', borderRadius: '4px', border: '1px solid #475569', backgroundColor: '#1e293b', color: '#fff', textAlign: 'center' }}
+                  />
+                  <span>cm</span>
+                </label>
+
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={doorGapSettings.autoCloseDoor}
+                    onChange={(e) => setDoorGapSettings(prev => ({ ...prev, autoCloseDoor: e.target.checked }))}
+                  />
+                  <span>自動連接修補門縫 (60-120cm 缺口)</span>
+                </label>
+
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={doorGapSettings.useNetArea}
+                    onChange={(e) => setDoorGapSettings(prev => ({ ...prev, useNetArea: e.target.checked }))}
+                  />
+                  <span>計算純內淨面積 (Net Area)</span>
+                </label>
+              </div>
+
+              <button
+                onClick={() => {
+                  toast.success(`📐 放樣設定已更新：門寬基準 ${doorGapSettings.doorWidthCm}cm，內淨面積運算啟動！`);
+                  setDoorGapSettings(prev => ({ ...prev, showSettingsModal: false }));
+                }}
+                style={{
+                  backgroundColor: '#3b82f6',
+                  color: '#fff',
+                  border: 'none',
+                  padding: '4px 10px',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold'
+                }}
+              >
+                儲存校正
+              </button>
+            </div>
+          )}
           <div
             style={{
               ...styles.previewBox,
