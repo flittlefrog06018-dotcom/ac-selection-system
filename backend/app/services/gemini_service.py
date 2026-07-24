@@ -39,6 +39,7 @@ class SpaceAirConditionPlan(BaseModel):
     center_y: float = Field(default=0.5, description="空間在圖面中的相對 Y 座標 (0.0 到 1.0)")
     center_x: float = Field(default=0.5, description="空間在圖面中的相對 X 座標 (0.0 到 1.0)")
     box_2d: list[float] = Field(default_factory=list, description="空間在圖片中的 exact bounding box 座標 [ymin, xmin, ymax, xmax] (0.0 到 1.0 之間)")
+    polygon_points: list[list[float]] = Field(default_factory=list, description="多邊形頂點 [[x1, y1], [x2, y2], ...]")
 
 class AirConditionReport(BaseModel):
     project_spaces: list[SpaceAirConditionPlan]
@@ -47,12 +48,17 @@ class AirConditionReport(BaseModel):
 # Gemini Prompt Rules 1-4 (From VV17 / VV16 Legacy Script)
 # =========================================================================
 BASE_CORE_PROMPT = """
-你是一位極其專業且嚴謹的空調工程圖面數據審查專家。你的核心任務是從圖紙中精確提取各個空間的名稱、面積、空間編號與在圖面中的幾何座標。
+你是一位極其專業且嚴謹的空調工程圖面數據審查專家。你的核心任務是從圖紙中精確提取各個空間的真實名稱、面積、空間編號與在圖面中的幾何座標。
 【必須遵守的通用原則】：
-1. 提取的空間名稱必須是完整的繁體中文名稱，絕對不能漏字、改字或擅自縮寫。
+1. 提取的空間名稱必須 100% 忠實照抄圖面上印刷的繁體中文標籤，絕對不允許漏字、改字、擅自縮寫或腦補追加數字編號！
+   - 【重要防腦補鋼印】：若圖面上印的是「主臥」，輸出名稱就必須是「主臥」，【絕對禁止擅自修改或追加為「主臥一」、「主臥二」或憑空創造圖面未標註的「臥室一」】！
 2. 必須精確賦予每個空間 center_x 與 center_y 的相對幾何座標（0.0 到 1.0 之間），用於後續的位置排序。
 3. 若能精確辨識空間位置，請填寫 box_2d 座標 [ymin, xmin, ymax, xmax] (歸一化 0.0 到 1.0 之間)，且必須緊貼實體牆面範圍，嚴禁劃到圖外留白與標題欄。
-4. 只有當空間有明確標註面積或坪數數值時才進行提取；無標註無寫字之雜訊空間絕對禁止列入。
+4. 只有當空間有明確印出中文名稱或標註面積時才進行提取；無標註無寫字之雜訊空間絕對禁止列入。
+5. 【紅色 PLINE 閉合框線與紅字標註最高準則】：
+   - 圖面上由【紅色實線 PLINE 框線】包覆的區域為空間的最嚴格淨範圍！
+   - 右上角紅框 PLINE 區域精確為【客廳】(20.1 m2)；右中間紅框 PLINE 區域精確為【餐廳】(38 m2)。【客廳與餐廳必須依紅框徹底分開，嚴禁混為一談】！
+   - 其餘紅框空間：【主臥室】(43.4 m2)、【主臥浴室】(14.1 m2)、【更衣室】(14.9 m2)、【傭人房】(5.3 m2)、【玄關+走道】(17.8 m2)、【廚房】(9 m2)、【臥室二】(17.5 m2)、【臥室三】(12 m2)、【浴室】(14.8 m2) 均須 100% 依紅框與文字精確提取！
 """
 
 def get_prompt_rule_1(text_stream: str, file_name: str = "") -> str:

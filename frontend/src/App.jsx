@@ -599,6 +599,25 @@ function App() {
                   />
                   <span>計算純內淨面積 (Net Area)</span>
                 </label>
+
+                <button
+                  onClick={() => {
+                    toast.info("📏 請在下方圖面上點選標準單開門 (80cm) 的左右兩端點以精確放樣！");
+                    setDoorGapSettings(prev => ({ ...prev, isPickingDoorPoints: true }));
+                  }}
+                  style={{
+                    backgroundColor: '#10b981',
+                    color: '#fff',
+                    border: 'none',
+                    padding: '3px 8px',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  📏 圖面上點選指定門寬
+                </button>
               </div>
 
               <button

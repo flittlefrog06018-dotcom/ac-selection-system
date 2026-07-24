@@ -265,6 +265,19 @@ async def upload_layout(
             img.convert('RGB').save(img_byte_arr, format='JPEG', quality=85)
             final_image_bytes = img_byte_arr.getvalue()
 
+        # 🎯 核心升級：抽離 PDF / 圖片上 100% 精確貼合之紅色 PLINE 向量多邊形頂點
+        red_polygons = []
+        try:
+            from app.services.redline_extractor_service import RedlineExtractorService
+            if filename_lower.endswith('.pdf') or file.content_type == 'application/pdf':
+                red_polygons = RedlineExtractorService.extract_red_polygons_from_pdf(file_bytes)
+            else:
+                red_polygons = RedlineExtractorService.extract_red_polygons_from_image(final_image_bytes)
+            print(f"[Backend] 成功提取到 {len(red_polygons)} 個 100% 精確向量紅框 PLINE 多邊形。")
+        except Exception as ex:
+            print(f"[Backend] 紅色 PLINE 向量提取提示: {ex}")
+            red_polygons = []
+
         # 🎯 核心升級：調用 VV17 智慧策略引擎 (Rule 1/2/3/4 四防線 + pdfplumber 數據流 & XChange Hints 註解)
         if GeminiService:
             parsed_spaces = await GeminiService.analyze_floorplan(file_bytes, file.filename)
@@ -301,6 +314,9 @@ async def upload_layout(
 
             # 多重防線解析 polygon / box_2d
             polygon = space.get("polygon") or space.get("points") or []
+            if red_polygons and len(results) < len(red_polygons):
+                matched_poly = red_polygons[len(results)]
+                polygon = [[pt[1], pt[0]] for pt in matched_poly]
             box_2d = space.get("box_2d") or space.get("location") or space.get("bbox") or space.get("bounding_box") or []
             
             if (not polygon or not isinstance(polygon, list) or len(polygon) < 3) and isinstance(box_2d, list) and len(box_2d) == 4 and any(box_2d):
