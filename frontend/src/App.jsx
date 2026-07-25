@@ -238,6 +238,10 @@ function App() {
         setPreviewUrl(data.image_preview);
       }
 
+      if (res.data && res.data.preview_url) {
+        setPreviewUrl(res.data.preview_url);
+      }
+
       const normalizedData = spacesList.map(item => {
         const baseKcal = item.base_suggested_load || 500;
         const ping = parseFloat(item.area_ping) || 0;

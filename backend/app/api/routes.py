@@ -278,10 +278,10 @@ async def upload_layout(
             print(f"[Backend] 紅色 PLINE 向量提取提示: {ex}")
             red_polygons = []
 
-        # 🎯 雙軌強大相容：若上傳為原生的 .dxf / CAD 檔，啟用 CADSpaceAnalyzer 算量
+        # 🎯 雙軌強大相容：若上傳為原生的 .dxf / CAD 檔，啟用 CADSpaceAnalyzer 算量與即時繪圖
         if filename_lower.endswith('.dxf'):
             from app.services.vector_segmentation_service import VectorSegmentationService
-            dxf_spaces = VectorSegmentationService.process_dxf(file_bytes)
+            dxf_spaces, preview_base64 = VectorSegmentationService.process_dxf(file_bytes)
             
             results = []
             for s in dxf_spaces:
@@ -311,7 +311,7 @@ async def upload_layout(
                     "calc_basis": "VRV",
                     "modifiers": []
                 })
-            return {"status": "success", "spaces": results}
+            return {"status": "success", "spaces": results, "preview_url": preview_base64}
 
         # 🎯 核心升級：調用 VV17 智慧策略引擎 (Rule 1/2/3/4 四防線 + pdfplumber 數據流 & XChange Hints 註解)
         if GeminiService:

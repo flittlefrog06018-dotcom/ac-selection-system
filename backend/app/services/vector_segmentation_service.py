@@ -1,5 +1,6 @@
 import io
 import math
+import base64
 from typing import List, Tuple, Dict, Any
 import ezdxf
 from shapely.geometry import LineString, Polygon, Point
@@ -11,6 +12,7 @@ class CADSpaceAnalyzer:
     1. 提取 DXF 中的牆圖層 (WALL, 牆, 隔牆, A-WALL) 與門圖層 (DOOR, 門, A-DOOR)
     2. 自動補齊門縫線 (Virtual Thresholds)，使牆體形成完全閉合區域
     3. 拓撲幾何組合 (unary_union + polygonize) 求解內淨空間面積 (Net Area m² 與 坪數)
+    4. 即時繪製 Base64 高解析度圖面預覽 PNG 供前端展示
     """
 
     def __init__(self, dxf_bytes: bytes = None, dxf_path: str = None):
@@ -49,7 +51,6 @@ class CADSpaceAnalyzer:
         """
         found_wall = False
         
-        # 策略 1：先嘗試按關鍵字搜尋圖層
         for entity in self.msp:
             if entity.dxftype() in ['LINE', 'LWPOLYLINE', 'POLYLINE']:
                 layer = str(entity.dxf.layer).upper()
@@ -61,7 +62,6 @@ class CADSpaceAnalyzer:
                 elif any(d in layer for d in door_layer_names):
                     self.door_lines.extend(lines)
 
-        # 策略 2 (防呆 Fallback)：如果圖層名稱完全沒對上 (如全放在 Layer 0)，啟動全圖線段自動抓取
         if not found_wall:
             print("[Backend DXF] ⚠️ 未匹配到標準 WALL 圖層名稱，啟動『全圖線段連通性防呆抓取』模式...")
             for entity in self.msp:
@@ -90,7 +90,6 @@ class CADSpaceAnalyzer:
         all_boundaries = unary_union(self.wall_lines + virtual_thresholds)
         polygons = list(polygonize(all_boundaries))
 
-        # 計算樓層 bounds 以歸一化座標 (0~1000)
         total_bounds = all_boundaries.bounds if all_boundaries else (0, 0, 1000, 1000)
         minx, miny, maxx, maxy = total_bounds
         dx = (maxx - minx) if (maxx - minx) > 0 else 1.0
@@ -98,14 +97,12 @@ class CADSpaceAnalyzer:
 
         spaces = []
         for idx, poly in enumerate(polygons):
-            # 假設 DXF 單位為 mm，計算 m² 與 坪數
             area_m2 = poly.area / 1000000.0 if poly.area > 10000 else poly.area
             
             if area_m2 >= 1.5:  # 過濾碎片
                 ping = round(area_m2 * 0.3025, 2)
                 centroid = poly.centroid
 
-                # 歸一化 0~1000 幾何多邊形頂點點陣
                 ext_coords = list(poly.exterior.coords)
                 norm_polygon = []
                 for pt in ext_coords:
@@ -116,8 +113,8 @@ class CADSpaceAnalyzer:
                 spaces.append({
                     "id": f"空間_{idx+1}",
                     "space_name": f"淨空間_{idx+1}",
-                    "polygon": poly,  # Shapely 物件
-                    "norm_polygon": norm_polygon,  # [[x,y], ...]
+                    "polygon": poly,
+                    "norm_polygon": norm_polygon,
                     "area_m2": round(area_m2, 2),
                     "area_ping": ping,
                     "centroid_m": [centroid.x, centroid.y],
@@ -126,13 +123,48 @@ class CADSpaceAnalyzer:
 
         return spaces
 
+    def render_to_png_base64(self, virtual_thresholds: List[LineString]) -> str:
+        """
+        4. 即時將 CAD DXF 向量渲染為高畫質 Base64 PNG 供網頁畫布 100% 顯示
+        """
+        import matplotlib
+        matplotlib.use('Agg')
+        import matplotlib.pyplot as plt
+
+        fig, ax = plt.subplots(figsize=(10, 8), dpi=150)
+        fig.patch.set_facecolor('#020617')
+        ax.set_facecolor('#020617')
+
+        # 繪製牆線 (亮灰線)
+        for line in self.wall_lines:
+            x, y = line.xy
+            ax.plot(x, y, color='#cbd5e1', linewidth=1.2)
+
+        # 繪製補門線 (藍綠虛線)
+        for v_line in virtual_thresholds:
+            x, y = v_line.xy
+            ax.plot(x, y, color='#38bdf8', linestyle='--', linewidth=1.5)
+
+        ax.axis('equal')
+        ax.axis('off')
+
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png', bbox_inches='tight', pad_inches=0.05, facecolor=fig.get_facecolor())
+        plt.close(fig)
+
+        buf.seek(0)
+        base64_str = base64.b64encode(buf.read()).decode('utf-8')
+        return f"data:image/png;base64,{base64_str}"
+
 class VectorSegmentationService:
     """
-    高階整合 API 包裝器
+    高階整合 API 包裝器 (包含 DXF 數據計算與繪圖預覽 Base64 產生)
     """
     @staticmethod
-    def process_dxf(dxf_bytes: bytes) -> List[Dict[str, Any]]:
+    def process_dxf(dxf_bytes: bytes) -> Tuple[List[Dict[str, Any]], str]:
         analyzer = CADSpaceAnalyzer(dxf_bytes=dxf_bytes)
         analyzer.extract_elements()
         virtual_lines = analyzer.auto_seal_doors(max_door_width=1200)
-        return analyzer.compute_net_spaces(virtual_lines)
+        spaces = analyzer.compute_net_spaces(virtual_lines)
+        preview_base64 = analyzer.render_to_png_base64(virtual_lines)
+        return spaces, preview_base64
