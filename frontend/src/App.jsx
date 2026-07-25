@@ -652,7 +652,7 @@ function App() {
           <div
             style={{
               ...styles.previewBox,
-              cursor: file ? (isDragging ? 'grabbing' : 'grab') : 'pointer',
+              cursor: doorGapSettings.isPickingDoorPoints ? 'crosshair' : (file ? (isDragging ? 'grabbing' : 'grab') : 'pointer'),
               position: 'relative',
               borderColor: isDragOver ? '#34d399' : (file ? '#475569' : '#3b82f6'),
               borderStyle: isDragOver || !file ? 'dashed' : 'solid',
@@ -675,12 +675,18 @@ function App() {
                 
                 if (!doorGapSettings.p1) {
                   setDoorGapSettings(prev => ({ ...prev, p1: [x, y] }));
-                  toast.info("已記錄門框第一點 A，請點選門框第二點 B！");
+                  toast.info("已成功記錄門框第一點 A！請點選門框第二點 B！");
                 } else {
                   const p1 = doorGapSettings.p1;
+                  const p2 = [x, y];
                   const distPx = Math.sqrt((x - p1[0])**2 + (y - p1[1])**2);
-                  toast.success(`📏 已成功點選門框兩點！測得長度: ${Math.round(distPx)}px，已精確完成 80cm 放樣連動校正！`);
-                  setDoorGapSettings(prev => ({ ...prev, isPickingDoorPoints: false, p1: null }));
+                  toast.success(`📏 已成功點選門框兩點！測得長度: ${Math.round(distPx)}px，放樣基準連線已即時繪製於圖面！`);
+                  setDoorGapSettings(prev => ({
+                    ...prev,
+                    isPickingDoorPoints: false,
+                    p1: null,
+                    pickedLine: { p1, p2, distPx: Math.round(distPx) }
+                  }));
                 }
               }
             }}
@@ -821,6 +827,50 @@ function App() {
                         </g>
                       );
                     })}
+                    {/* 📏 即時渲染使用者點選之門框放樣連線 (Calibration Line) */}
+                    {doorGapSettings.p1 && (
+                      <g key="door_p1_indicator">
+                        <circle cx={doorGapSettings.p1[0]} cy={doorGapSettings.p1[1]} r="12" fill="#f59e0b" stroke="#ffffff" strokeWidth="3" />
+                        <text x={doorGapSettings.p1[0] + 16} y={doorGapSettings.p1[1] + 5} fill="#f59e0b" fontSize="16" fontWeight="bold">點 A (門框端點)</text>
+                      </g>
+                    )}
+
+                    {doorGapSettings.pickedLine && (
+                      <g key="door_calib_line">
+                        <line
+                          x1={doorGapSettings.pickedLine.p1[0]}
+                          y1={doorGapSettings.pickedLine.p1[1]}
+                          x2={doorGapSettings.pickedLine.p2[0]}
+                          y2={doorGapSettings.pickedLine.p2[1]}
+                          stroke="#10b981"
+                          strokeWidth="6"
+                          strokeDasharray="4 2"
+                        />
+                        <circle cx={doorGapSettings.pickedLine.p1[0]} cy={doorGapSettings.pickedLine.p1[1]} r="8" fill="#10b981" stroke="#ffffff" strokeWidth="2" />
+                        <circle cx={doorGapSettings.pickedLine.p2[0]} cy={doorGapSettings.pickedLine.p2[1]} r="8" fill="#10b981" stroke="#ffffff" strokeWidth="2" />
+                        <foreignObject
+                          x={(doorGapSettings.pickedLine.p1[0] + doorGapSettings.pickedLine.p2[0])/2 - 75}
+                          y={(doorGapSettings.pickedLine.p1[1] + doorGapSettings.pickedLine.p2[1])/2 - 15}
+                          width="150"
+                          height="30"
+                          style={{ overflow: 'visible' }}
+                        >
+                          <div style={{
+                            backgroundColor: '#10b981',
+                            color: '#020617',
+                            fontWeight: 'bold',
+                            fontSize: '11px',
+                            padding: '3px 8px',
+                            borderRadius: '12px',
+                            textAlign: 'center',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.6)',
+                            border: '1px solid #ffffff'
+                          }}>
+                            📏 基準門寬 (80cm)
+                          </div>
+                        </foreignObject>
+                      </g>
+                    )}
                   </svg>
                 )}
               </div>
