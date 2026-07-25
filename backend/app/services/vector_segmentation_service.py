@@ -26,34 +26,48 @@ class CADSpaceAnalyzer:
         self.wall_lines: List[LineString] = []
         self.door_lines: List[LineString] = []
 
+    def _entity_to_linestrings(self, entity: Any) -> List[LineString]:
+        lines = []
+        try:
+            if entity.dxftype() == 'LINE':
+                lines.append(LineString([entity.dxf.start[:2], entity.dxf.end[:2]]))
+            elif entity.dxftype() in ['LWPOLYLINE', 'POLYLINE']:
+                points = [p[:2] for p in entity.get_points()]
+                if len(points) >= 2:
+                    lines.append(LineString(points))
+        except Exception:
+            pass
+        return lines
+
     def extract_elements(
         self,
-        wall_layer_names: List[str] = ['WALL', '牆', '隔牆', 'A-WALL'],
-        door_layer_names: List[str] = ['DOOR', '門', 'A-DOOR']
+        wall_layer_names: List[str] = ['WALL', '牆', '隔牆', 'A-WALL', 'WALLS'],
+        door_layer_names: List[str] = ['DOOR', '門', 'A-DOOR', 'DOORS']
     ):
         """
-        1. 提取 DXF 圖檔中的牆線與門線
+        1. 兼顧圖層辨識與全圖防呆抓取的二階段線段提取邏輯 (Robust Layer Filtering)
         """
+        found_wall = False
+        
+        # 策略 1：先嘗試按關鍵字搜尋圖層
         for entity in self.msp:
             if entity.dxftype() in ['LINE', 'LWPOLYLINE', 'POLYLINE']:
                 layer = str(entity.dxf.layer).upper()
+                lines = self._entity_to_linestrings(entity)
                 
-                lines = []
-                if entity.dxftype() == 'LINE':
-                    lines.append(LineString([entity.dxf.start[:2], entity.dxf.end[:2]]))
-                else:  # LWPOLYLINE / POLYLINE
-                    points = [p[:2] for p in entity.get_points()]
-                    if len(points) >= 2:
-                        lines.append(LineString(points))
+                if any(w in layer for w in wall_layer_names):
+                    self.wall_lines.extend(lines)
+                    found_wall = True
+                elif any(d in layer for d in door_layer_names):
+                    self.door_lines.extend(lines)
 
-                for line in lines:
-                    if any(w in layer for w in wall_layer_names):
-                        self.wall_lines.append(line)
-                    elif any(d in layer for d in door_layer_names):
-                        self.door_lines.append(line)
-                    else:
-                        # 預設將未分類之結構線視為潛在牆線
-                        self.wall_lines.append(line)
+        # 策略 2 (防呆 Fallback)：如果圖層名稱完全沒對上 (如全放在 Layer 0)，啟動全圖線段自動抓取
+        if not found_wall:
+            print("[Backend DXF] ⚠️ 未匹配到標準 WALL 圖層名稱，啟動『全圖線段連通性防呆抓取』模式...")
+            for entity in self.msp:
+                if entity.dxftype() in ['LINE', 'LWPOLYLINE', 'POLYLINE']:
+                    lines = self._entity_to_linestrings(entity)
+                    self.wall_lines.extend(lines)
 
     def auto_seal_doors(self, max_door_width: float = 1200.0) -> List[LineString]:
         """
