@@ -153,6 +153,7 @@ function App() {
   const [isDragOver, setIsDragOver] = useState(false);
 
   const fileInputRef = useRef(null);
+  const imgContainerRef = useRef(null);
 
   const processFile = (selectedFile) => {
     if (selectedFile) {
@@ -669,7 +670,8 @@ function App() {
                 return;
               }
               if (doorGapSettings.isPickingDoorPoints) {
-                const rect = e.currentTarget.getBoundingClientRect();
+                const targetEl = imgContainerRef.current || e.currentTarget;
+                const rect = targetEl.getBoundingClientRect();
                 const x = Math.round((e.clientX - rect.left) / rect.width * 1000);
                 const y = Math.round((e.clientY - rect.top) / rect.height * 1000);
                 
@@ -680,12 +682,13 @@ function App() {
                   const p1 = doorGapSettings.p1;
                   const p2 = [x, y];
                   const distPx = Math.sqrt((x - p1[0])**2 + (y - p1[1])**2);
-                  toast.success(`📏 已成功點選門框兩點！測得長度: ${Math.round(distPx)}px，放樣基準連線已即時繪製於圖面！`);
+                  const doorCm = doorGapSettings.doorWidthCm || 90;
+                  toast.success(`📏 已成功點選門框兩點！測得長度: ${Math.round(distPx)}px，已完成 ${doorCm}cm 精確放樣連動校正！`);
                   setDoorGapSettings(prev => ({
                     ...prev,
                     isPickingDoorPoints: false,
                     p1: null,
-                    pickedLine: { p1, p2, distPx: Math.round(distPx) }
+                    pickedLine: { p1, p2, distPx: Math.round(distPx), doorCm }
                   }));
                 }
               }
@@ -731,6 +734,7 @@ function App() {
 
             {previewUrl ? (
               <div
+                ref={imgContainerRef}
                 style={{
                   position: 'relative',
                   display: 'inline-flex',
@@ -866,7 +870,7 @@ function App() {
                             boxShadow: '0 2px 8px rgba(0,0,0,0.6)',
                             border: '1px solid #ffffff'
                           }}>
-                            📏 基準門寬 (80cm)
+                            📏 基準門寬 ({doorGapSettings.doorWidthCm || 90}cm)
                           </div>
                         </foreignObject>
                       </g>
