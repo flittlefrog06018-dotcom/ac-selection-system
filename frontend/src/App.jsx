@@ -105,6 +105,7 @@ function App() {
     doorWidthCm: 80,
     autoCloseDoor: true,
     useNetArea: true,
+    showOverlay: false,
     showSettingsModal: false
   });
 
@@ -610,6 +611,15 @@ function App() {
                   <span>計算純內淨面積 (Net Area)</span>
                 </label>
 
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={doorGapSettings.showOverlay}
+                    onChange={(e) => setDoorGapSettings(prev => ({ ...prev, showOverlay: e.target.checked }))}
+                  />
+                  <span>顯示空間彩色遮罩 (預設關閉)</span>
+                </label>
+
                 <button
                   onClick={() => {
                     toast.info("📏 請在下方圖面上點選標準單開門 (80cm) 的左右兩端點以精確放樣！");
@@ -778,7 +788,7 @@ function App() {
                     preserveAspectRatio="none"
                   >
                     {rows.map((row, idx) => {
-                      if (!row.selected) return null;
+                      if (!row.selected || !doorGapSettings.showOverlay) return null;
                       const color = OVERLAY_COLORS[idx % OVERLAY_COLORS.length];
                       let poly = row.polygon;
 
