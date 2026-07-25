@@ -13,8 +13,18 @@ class CADSpaceAnalyzer:
 
     def __init__(self, dxf_bytes: bytes = None, dxf_path: str = None):
         if dxf_bytes:
-            text_stream = io.StringIO(dxf_bytes.decode("utf-8", errors="ignore"))
-            self.doc = ezdxf.read(text_stream)
+            # 🎯 極致復原載入器 (ezdxf recover_read)：強化相容含內嵌二進位圖形與特殊標籤之 DXF
+            from ezdxf.recover import read as recover_read
+            try:
+                bytes_stream = io.BytesIO(dxf_bytes)
+                self.doc, _ = recover_read(bytes_stream)
+            except Exception:
+                try:
+                    text_stream = io.StringIO(dxf_bytes.decode("utf-8", errors="ignore"))
+                    self.doc, _ = recover_read(text_stream)
+                except Exception:
+                    text_stream = io.StringIO(dxf_bytes.decode("cp950", errors="ignore"))
+                    self.doc, _ = recover_read(text_stream)
         elif dxf_path:
             self.doc = ezdxf.readfile(dxf_path)
         else:
