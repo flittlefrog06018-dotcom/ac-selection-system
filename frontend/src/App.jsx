@@ -243,8 +243,8 @@ function App() {
         setPreviewUrl(data.image_preview);
       }
 
-      if (res.data && res.data.preview_url) {
-        setPreviewUrl(res.data.preview_url);
+      if (data && data.preview_url) {
+        setPreviewUrl(data.preview_url);
       }
 
       const normalizedData = spacesList.map(item => {
