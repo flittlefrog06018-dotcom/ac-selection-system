@@ -157,7 +157,12 @@ function App() {
   const processFile = (selectedFile) => {
     if (selectedFile) {
       setFile(selectedFile);
-      setPreviewUrl(URL.createObjectURL(selectedFile));
+      if (selectedFile.name.toLowerCase().endswith?.('.dxf') || selectedFile.name.toLowerCase().endsWith('.dxf')) {
+        setPreviewUrl(null);
+        toast.info("📐 已選取 CAD 向量檔 (.dxf)！請點擊 [🚀 執行圖面自動解析] 以繪製全圖並計算空間。");
+      } else {
+        setPreviewUrl(URL.createObjectURL(selectedFile));
+      }
       setScale(1);
       setPosition({ x: 0, y: 0 });
     }
