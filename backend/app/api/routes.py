@@ -256,6 +256,9 @@ async def upload_layout(
             img_byte_arr = io.BytesIO()
             images[0].save(img_byte_arr, format='JPEG')
             final_image_bytes = img_byte_arr.getvalue()
+        elif filename_lower.endswith('.dxf'):
+            # DXF 為純 CAD 向量文字檔，跳過 PIL Image.open
+            final_image_bytes = file_bytes
         else:
             img = Image.open(io.BytesIO(file_bytes))
             max_size = 1600
