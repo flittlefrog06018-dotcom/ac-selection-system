@@ -333,13 +333,13 @@ async def upload_layout(
             raw_area = float(space.get("area_raw") or space.get("area_m2") or space.get("area_ping") or 0.0)
             unit_str = str(space.get("unit") or "m2").strip()
 
-            # 🎯 單位防顛倒護欄：建築圖面數字 (如 14.1, 14.9, 43.4, 20.1, 38) 均為 m² (平方米)
-            # 若 raw_area 標註大於 5.0，必然為 m² 單位，防範模型誤將 m² 認定為 坪
-            if unit_str in ["P", "坪"] and raw_area < 5.0:
+            # 🎯 單位精確匹配：若識別單位為 P 或 坪 (如手寫 10P, 15P, 3P, 1.5P)
+            # 則 raw_area 必然是「坪數」，正確填入 area_ping 並精確換算成 area_m2 (÷ 0.3025)！
+            if unit_str in ["P", "坪", "p"] or "P" in unit_str or "坪" in unit_str:
                 area_ping = round(raw_area, 2)
                 area_m2 = round(area_ping / 0.3025, 2)
             else:
-                # 預設為 m² (平方米)
+                # 識別單位為 m2 或 ㎡ (如 20.1m2, 38m2, 43.4m2)，raw_area 為平方米
                 area_m2 = round(raw_area, 2)
                 area_ping = round(area_m2 * 0.3025, 2)
             
