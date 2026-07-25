@@ -1,121 +1,124 @@
+import io
 import math
 from typing import List, Tuple, Dict, Any
 import ezdxf
-from shapely.geometry import LineString, Polygon, MultiLineString, Point
+from shapely.geometry import LineString, Polygon, Point
 from shapely.ops import polygonize, unary_union
 
-class VectorSegmentationService:
+class CADSpaceAnalyzer:
     """
-    第一階段 CAD/DXF 向量圖資核心演算法：
-    1. 使用 ezdxf 提取向量牆體圖元 (LINE, ARC, LWPOLYLINE)
-    2. 使用 Shapely 自動尋找牆體開口並補齊門縫線 (Door Gap Closure)
-    3. 自動生成閉合多邊形並求解純內淨面積 (Net Area Calculation)
+    精確 DXF/CAD 向量空間分析與門縫自動補強服務 (使用者權威 CAD 演算法)
+    1. 提取 DXF 中的牆圖層 (WALL, 牆, 隔牆, A-WALL) 與門圖層 (DOOR, 門, A-DOOR)
+    2. 自動補齊門縫線 (Virtual Thresholds)，使牆體形成完全閉合區域
+    3. 拓撲幾何組合 (unary_union + polygonize) 求解內淨空間面積 (Net Area m² 與 坪數)
     """
 
-    @staticmethod
-    def extract_lines_from_dxf_bytes(dxf_bytes: bytes) -> List[Tuple[Tuple[float, float], Tuple[float, float]]]:
+    def __init__(self, dxf_bytes: bytes = None, dxf_path: str = None):
+        if dxf_bytes:
+            text_stream = io.StringIO(dxf_bytes.decode("utf-8", errors="ignore"))
+            self.doc = ezdxf.read(text_stream)
+        elif dxf_path:
+            self.doc = ezdxf.readfile(dxf_path)
+        else:
+            raise ValueError("必須提供 dxf_bytes 或 dxf_path")
+
+        self.msp = self.doc.modelspace()
+        self.wall_lines: List[LineString] = []
+        self.door_lines: List[LineString] = []
+
+    def extract_elements(
+        self,
+        wall_layer_names: List[str] = ['WALL', '牆', '隔牆', 'A-WALL'],
+        door_layer_names: List[str] = ['DOOR', '門', 'A-DOOR']
+    ):
         """
-        利用 ezdxf 從 DXF 檔位元流提取所有向量線段 (x1, y1) -> (x2, y2)
+        1. 提取 DXF 圖檔中的牆線與門線
         """
-        import io
-        text_stream = io.StringIO(dxf_bytes.decode("utf-8", errors="ignore"))
-        doc = ezdxf.read(text_stream)
-        msp = doc.modelspace()
-
-        raw_lines = []
-
-        # 1. 提取 LINE
-        for e in msp.query('LINE'):
-            p1 = (e.dxf.start.x, e.dxf.start.y)
-            p2 = (e.dxf.end.x, e.dxf.end.y)
-            raw_lines.append((p1, p2))
-
-        # 2. 提取 LWPOLYLINE 節點
-        for e in msp.query('LWPOLYLINE'):
-            points = list(e.get_points(format='xy'))
-            for i in range(len(points) - 1):
-                raw_lines.append((points[i], points[i+1]))
-            if e.is_closed and len(points) > 2:
-                raw_lines.append((points[-1], points[0]))
-
-        return raw_lines
-
-    @staticmethod
-    def auto_close_door_gaps(
-        lines: List[Tuple[Tuple[float, float], Tuple[float, float]]],
-        min_door_dist: float = 600.0,  # 門寬最小範圍 (mm)
-        max_door_dist: float = 1200.0  # 門寬最大範圍 (mm)
-    ) -> Tuple[List[LineString], List[LineString]]:
-        """
-        利用 Shapely 搜尋牆體懸空端點，自動補齊門縫橋接線段 (Bridge Lines)
-        """
-        shapely_lines = [LineString([p1, p2]) for p1, p2 in lines if p1 != p2]
-        if not shapely_lines:
-            return [], []
-
-        # 收集所有端點
-        endpoints = []
-        for line in shapely_lines:
-            coords = list(line.coords)
-            endpoints.append(Point(coords[0]))
-            endpoints.append(Point(coords[-1]))
-
-        # 自動尋找距離在 60cm ~ 120cm 之間的缺口端點對 (門縫開口)
-        door_bridge_lines = []
-        n = len(endpoints)
-        visited = set()
-
-        for i in range(n):
-            for j in range(i + 1, n):
-                p_i = endpoints[i]
-                p_j = endpoints[j]
-                dist = p_i.distance(p_j)
+        for entity in self.msp:
+            if entity.dxftype() in ['LINE', 'LWPOLYLINE', 'POLYLINE']:
+                layer = str(entity.dxf.layer).upper()
                 
-                # 若端點間距介於標準門寬 (600mm ~ 1200mm)
-                if min_door_dist <= dist <= max_door_dist:
-                    pair_key = tuple(sorted([i, j]))
-                    if pair_key not in visited:
-                        visited.add(pair_key)
-                        bridge = LineString([p_i.coords[0], p_j.coords[0]])
-                        door_bridge_lines.append(bridge)
+                lines = []
+                if entity.dxftype() == 'LINE':
+                    lines.append(LineString([entity.dxf.start[:2], entity.dxf.end[:2]]))
+                else:  # LWPOLYLINE / POLYLINE
+                    points = [p[:2] for p in entity.get_points()]
+                    if len(points) >= 2:
+                        lines.append(LineString(points))
 
-        # 結合原牆體線條與補強門縫線
-        all_lines = shapely_lines + door_bridge_lines
-        return all_lines, door_bridge_lines
+                for line in lines:
+                    if any(w in layer for w in wall_layer_names):
+                        self.wall_lines.append(line)
+                    elif any(d in layer for d in door_layer_names):
+                        self.door_lines.append(line)
+                    else:
+                        # 預設將未分類之結構線視為潛在牆線
+                        self.wall_lines.append(line)
 
-    @staticmethod
-    def calculate_net_areas_from_lines(
-        all_lines: List[LineString],
-        scale_mm_to_m: float = 0.001
-    ) -> List[Dict[str, Any]]:
+    def auto_seal_doors(self, max_door_width: float = 1200.0) -> List[LineString]:
         """
-        使用 Shapely polygonize 自動轉化為閉合區域並計算內淨面積
+        2. 自動補齊門縫 (Virtual Boundary)：取起終點連成門界線
         """
-        if not all_lines:
-            return []
+        virtual_thresholds = []
+        for door in self.door_lines:
+            coords = list(door.coords)
+            if len(coords) >= 2:
+                p1, p2 = coords[0], coords[-1]
+                door_gap = LineString([p1, p2])
+                if door_gap.length <= max_door_width and door_gap.length > 50:
+                    virtual_thresholds.append(door_gap)
+        return virtual_thresholds
 
-        merged_lines = unary_union(all_lines)
-        polygons = list(polygonize(merged_lines))
+    def compute_net_spaces(self, virtual_thresholds: List[LineString]) -> List[Dict[str, Any]]:
+        """
+        3. 拓撲幾何組合 + 尋找內部淨空間 (Net Area)
+        """
+        all_boundaries = unary_union(self.wall_lines + virtual_thresholds)
+        polygons = list(polygonize(all_boundaries))
+
+        # 計算樓層 bounds 以歸一化座標 (0~1000)
+        total_bounds = all_boundaries.bounds if all_boundaries else (0, 0, 1000, 1000)
+        minx, miny, maxx, maxy = total_bounds
+        dx = (maxx - minx) if (maxx - minx) > 0 else 1.0
+        dy = (maxy - miny) if (maxy - miny) > 0 else 1.0
 
         spaces = []
         for idx, poly in enumerate(polygons):
-            # 轉換為公尺與坪數 (預設單位 mm -> m)
-            area_m2 = poly.area * (scale_mm_to_m ** 2)
+            # 假設 DXF 單位為 mm，計算 m² 與 坪數
+            area_m2 = poly.area / 1000000.0 if poly.area > 10000 else poly.area
             
-            # 過濾微小雜訊孔洞 (如 < 1.0 m²)
-            if area_m2 >= 1.0:
+            if area_m2 >= 1.5:  # 過濾碎片
                 ping = round(area_m2 * 0.3025, 2)
-                bounds = poly.bounds
                 centroid = poly.centroid
-                
+
+                # 歸一化 0~1000 幾何多邊形頂點點陣
+                ext_coords = list(poly.exterior.coords)
+                norm_polygon = []
+                for pt in ext_coords:
+                    nx = round((pt[0] - minx) / dx * 1000, 1)
+                    ny = round((pt[1] - miny) / dy * 1000, 1)
+                    norm_polygon.append([nx, ny])
+
                 spaces.append({
-                    "space_id": f"spatial_{idx+1}",
-                    "name": f"淨空間 {idx+1}",
+                    "id": f"空間_{idx+1}",
+                    "space_name": f"淨空間_{idx+1}",
+                    "polygon": poly,  # Shapely 物件
+                    "norm_polygon": norm_polygon,  # [[x,y], ...]
                     "area_m2": round(area_m2, 2),
-                    "ping": ping,
-                    "bounds": [bounds[0], bounds[1], bounds[2], bounds[3]],
-                    "centroid": [centroid.x, centroid.y],
-                    "is_large_space": area_m2 >= 75.0  # 是否需要 Anti-Gravity 劃線切割提示
+                    "area_ping": ping,
+                    "centroid_m": [centroid.x, centroid.y],
+                    "centroid_norm": [round((centroid.x - minx) / dx * 1000, 1), round((centroid.y - miny) / dy * 1000, 1)]
                 })
 
         return spaces
+
+class VectorSegmentationService:
+    """
+    高階整合 API 包裝器
+    """
+    @staticmethod
+    def process_dxf(dxf_bytes: bytes) -> List[Dict[str, Any]]:
+        analyzer = CADSpaceAnalyzer(dxf_bytes=dxf_bytes)
+        analyzer.extract_elements()
+        virtual_lines = analyzer.auto_seal_doors(max_door_width=1200)
+        return analyzer.compute_net_spaces(virtual_lines)

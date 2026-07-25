@@ -278,6 +278,41 @@ async def upload_layout(
             print(f"[Backend] 紅色 PLINE 向量提取提示: {ex}")
             red_polygons = []
 
+        # 🎯 雙軌強大相容：若上傳為原生的 .dxf / CAD 檔，啟用 CADSpaceAnalyzer 算量
+        if filename_lower.endswith('.dxf'):
+            from app.services.vector_segmentation_service import VectorSegmentationService
+            dxf_spaces = VectorSegmentationService.process_dxf(file_bytes)
+            
+            results = []
+            for s in dxf_spaces:
+                name = s["space_name"]
+                area_m2 = s["area_m2"]
+                area_ping = s["area_ping"]
+                polygon = s["norm_polygon"]
+                
+                base_suggested, _ = get_base_load_by_name(name)
+                total_cooling_load_kcal = round(float(area_ping) * base_suggested)
+                total_load_kw = total_cooling_load_kcal / 860.0
+                model_name, qty, cap_kw = auto_select_equipment_v15_backend(total_load_kw, "VRV")
+                
+                results.append({
+                    "space_name": name,
+                    "area_m2": float(area_m2),
+                    "area_ping": float(area_ping),
+                    "system_type": "VRV",
+                    "base_suggested_load": float(base_suggested),
+                    "final_kcal_per_ping": float(base_suggested),
+                    "total_cooling_load_kcal": float(total_cooling_load_kcal),
+                    "recommended_model": model_name,
+                    "qty": int(qty),
+                    "cap_kw": float(cap_kw),
+                    "selected": True,
+                    "polygon": polygon,
+                    "calc_basis": "VRV",
+                    "modifiers": []
+                })
+            return {"status": "success", "spaces": results}
+
         # 🎯 核心升級：調用 VV17 智慧策略引擎 (Rule 1/2/3/4 四防線 + pdfplumber 數據流 & XChange Hints 註解)
         if GeminiService:
             parsed_spaces = await GeminiService.analyze_floorplan(file_bytes, file.filename)

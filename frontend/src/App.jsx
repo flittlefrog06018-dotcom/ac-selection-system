@@ -492,7 +492,7 @@ function App() {
         <input
           type="file"
           ref={fileInputRef}
-          accept="image/*,.pdf"
+          accept="image/*,.pdf,.dxf"
           onChange={handleFileChange}
           style={{ display: 'none' }}
         />
