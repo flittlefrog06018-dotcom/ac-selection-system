@@ -16,5 +16,5 @@ COPY backend/ ./backend/
 
 EXPOSE 8000
 
-# 4. 使用 Production 級 Gunicorn + Uvicorn 啟動並綁定動態 $PORT
-CMD gunicorn -w 2 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:${PORT:-8000} backend.main:app
+# 4. 啟動 FastAPI 服務
+CMD ["python", "backend/main.py"]
