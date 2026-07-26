@@ -26,6 +26,11 @@ app.add_middleware(
 # 統一註冊路由，自帶 /api 前綴
 app.include_router(api_router, prefix="/api")
 
+@app.get("/health")
+@app.get("/ping")
+def health_check():
+    return {"status": "ok"}
+
 # 🎯 Render 部署靜態網頁與單頁面應用 (SPA) 路由掛載
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 if os.path.exists(static_dir):
