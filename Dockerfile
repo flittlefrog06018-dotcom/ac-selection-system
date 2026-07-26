@@ -15,6 +15,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/ ./backend/
 
 EXPOSE 8000
+ENV PORT=8000
+ENV DOCKER=true
 
 # 4. 啟動 FastAPI 服務
 CMD ["python", "backend/main.py"]
