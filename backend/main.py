@@ -1,8 +1,15 @@
 import os
+import sys
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+
+# 🎯 確保即使從根目錄或外層啟動，也能精確找到 app 模組與 service
+backend_dir = os.path.abspath(os.path.dirname(__file__))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
+
 from app.api.routes import router as api_router
 
 app = FastAPI(title="空調選機自動化系統 API")
