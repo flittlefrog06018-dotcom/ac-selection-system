@@ -133,12 +133,26 @@ import difflib
 def load_fuzzy_rules_from_excel():
     rules = []
     try:
-        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-        excel_path = os.path.join(base_dir, "product_database", "空調負荷基準表.xlsx")
-        if not os.path.exists(excel_path):
-            excel_path = os.path.join(base_dir, "backend", "product_database", "空調負荷基準表.xlsx")
+        cur_dir = os.path.dirname(os.path.abspath(__file__))
+        possible_dirs = [
+            os.path.join(cur_dir, "..", "product_database"),
+            os.path.join(cur_dir, "..", "..", "product_database"),
+            os.path.join(cur_dir, "..", "..", "backend", "product_database"),
+            os.path.join(os.getcwd(), "product_database"),
+            os.path.join(os.getcwd(), "backend", "product_database")
+        ]
+        excel_path = None
+        for pdir in possible_dirs:
+            pdir = os.path.abspath(pdir)
+            if os.path.exists(pdir) and os.path.isdir(pdir):
+                for fn in os.listdir(pdir):
+                    if fn.endswith(".xlsx") and not fn.startswith("~$"):
+                        excel_path = os.path.join(pdir, fn)
+                        break
+            if excel_path:
+                break
         
-        if os.path.exists(excel_path):
+        if excel_path and os.path.exists(excel_path):
             wb = openpyxl.load_workbook(excel_path, data_only=True)
             for sheetname in wb.sheetnames:
                 if sheetname == "總表":
