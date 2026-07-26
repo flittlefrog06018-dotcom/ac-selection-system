@@ -11,4 +11,3 @@ frontend/dist/
 .DS_Store
 Thumbs.db
 temp/
-static/

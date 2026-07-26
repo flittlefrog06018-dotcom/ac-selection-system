@@ -3,7 +3,7 @@ services:
     name: ac-selection-system
     env: python
     region: singapore
-    buildCommand: "bash build.sh"
+    buildCommand: "pip install -r backend/requirements.txt"
     startCommand: "cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT"
     envVars:
       - key: PYTHON_VERSION
