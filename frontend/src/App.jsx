@@ -26,6 +26,16 @@ const EQUIPMENT_DB = {
 
 const MODIFIER_VALUES = { 全內周: -0.10, 二面牆: 0.05, 西曬: 0.06, 挑高: 0.04, 頂曬: 0.05 };
 
+// 🎯 半透明 Alpha 0.35 多邊形著色遮罩色系 (符合 Python 原型畫面風格)
+const OVERLAY_COLORS = [
+  { bg: 'rgba(239, 68, 68, 0.35)', border: '#ef4444', badgeBg: '#ef4444', badgeText: '#ffffff' },
+  { bg: 'rgba(59, 130, 246, 0.35)', border: '#3b82f6', badgeBg: '#3b82f6', badgeText: '#ffffff' },
+  { bg: 'rgba(16, 185, 129, 0.35)', border: '#10b981', badgeBg: '#10b981', badgeText: '#ffffff' },
+  { bg: 'rgba(245, 158, 11, 0.35)', border: '#f59e0b', badgeBg: '#f59e0b', badgeText: '#020617' },
+  { bg: 'rgba(168, 85, 247, 0.35)', border: '#a855f7', badgeBg: '#a855f7', badgeText: '#ffffff' },
+  { bg: 'rgba(236, 72, 153, 0.35)', border: '#ec4899', badgeBg: '#ec4899', badgeText: '#ffffff' }
+];
+
 // 🎯 安全配機演算法：改用純陣列遍歷與數學除法，100% 杜絕卡死
 const clientSideSelectEquipment = (totalDemandKcal, systemType) => {
   const totalLoadKw = totalDemandKcal / 860.0;
@@ -78,6 +88,49 @@ const lookupModelCapKw = (modelName) => {
   return matched ? matched.cap : 0.0;
 };
 
+const DYNAMIC_LOAD_RULES = [
+  { keywords: ["辦公室", "辦公", "小辦公", "開放辦公", "洽談", "合約", "會議", "會客", "演講", "休息", "簡報", "作業區", "討論"], load: 630.0 },
+  { keywords: ["董事長", "總經理", "主管", "經理", "執行長", "副總"], load: 550.0 },
+  { keywords: ["茶水", "茶水間", "茶水區"], load: 450.0 },
+  { keywords: ["男廁", "女廁", "殘障廁所", "廁所", "洗手間", "衛浴", "浴室"], load: 350.0 },
+  { keywords: ["吧台", "咖啡", "咖啡區", "酒吧"], load: 700.0 },
+  { keywords: ["前台", "櫃台", "大廳", "接待區"], load: 660.0 },
+  { keywords: ["更衣", "更衣間", "更衣室"], load: 400.0 },
+  { keywords: ["儲藏", "儲藏室", "庫房", "倉庫"], load: 450.0 },
+  { keywords: ["玄關", "走道", "走廊", "通道"], load: 450.0 },
+  { keywords: ["主臥", "主臥室", "套房"], load: 520.0 },
+  { keywords: ["次臥", "女兒房", "小孩房", "客房", "臥室", "臥房", "店鋪"], load: 500.0 },
+  { keywords: ["書房", "閱覽室"], load: 500.0 },
+  { keywords: ["客廳", "起居室"], load: 550.0 },
+  { keywords: ["餐廳", "用餐區", "飯廳"], load: 600.0 },
+  { keywords: ["廚房", "中央廚房"], load: 700.0 },
+  { keywords: ["檔案室", "檔案", "機房", "設備房", "伺服器", "電腦房"], load: 650.0 }
+];
+
+const getFuzzyBaseLoadByName = (spaceName) => {
+  if (!spaceName) return 500.0;
+  const cleanName = spaceName.trim();
+  for (const rule of DYNAMIC_LOAD_RULES) {
+    for (const kw of rule.keywords) {
+      if (cleanName.includes(kw) || kw.includes(cleanName)) {
+        return rule.load;
+      }
+    }
+  }
+  return 500.0;
+};
+
+const calculateShoelaceArea = (pts) => {
+  if (!pts || pts.length < 3) return 0;
+  let area = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const j = (i + 1) % pts.length;
+    area += pts[i][0] * pts[j][1];
+    area -= pts[j][0] * pts[i][1];
+  }
+  return Math.abs(area) / 2.0;
+};
+
 // 🎯 測試存取保護密碼 (預設為 daikin2026，可改為任意密碼或改為 "" 取消密碼)
 const SYSTEM_ACCESS_PASSWORD = "daikin2026";
 
@@ -102,12 +155,81 @@ function App() {
   };
 
   const [doorGapSettings, setDoorGapSettings] = useState({
-    doorWidthCm: 80,
+    doorWidthCm: 90,
     autoCloseDoor: true,
     useNetArea: true,
-    showOverlay: false,
+    showOverlay: true,
     showSettingsModal: false
   });
+
+  const [file, setFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
+
+  const [scale, setScale] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  const fileInputRef = useRef(null);
+  const imgContainerRef = useRef(null);
+  const imgRef = useRef(null);
+  const modalImgRef = useRef(null);
+
+  // 🎯 新增互動繪圖與標定工具模式: 'view', 'scale', 'rect', 'pline'
+  const [drawToolMode, setDrawToolMode] = useState('view');
+  const [isCanvasModalOpen, setIsCanvasModalOpen] = useState(false);
+  const [showHelpGuide, setShowHelpGuide] = useState(true);
+  const [scalePoints, setScalePoints] = useState([]);
+  const [pixelToMeterRatio, setPixelToMeterRatio] = useState(null);
+  const [plinePoints, setPlinePoints] = useState([]);
+  const [rectStart, setRectStart] = useState(null);
+  const [rectCurrent, setRectCurrent] = useState(null);
+  const [isRectDrawing, setIsRectDrawing] = useState(false);
+  const [mousePos, setMousePos] = useState([0, 0]);
+
+  // 🎯 鍵盤快捷鍵處置 (遵照 Python 原型腳本: 'c' 閉合多邊形, 'd' 撤銷, 'm' 切換模式)
+  React.useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) {
+        return;
+      }
+      const key = e.key.toLowerCase();
+      if (key === 'c') {
+        if (drawToolMode === 'pline' && plinePoints.length >= 3) {
+          e.preventDefault();
+          handleFinishPline(plinePoints);
+        }
+      } else if (key === 'd') {
+        if (drawToolMode === 'pline' && plinePoints.length > 0) {
+          e.preventDefault();
+          setPlinePoints(prev => prev.slice(0, -1));
+          toast.info("<- 撤銷上一個 PLine 節點");
+        } else if (rows.length > 0) {
+          e.preventDefault();
+          const last = rows[rows.length - 1];
+          setRows(prev => prev.slice(0, -1));
+          toast.info(`<- 已移除空間區塊: ${last.space_name}`);
+        }
+      } else if (key === 'm') {
+        e.preventDefault();
+        if (drawToolMode === 'rect') {
+          setDrawToolMode('pline');
+          setPlinePoints([]);
+          toast.info("🔄 已切換為：【 PLine 多邊形連續點擊模式 】");
+        } else {
+          setDrawToolMode('rect');
+          toast.info("🔄 已切換為：【 矩形拉框框選模式 】");
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [drawToolMode, plinePoints, rows]);
 
   const handleSplitSpace = async (rowIndex) => {
     const targetSpace = rows[rowIndex];
@@ -141,20 +263,7 @@ function App() {
     }
   };
 
-  const [file, setFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(null);
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [exportLoading, setExportLoading] = useState(false);
 
-  const [scale, setScale] = useState(1);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [isDragOver, setIsDragOver] = useState(false);
-
-  const fileInputRef = useRef(null);
-  const imgContainerRef = useRef(null);
 
   const processFile = (selectedFile) => {
     if (selectedFile) {
@@ -273,6 +382,12 @@ function App() {
 
       setRows(normalizedData);
       toast.success("✨ 圖面 AI 數據解析完成！已套用大金設備比對演算與負荷表基準。");
+
+      // 🎯 需求 3：如果辨識沒有列出圖框範圍的圖檔，自動彈跳大視窗
+      if (normalizedData.length === 0 || normalizedData.every(s => !s.polygon || s.polygon.length < 3)) {
+        setIsCanvasModalOpen(true);
+        toast.info("📐 偵測到圖檔尚未繪製向量圖框，已自動為您開啟大視窗放樣與框選編輯器！");
+      }
     } catch (error) {
       console.error(error);
       toast.error(`❌ 錯誤：${error.message}`);
@@ -291,6 +406,14 @@ function App() {
     }
 
     const row = updatedRows[index];
+
+    // 🎯 核心連動：手動修改空間名稱時，動態匹配熱負荷基準與取消未知提示
+    if (field === 'space_name') {
+      const matchedLoad = getFuzzyBaseLoadByName(value);
+      row.calc_basis = matchedLoad;
+      row.is_unknown_space = false;
+    }
+
     const ping = parseFloat(row.area_ping) || 0;
 
     let pctSum = 0.0;
@@ -484,6 +607,68 @@ function App() {
     );
   }
 
+  const handleLoadBlankCanvas = () => {
+    const canvasSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1200" viewBox="0 0 1600 1200">
+      <rect width="1600" height="1200" fill="#0f172a"/>
+      <defs>
+        <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+          <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="1"/>
+          <path d="M 200 0 L 0 0 0 200" fill="none" stroke="#334155" stroke-width="1.5"/>
+        </pattern>
+      </defs>
+      <rect width="1600" height="1200" fill="url(#grid)" />
+      <text x="800" y="80" font-family="sans-serif" font-size="26" font-weight="bold" fill="#38bdf8" text-anchor="middle">📄 空白工程放樣畫布 (可點選門寬標定比例與手動框選空間)</text>
+    </svg>`;
+    const blob = new Blob([canvasSvg], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    setPreviewUrl(url);
+    setFile({ name: "空白畫布.svg", type: "image/svg+xml" });
+    setDrawToolMode('view');
+    setIsCanvasModalOpen(true);
+    toast.success("📄 已成功載入空白工程放樣畫布，並為您自動開啟大視窗放樣編輯器！");
+  };
+
+  const handleFinishPline = (pts) => {
+    if (!pts || pts.length < 3) {
+      toast.warning("⚠️ 多邊形至少需要 3 個頂點才能閉合計算！");
+      return;
+    }
+    const pxArea = calculateShoelaceArea(pts);
+    let ratio = pixelToMeterRatio;
+    if (!ratio) {
+      ratio = 0.016; // 預設 1 unit = 0.016m (1000px = 16m)
+      toast.info("💡 尚未標定門寬比例，已自動套用標準工程比例 (1000px = 16m)。");
+    }
+
+    const realAreaM2 = parseFloat((pxArea * ratio * ratio).toFixed(2));
+    const realAreaPing = parseFloat((realAreaM2 * 0.3025).toFixed(2));
+    const defaultName = `自訂區域_${rows.length + 1}`;
+    const baseKcal = getFuzzyBaseLoadByName(defaultName);
+    const initialDemand = Math.round(realAreaPing * baseKcal);
+    const autoMatch = clientSideSelectEquipment(initialDemand, "VRV");
+
+    const newSpaceRow = {
+      space_name: defaultName,
+      area_m2: realAreaM2,
+      area_ping: realAreaPing,
+      system_type: "VRV",
+      calc_basis: baseKcal,
+      total_cooling_demand: initialDemand,
+      best_match_model: autoMatch.model,
+      unit_count: autoMatch.qty,
+      cap_kw: autoMatch.cap,
+      special_kw: 0,
+      modifiers: { 全內周: false, 二面牆: false, 西曬: false, 挑高: false, 頂曬: false },
+      selected: true,
+      polygon: pts,
+      is_custom_drawn: true
+    };
+
+    setRows(prev => [...prev, newSpaceRow]);
+    setPlinePoints([]);
+    toast.success(`✅ 已成功劃定【${defaultName}】 (${realAreaM2}㎡ / ${realAreaPing}坪)！`);
+  };
+
   return (
     <div style={styles.container}>
       <ToastContainer theme="dark" position="top-right" autoClose={4000} />
@@ -523,6 +708,20 @@ function App() {
         >
           {loading ? "⚡ AI 正在全力計算中..." : "🚀 執行圖面自動解析"}
         </button>
+        <button
+          onClick={handleLoadBlankCanvas}
+          style={{
+            backgroundColor: '#0284c7',
+            color: '#fff',
+            border: 'none',
+            padding: '10px 16px',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontWeight: 'bold'
+          }}
+        >
+          📄 載入空白工程畫布
+        </button>
         <button onClick={handleExportExcel} disabled={exportLoading || rows.length === 0} style={styles.btnSecondary}>
           {exportLoading ? "⏳ 正在產生檔案..." : "📊 導出至官方「選機表-.xlsx」"}
         </button>
@@ -530,140 +729,28 @@ function App() {
 
       <div style={styles.mainGrid}>
         <section style={styles.card}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', ...styles.cardTitle }}>
-            <span>🖼️ 實時圖面比對核對視窗 (滾輪縮放/拖曳)</span>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                onClick={() => setDoorGapSettings(prev => ({ ...prev, showSettingsModal: !prev.showSettingsModal }))}
-                style={{
-                  backgroundColor: doorGapSettings.showSettingsModal ? '#b45309' : '#1e293b',
-                  color: '#f59e0b',
-                  border: '1px solid #d97706',
-                  padding: '3px 8px',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  cursor: 'pointer',
-                  fontWeight: 'bold'
-                }}
-              >
-                📐 門縫與放樣設定
-              </button>
-              <button
-                onClick={triggerFileSelect}
-                style={{
-                  backgroundColor: '#334155',
-                  color: '#38bdf8',
-                  border: '1px solid #475569',
-                  padding: '3px 8px',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  cursor: 'pointer',
-                  fontWeight: 'bold'
-                }}
-              >
-                📁 {file ? "更換圖面" : "選擇圖檔"}
-              </button>
-            </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', ...styles.cardTitle, flexWrap: 'wrap', gap: '8px' }}>
+            <span>🖼️ 實時圖面比對核對視窗</span>
+            <button
+              onClick={triggerFileSelect}
+              style={{
+                backgroundColor: '#334155',
+                color: '#38bdf8',
+                border: '1px solid #475569',
+                padding: '4px 10px',
+                borderRadius: '4px',
+                fontSize: '12px',
+                cursor: 'pointer',
+                fontWeight: 'bold'
+              }}
+            >
+              📁 {file ? "更換圖面" : "選擇圖檔"}
+            </button>
           </div>
-
-          {doorGapSettings.showSettingsModal && (
-            <div style={{
-              backgroundColor: '#0f172a',
-              border: '1px solid #3b82f6',
-              borderRadius: '8px',
-              padding: '12px 16px',
-              marginBottom: '10px',
-              fontSize: '13px',
-              color: '#e2e8f0',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '15px',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.4)'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                  <span>🚪 門寬基準放樣：</span>
-                  <input
-                    type="number"
-                    value={doorGapSettings.doorWidthCm}
-                    onChange={(e) => setDoorGapSettings(prev => ({ ...prev, doorWidthCm: Number(e.target.value) }))}
-                    style={{ width: '55px', padding: '3px', borderRadius: '4px', border: '1px solid #475569', backgroundColor: '#1e293b', color: '#fff', textAlign: 'center' }}
-                  />
-                  <span>cm</span>
-                </label>
-
-                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={doorGapSettings.autoCloseDoor}
-                    onChange={(e) => setDoorGapSettings(prev => ({ ...prev, autoCloseDoor: e.target.checked }))}
-                  />
-                  <span>自動連接修補門縫 (60-120cm 缺口)</span>
-                </label>
-
-                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={doorGapSettings.useNetArea}
-                    onChange={(e) => setDoorGapSettings(prev => ({ ...prev, useNetArea: e.target.checked }))}
-                  />
-                  <span>計算純內淨面積 (Net Area)</span>
-                </label>
-
-                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={doorGapSettings.showOverlay}
-                    onChange={(e) => setDoorGapSettings(prev => ({ ...prev, showOverlay: e.target.checked }))}
-                  />
-                  <span>顯示空間彩色遮罩 (預設關閉)</span>
-                </label>
-
-                <button
-                  onClick={() => {
-                    toast.info("📏 請在下方圖面上點選標準單開門 (80cm) 的左右兩端點以精確放樣！");
-                    setDoorGapSettings(prev => ({ ...prev, isPickingDoorPoints: true }));
-                  }}
-                  style={{
-                    backgroundColor: '#10b981',
-                    color: '#fff',
-                    border: 'none',
-                    padding: '3px 8px',
-                    borderRadius: '4px',
-                    fontSize: '12px',
-                    cursor: 'pointer',
-                    fontWeight: 'bold'
-                  }}
-                >
-                  📏 圖面上點選指定門寬
-                </button>
-              </div>
-
-              <button
-                onClick={() => {
-                  toast.success(`📐 放樣設定已更新：門寬基準 ${doorGapSettings.doorWidthCm}cm，內淨面積運算啟動！`);
-                  setDoorGapSettings(prev => ({ ...prev, showSettingsModal: false }));
-                }}
-                style={{
-                  backgroundColor: '#3b82f6',
-                  color: '#fff',
-                  border: 'none',
-                  padding: '4px 10px',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  cursor: 'pointer',
-                  fontWeight: 'bold'
-                }}
-              >
-                儲存校正
-              </button>
-            </div>
-          )}
           <div
             style={{
               ...styles.previewBox,
-              cursor: doorGapSettings.isPickingDoorPoints ? 'crosshair' : (file ? (isDragging ? 'grabbing' : 'grab') : 'pointer'),
+              cursor: file ? 'default' : 'pointer',
               position: 'relative',
               borderColor: isDragOver ? '#34d399' : (file ? '#475569' : '#3b82f6'),
               borderStyle: isDragOver || !file ? 'dashed' : 'solid',
@@ -674,17 +761,46 @@ function App() {
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              if (drawToolMode === 'pline' && plinePoints.length >= 3) {
+                handleFinishPline(plinePoints);
+              }
+            }}
             onClick={(e) => {
               if (!file) {
                 triggerFileSelect();
                 return;
               }
-              if (doorGapSettings.isPickingDoorPoints) {
-                const targetEl = imgContainerRef.current || e.currentTarget;
-                const rect = targetEl.getBoundingClientRect();
-                const x = Math.round((e.clientX - rect.left) / rect.width * 1000);
-                const y = Math.round((e.clientY - rect.top) / rect.height * 1000);
-                
+              const imgEl = imgRef.current || imgContainerRef.current;
+              if (!imgEl) return;
+              const rect = imgEl.getBoundingClientRect();
+              const x = Math.max(0, Math.min(1000, Math.round((e.clientX - rect.left) / rect.width * 1000)));
+              const y = Math.max(0, Math.min(1000, Math.round((e.clientY - rect.top) / rect.height * 1000)));
+
+              if (drawToolMode === 'scale') {
+                if (scalePoints.length === 0) {
+                  setScalePoints([[x, y]]);
+                  toast.info("已記錄放樣第一點 A！請點選第二點 B！");
+                } else {
+                  const p1 = scalePoints[0];
+                  const p2 = [x, y];
+                  const distPx = Math.sqrt((x - p1[0])**2 + (y - p1[1])**2);
+                  const userCm = prompt("請輸入這條基準線 (門寬) 的實際長度 (單位: 公分 cm):", "90");
+                  const doorCm = parseFloat(userCm) || 90;
+                  const ratio = (doorCm / 100.0) / distPx;
+                  setPixelToMeterRatio(ratio);
+                  setDoorGapSettings(prev => ({
+                    ...prev,
+                    pickedLine: { p1, p2, distPx: Math.round(distPx), doorCm }
+                  }));
+                  setScalePoints([]);
+                  setDrawToolMode('view');
+                  toast.success(`📏 比例尺放樣成功！基準: ${doorCm}cm (${Math.round(distPx)}px)`);
+                }
+              } else if (drawToolMode === 'pline') {
+                setPlinePoints(prev => [...prev, [x, y]]);
+              } else if (doorGapSettings.isPickingDoorPoints) {
                 if (!doorGapSettings.p1) {
                   setDoorGapSettings(prev => ({ ...prev, p1: [x, y] }));
                   toast.info("已成功記錄門框第一點 A！請點選門框第二點 B！");
@@ -693,6 +809,8 @@ function App() {
                   const p2 = [x, y];
                   const distPx = Math.sqrt((x - p1[0])**2 + (y - p1[1])**2);
                   const doorCm = doorGapSettings.doorWidthCm || 90;
+                  const ratio = (doorCm / 100.0) / distPx;
+                  setPixelToMeterRatio(ratio);
                   toast.success(`📏 已成功點選門框兩點！測得長度: ${Math.round(distPx)}px，已完成 ${doorCm}cm 精確放樣連動校正！`);
                   setDoorGapSettings(prev => ({
                     ...prev,
@@ -711,15 +829,45 @@ function App() {
             }}
             onMouseDown={(e) => {
               if (!file) return;
-              setIsDragging(true);
-              setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
+              const targetEl = imgRef.current || imgContainerRef.current || e.currentTarget;
+              const rect = targetEl.getBoundingClientRect();
+              const x = Math.round((e.clientX - rect.left) / rect.width * 1000);
+              const y = Math.round((e.clientY - rect.top) / rect.height * 1000);
+              setRectStart([x, y]);
+              setRectCurrent([x, y]);
+              setIsRectDrawing(true);
             }}
             onMouseMove={(e) => {
-              if (!isDragging || !file) return;
-              setPosition({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
+              if (!file) return;
+              const targetEl = imgRef.current || imgContainerRef.current || e.currentTarget;
+              const rect = targetEl.getBoundingClientRect();
+              const x = Math.round((e.clientX - rect.left) / rect.width * 1000);
+              const y = Math.round((e.clientY - rect.top) / rect.height * 1000);
+              setMousePos([x, y]);
+
+              if (isRectDrawing) {
+                setRectCurrent([x, y]);
+              }
             }}
-            onMouseUp={() => setIsDragging(false)}
-            onMouseLeave={() => setIsDragging(false)}
+            onMouseUp={() => {
+              if (isRectDrawing && rectStart && rectCurrent) {
+                setIsRectDrawing(false);
+                const p1 = rectStart;
+                const p2 = rectCurrent;
+                const xmin = Math.min(p1[0], p2[0]);
+                const xmax = Math.max(p1[0], p2[0]);
+                const ymin = Math.min(p1[1], p2[1]);
+                const ymax = Math.max(p1[1], p2[1]);
+                if ((xmax - xmin) > 10 && (ymax - ymin) > 10) {
+                  handleFinishPline([[xmin, ymin], [xmax, ymin], [xmax, ymax], [xmin, ymax]]);
+                }
+                setRectStart(null);
+                setRectCurrent(null);
+              }
+            }}
+            onMouseLeave={() => {
+              setIsRectDrawing(false);
+            }}
           >
             {isDragOver && (
               <div style={{
@@ -742,18 +890,52 @@ function App() {
               </div>
             )}
 
+            {/* 🔍 右上角浮動放大鏡按鈕 (點擊放大圖面並開啟大視窗放樣/框選編輯器) */}
+            {file && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsCanvasModalOpen(true);
+                  toast.info("🔍 已開啟大視窗放樣編輯器！在大型畫布上可輕鬆點選門寬標定與劃線框選。");
+                }}
+                style={{
+                  position: 'absolute',
+                  top: '12px',
+                  right: '12px',
+                  zIndex: 30,
+                  backgroundColor: 'rgba(15, 23, 42, 0.85)',
+                  color: '#38bdf8',
+                  border: '1px solid #0284c7',
+                  borderRadius: '6px',
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  backdropFilter: 'blur(6px)',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.6)',
+                  transition: 'all 0.2s ease'
+                }}
+                title="點擊放大圖面並開啟大視窗編輯器"
+              >
+                🔍 放大觀看/編輯
+              </button>
+            )}
+
             {previewUrl ? (
               <div
                 ref={imgContainerRef}
                 style={{
                   position: 'relative',
-                  display: 'inline-flex',
+                  display: 'inline-block',
                   alignItems: 'center',
                   justifyContent: 'center',
                   maxWidth: '100%',
                   maxHeight: '100%',
-                  transform: `scale(${scale}) translate(${position.x / scale}px, ${position.y / scale}px)`,
-                  transition: isDragging ? 'none' : 'transform 0.1s ease',
+                  transform: 'none',
+                  transition: 'none',
                   transformOrigin: 'center center'
                 }}
               >
@@ -761,132 +943,179 @@ function App() {
                   <object data={previewUrl} type="application/pdf" style={{ width: '100%', height: '540px', border: 'none', pointerEvents: 'none' }} />
                 ) : (
                   <img
+                    ref={imgRef}
                     src={previewUrl}
                     alt="Preview"
+                    draggable={false}
+                    onDragStart={(e) => e.preventDefault()}
                     style={{
                       maxWidth: '100%',
                       maxHeight: '540px',
                       width: 'auto',
                       height: 'auto',
-                      display: 'block'
+                      display: 'block',
+                      userSelect: 'none',
+                      WebkitUserDrag: 'none',
+                      WebkitUserSelect: 'none'
                     }}
                   />
                 )}
 
-                {/* 🎯 實時圖面向量多邊形彩色遮罩 (依各隔間真實牆面形狀自適應) */}
-                {rows && rows.length > 0 && (
-                  <svg
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100%',
-                      height: '100%',
-                      pointerEvents: 'none'
-                    }}
-                    viewBox="0 0 1000 1000"
-                    preserveAspectRatio="none"
-                  >
-                    {rows.map((row, idx) => {
-                      if (!row.selected || !doorGapSettings.showOverlay) return null;
-                      const color = OVERLAY_COLORS[idx % OVERLAY_COLORS.length];
-                      let poly = row.polygon;
+                {/* 🎯 實時圖面向量多邊形彩色遮罩與放樣紅線 */}
+                <svg
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    pointerEvents: 'none'
+                  }}
+                  viewBox="0 0 1000 1000"
+                  preserveAspectRatio="none"
+                >
+                  {rows && rows.length > 0 && rows.map((row, idx) => {
+                    if (!row.selected) return null;
+                    const color = OVERLAY_COLORS[idx % OVERLAY_COLORS.length];
+                    let poly = row.polygon;
 
-                      // 若無有效幾何座標，不繪製假方框遮擋畫面
-                      if (!poly || !Array.isArray(poly) || poly.length < 3) {
-                        return null;
-                      }
+                    // 若無有效幾何座標，不繪製假方框遮擋畫面
+                    if (!poly || !Array.isArray(poly) || poly.length < 3) {
+                      return null;
+                    }
 
-                      // 將 [[x1, y1], [x2, y2], ...] 轉為 SVG "x1,y1 x2,y2 ..." 點字串 (標準 [x, y] 格式)
-                      const pointsStr = poly.map(pt => `${pt[0]},${pt[1]}`).join(' ');
+                    // 將 [[x1, y1], [x2, y2], ...] 轉為 SVG "x1,y1 x2,y2 ..." 點字串 (標準 [x, y] 格式)
+                    const pointsStr = poly.map(pt => `${pt[0]},${pt[1]}`).join(' ');
 
-                      // 計算該多邊形之幾何中心 (Centroid) 以放置空間名稱標籤
-                      const avgX = poly.reduce((sum, pt) => sum + pt[0], 0) / poly.length;
-                      const avgY = poly.reduce((sum, pt) => sum + pt[1], 0) / poly.length;
+                    // 計算該多邊形之幾何中心 (Centroid) 以放置空間名稱標籤
+                    const avgX = poly.reduce((sum, pt) => sum + pt[0], 0) / poly.length;
+                    const avgY = poly.reduce((sum, pt) => sum + pt[1], 0) / poly.length;
 
-                      return (
-                        <g key={idx}>
-                          <polygon
-                            points={pointsStr}
-                            fill={color.bg}
-                            stroke={color.border}
-                            strokeWidth="3"
-                            strokeDasharray="6 3"
-                          />
-                          <foreignObject
-                            x={avgX - 65}
-                            y={avgY - 14}
-                            width="130"
-                            height="28"
-                            style={{ overflow: 'visible' }}
-                          >
-                            <div style={{ display: 'flex', justifyContent: 'center' }}>
-                              <span
-                                style={{
-                                  backgroundColor: color.badgeBg,
-                                  color: color.badgeText,
-                                  fontSize: '11px',
-                                  fontWeight: 'bold',
-                                  padding: '2px 6px',
-                                  borderRadius: '4px',
-                                  whiteSpace: 'nowrap',
-                                  boxShadow: '0 2px 5px rgba(0,0,0,0.6)',
-                                  userSelect: 'none'
-                                }}
-                              >
-                                {row.space_name} ({row.area_m2}㎡ / {row.area_ping}坪)
-                              </span>
-                            </div>
-                          </foreignObject>
-                        </g>
-                      );
-                    })}
-                    {/* 📏 即時渲染使用者點選之門框放樣連線 (Calibration Line) */}
-                    {doorGapSettings.p1 && (
-                      <g key="door_p1_indicator">
-                        <circle cx={doorGapSettings.p1[0]} cy={doorGapSettings.p1[1]} r="12" fill="#f59e0b" stroke="#ffffff" strokeWidth="3" />
-                        <text x={doorGapSettings.p1[0] + 16} y={doorGapSettings.p1[1] + 5} fill="#f59e0b" fontSize="16" fontWeight="bold">點 A (門框端點)</text>
-                      </g>
-                    )}
-
-                    {doorGapSettings.pickedLine && (
-                      <g key="door_calib_line">
-                        <line
-                          x1={doorGapSettings.pickedLine.p1[0]}
-                          y1={doorGapSettings.pickedLine.p1[1]}
-                          x2={doorGapSettings.pickedLine.p2[0]}
-                          y2={doorGapSettings.pickedLine.p2[1]}
-                          stroke="#10b981"
-                          strokeWidth="6"
-                          strokeDasharray="4 2"
+                    return (
+                      <g key={idx}>
+                        <polygon
+                          points={pointsStr}
+                          fill={color.bg}
+                          stroke={color.border}
+                          strokeWidth="3"
+                          strokeDasharray="6 3"
                         />
-                        <circle cx={doorGapSettings.pickedLine.p1[0]} cy={doorGapSettings.pickedLine.p1[1]} r="8" fill="#10b981" stroke="#ffffff" strokeWidth="2" />
-                        <circle cx={doorGapSettings.pickedLine.p2[0]} cy={doorGapSettings.pickedLine.p2[1]} r="8" fill="#10b981" stroke="#ffffff" strokeWidth="2" />
                         <foreignObject
-                          x={(doorGapSettings.pickedLine.p1[0] + doorGapSettings.pickedLine.p2[0])/2 - 75}
-                          y={(doorGapSettings.pickedLine.p1[1] + doorGapSettings.pickedLine.p2[1])/2 - 15}
-                          width="150"
-                          height="30"
+                          x={avgX - 65}
+                          y={avgY - 14}
+                          width="130"
+                          height="28"
                           style={{ overflow: 'visible' }}
                         >
-                          <div style={{
-                            backgroundColor: '#10b981',
-                            color: '#020617',
-                            fontWeight: 'bold',
-                            fontSize: '11px',
-                            padding: '3px 8px',
-                            borderRadius: '12px',
-                            textAlign: 'center',
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.6)',
-                            border: '1px solid #ffffff'
-                          }}>
-                            📏 基準門寬 ({doorGapSettings.doorWidthCm || 90}cm)
+                          <div style={{ display: 'flex', justifyContent: 'center' }}>
+                            <span
+                              style={{
+                                backgroundColor: color.badgeBg,
+                                color: color.badgeText,
+                                fontSize: '11px',
+                                fontWeight: 'bold',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                whiteSpace: 'nowrap',
+                                boxShadow: '0 2px 5px rgba(0,0,0,0.6)',
+                                userSelect: 'none'
+                              }}
+                            >
+                              {row.space_name} ({row.area_m2}㎡ / {row.area_ping}坪)
+                            </span>
                           </div>
                         </foreignObject>
                       </g>
-                    )}
-                  </svg>
-                )}
+                    );
+                  })}
+                  {/* 🎯 即時渲染放樣標定紅點與紅連線 (遵照 OpenCV 原型腳本: 紅點與紅連線) */}
+                  {scalePoints.length > 0 && (
+                    <g key="scale_pt_a">
+                      <circle cx={scalePoints[0][0]} cy={scalePoints[0][1]} r="8" fill="#ef4444" stroke="#ffffff" strokeWidth="3" />
+                      <line x1={scalePoints[0][0]} y1={scalePoints[0][1]} x2={mousePos[0]} y2={mousePos[1]} stroke="#ef4444" strokeWidth="4" strokeDasharray="5 3" />
+                      <circle cx={mousePos[0]} cy={mousePos[1]} r="6" fill="#ef4444" stroke="#ffffff" strokeWidth="2" />
+                      <text x={scalePoints[0][0] + 15} y={scalePoints[0][1] + 5} fill="#ef4444" fontSize="16" fontWeight="bold">點 A (請點選點 B 放樣門寬)</text>
+                    </g>
+                  )}
+
+                  {/* 🎯 即時渲染正在繪製的多邊形 PLine (連續紅線、紅頂點與鼠標跟隨紅線) */}
+                  {plinePoints.length > 0 && (
+                    <g key="active_pline">
+                      <polyline
+                        points={plinePoints.map(p => `${p[0]},${p[1]}`).join(' ')}
+                        fill="rgba(239, 68, 68, 0.25)"
+                        stroke="#ef4444"
+                        strokeWidth="3"
+                      />
+                      {/* 鼠標跟隨動態紅線 */}
+                      <line
+                        x1={plinePoints[plinePoints.length - 1][0]}
+                        y1={plinePoints[plinePoints.length - 1][1]}
+                        x2={mousePos[0]}
+                        y2={mousePos[1]}
+                        stroke="#ef4444"
+                        strokeWidth="3"
+                        strokeDasharray="5 3"
+                      />
+                      {plinePoints.map((p, i) => (
+                        <circle key={i} cx={p[0]} cy={p[1]} r="7" fill="#ef4444" stroke="#ffffff" strokeWidth="2" />
+                      ))}
+                      <circle cx={mousePos[0]} cy={mousePos[1]} r="6" fill="#ef4444" stroke="#ffffff" strokeWidth="2" />
+                    </g>
+                  )}
+
+                  {/* 🎯 即時渲染正在按住拖曳的矩形框 */}
+                  {isRectDrawing && rectStart && rectCurrent && (
+                    <g key="active_rect">
+                      <rect
+                        x={Math.min(rectStart[0], rectCurrent[0])}
+                        y={Math.min(rectStart[1], rectCurrent[1])}
+                        width={Math.abs(rectCurrent[0] - rectStart[0])}
+                        height={Math.abs(rectCurrent[1] - rectStart[1])}
+                        fill="rgba(239, 68, 68, 0.35)"
+                        stroke="#ef4444"
+                        strokeWidth="3"
+                        strokeDasharray="6 3"
+                      />
+                    </g>
+                  )}
+
+                  {doorGapSettings.pickedLine && (
+                    <g key="door_calib_line">
+                      <line
+                        x1={doorGapSettings.pickedLine.p1[0]}
+                        y1={doorGapSettings.pickedLine.p1[1]}
+                        x2={doorGapSettings.pickedLine.p2[0]}
+                        y2={doorGapSettings.pickedLine.p2[1]}
+                        stroke="#ef4444"
+                        strokeWidth="5"
+                      />
+                      <circle cx={doorGapSettings.pickedLine.p1[0]} cy={doorGapSettings.pickedLine.p1[1]} r="8" fill="#ef4444" stroke="#ffffff" strokeWidth="2" />
+                      <circle cx={doorGapSettings.pickedLine.p2[0]} cy={doorGapSettings.pickedLine.p2[1]} r="8" fill="#ef4444" stroke="#ffffff" strokeWidth="2" />
+                      <foreignObject
+                        x={(doorGapSettings.pickedLine.p1[0] + doorGapSettings.pickedLine.p2[0])/2 - 75}
+                        y={(doorGapSettings.pickedLine.p1[1] + doorGapSettings.pickedLine.p2[1])/2 - 15}
+                        width="150"
+                        height="30"
+                        style={{ overflow: 'visible' }}
+                      >
+                        <div style={{
+                          backgroundColor: '#ef4444',
+                          color: '#ffffff',
+                          fontWeight: 'bold',
+                          fontSize: '11px',
+                          padding: '3px 8px',
+                          borderRadius: '12px',
+                          textAlign: 'center',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.6)',
+                          border: '1px solid #ffffff'
+                        }}>
+                          📏 放樣門寬基準 ({doorGapSettings.pickedLine.doorCm || 90}cm)
+                        </div>
+                      </foreignObject>
+                    </g>
+                  )}
+                </svg>
               </div>
             ) : (
               <div style={{ textAlign: 'center', padding: '20px', userSelect: 'none' }}>
@@ -952,7 +1181,24 @@ function App() {
 
                       <td style={{ ...styles.td, fontWeight: 'bold', color: '#34d399' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
-                          <span>{row.space_name}</span>
+                          <input
+                            type="text"
+                            value={row.space_name || ''}
+                            onChange={(e) => handleCellChange(index, 'space_name', e.target.value)}
+                            placeholder="請輸入空間名稱"
+                            style={{
+                              backgroundColor: '#0f172a',
+                              border: '1px solid #34d399',
+                              color: '#34d399',
+                              padding: '4px 6px',
+                              borderRadius: '4px',
+                              fontSize: '13px',
+                              fontWeight: 'bold',
+                              width: '110px'
+                            }}
+                            disabled={!row.selected}
+                            title="可自由編輯空間名稱，系統將自動匹配熱負荷基準與大金選機！"
+                          />
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                             {(row.area_m2 >= 75 || (row.space_name && (row.space_name.includes('客餐廳') || row.space_name.includes('開放')))) && (
                               <button
@@ -1091,8 +1337,613 @@ function App() {
           </div>
         </section>
       </div>
+
+      {/* 🎯 全螢幕 / 大視窗互動放樣與面積框選編輯器 Modal */}
+      {isCanvasModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(2, 6, 23, 0.96)',
+          zIndex: 99999,
+          display: 'flex',
+          flexDirection: 'column',
+          padding: '16px 24px',
+          boxSizing: 'border-box'
+        }}>
+          {/* 大視窗頂部標頭與工具按鈕列 */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingBottom: '12px',
+            borderBottom: '1px solid #334155',
+            marginBottom: '12px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+              <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#38bdf8' }}>📐 大視窗互動放樣與面積框選編輯器</span>
+              <span style={{
+                backgroundColor: pixelToMeterRatio ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)',
+                color: pixelToMeterRatio ? '#34d399' : '#f59e0b',
+                border: pixelToMeterRatio ? '1px solid #10b981' : '1px solid #f59e0b',
+                fontSize: '12px',
+                fontWeight: 'bold',
+                padding: '4px 10px',
+                borderRadius: '6px'
+              }}>
+                {pixelToMeterRatio ? `📏 比例已標定: 1px = ${(pixelToMeterRatio * 100).toFixed(2)}cm` : '⚠️ 未標定門寬比例 (預設網格 1px = 0.05m)'}
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <button
+                onClick={() => {
+                  setDrawToolMode('scale');
+                  setScalePoints([]);
+                  toast.info("📏 請在畫面上點選兩點 (如門框端點)，並輸入實際長度 (預設 90cm)！");
+                }}
+                style={{
+                  backgroundColor: drawToolMode === 'scale' ? '#059669' : '#1e293b',
+                  color: '#34d399',
+                  border: '1px solid #10b981',
+                  padding: '6px 14px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '13px'
+                }}
+              >
+                📏 門寬放樣標定
+              </button>
+
+              <button
+                onClick={() => {
+                  setDrawToolMode('rect');
+                  toast.info("🟩 請按住滑鼠左鍵【拖曳】拉出矩形框選區域！");
+                }}
+                style={{
+                  backgroundColor: drawToolMode === 'rect' ? '#0284c7' : '#1e293b',
+                  color: '#38bdf8',
+                  border: '1px solid #0284c7',
+                  padding: '6px 14px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '13px'
+                }}
+              >
+                🟩 矩形拉框
+              </button>
+
+              <button
+                onClick={() => {
+                  setDrawToolMode('pline');
+                  setPlinePoints([]);
+                  toast.info("🔺 請依次點選多邊形頂點，結束時按 [右鍵] 或點擊 [閉合多邊形]！");
+                }}
+                style={{
+                  backgroundColor: drawToolMode === 'pline' ? '#7c3aed' : '#1e293b',
+                  color: '#a78bfa',
+                  border: '1px solid #7c3aed',
+                  padding: '6px 14px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '13px'
+                }}
+              >
+                🔺 多邊形 PLine
+              </button>
+
+              {drawToolMode === 'pline' && plinePoints.length >= 3 && (
+                <button
+                  onClick={() => handleFinishPline(plinePoints)}
+                  style={{
+                    backgroundColor: '#10b981',
+                    color: '#ffffff',
+                    border: 'none',
+                    padding: '6px 14px',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    fontSize: '13px'
+                  }}
+                >
+                  ✅ 閉合多邊形
+                </button>
+              )}
+
+              <button
+                onClick={() => setShowHelpGuide(prev => !prev)}
+                style={{
+                  backgroundColor: showHelpGuide ? '#0284c7' : '#1e293b',
+                  color: '#38bdf8',
+                  border: '1px solid #0284c7',
+                  padding: '6px 14px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '13px'
+                }}
+              >
+                💡 操作教學
+              </button>
+
+              <button
+                onClick={() => {
+                  setDrawToolMode('view');
+                  setPlinePoints([]);
+                  setScalePoints([]);
+                  setRectStart(null);
+                  setRectCurrent(null);
+                  setIsRectDrawing(false);
+                }}
+                style={{
+                  backgroundColor: '#334155',
+                  color: '#cbd5e1',
+                  border: 'none',
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '13px'
+                }}
+              >
+                🧹 重置
+              </button>
+
+              <button
+                onClick={() => {
+                  setIsCanvasModalOpen(false);
+                  setScale(1);
+                  setPosition({ x: 0, y: 0 });
+                  toast.success("✨ 已完成放樣與框選！已為您自動同步至工程核對視窗與表格。");
+                }}
+                style={{
+                  backgroundColor: '#10b981',
+                  color: '#020617',
+                  border: 'none',
+                  padding: '7px 20px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '14px',
+                  marginLeft: '12px'
+                }}
+              >
+                ✅ 完成編輯並返回 (Close)
+              </button>
+            </div>
+          </div>
+
+          {/* 💡 互動放樣與操作教學提示卡片 (在大視窗專屬展示) */}
+          {showHelpGuide && (
+            <div style={{
+              backgroundColor: '#0f172a',
+              border: '1px solid #38bdf8',
+              borderRadius: '8px',
+              padding: '10px 16px',
+              marginBottom: '12px',
+              fontSize: '12px',
+              color: '#e2e8f0',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontWeight: 'bold', color: '#38bdf8', fontSize: '13px' }}>
+                  💡 互動劃線框選與比例放樣 - 操作教學與快捷鍵指南
+                </span>
+                <button
+                  onClick={() => setShowHelpGuide(false)}
+                  style={{ backgroundColor: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '14px' }}
+                  title="關閉教學面板"
+                >
+                  ✕
+                </button>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px', marginTop: '4px' }}>
+                <div style={{ backgroundColor: '#1e293b', padding: '8px 12px', borderRadius: '6px', borderLeft: '4px solid #10b981' }}>
+                  <strong style={{ color: '#34d399' }}>1. 📏 門寬比例標定：</strong><br />
+                  按【門寬標定】在圖面上點兩點 (顯現紅點與連線)，輸入實際長度 (如 90cm) 即完成比例換算。
+                </div>
+                <div style={{ backgroundColor: '#1e293b', padding: '8px 12px', borderRadius: '6px', borderLeft: '4px solid #38bdf8' }}>
+                  <strong style={{ color: '#38bdf8' }}>2. 🟩 矩形拉框：</strong><br />
+                  按住滑鼠左鍵【拖曳】拉出矩形，放開即完成面積試算與呈現 Alpha 0.35 顏色遮罩。
+                </div>
+                <div style={{ backgroundColor: '#1e293b', padding: '8px 12px', borderRadius: '6px', borderLeft: '4px solid #a78bfa' }}>
+                  <strong style={{ color: '#a78bfa' }}>3. 🔺 多邊形 PLine：</strong><br />
+                  依次點擊牆角頂點 (紅線跟隨)，點完按 <strong>`C` 鍵</strong> 或 <strong>[右鍵]</strong> 即可閉合計算。
+                </div>
+                <div style={{ backgroundColor: '#1e293b', padding: '8px 12px', borderRadius: '6px', borderLeft: '4px solid #f59e0b' }}>
+                  <strong style={{ color: '#f59e0b' }}>4. ⌨️ 快捷鍵指南：</strong><br />
+                  • <strong>`C` 鍵</strong>：閉合多邊形 | • <strong>`D` 鍵</strong>：撤銷點選<br />
+                  • <strong>`M` 鍵</strong>：切換矩形/多邊形 | • <strong>滾輪</strong>：縮放/拖曳
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 大視窗畫布主區域 */}
+          <div style={{ flex: 1, height: '82vh', width: '100%', position: 'relative', overflow: 'hidden' }}>
+            <div
+              style={{
+                width: '100%',
+                height: '100%',
+                backgroundColor: '#020617',
+                borderRadius: '8px',
+                border: '1px solid #334155',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                overflow: 'hidden',
+                position: 'relative',
+                cursor: 'crosshair'
+              }}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                if (drawToolMode === 'pline' && plinePoints.length >= 3) {
+                  handleFinishPline(plinePoints);
+                }
+              }}
+              onClick={(e) => {
+                if (!file) {
+                  triggerFileSelect();
+                  return;
+                }
+                const imgEl = modalImgRef.current || imgContainerRef.current;
+                if (!imgEl) return;
+                const rect = imgEl.getBoundingClientRect();
+                const x = Math.max(0, Math.min(1000, Math.round((e.clientX - rect.left) / rect.width * 1000)));
+                const y = Math.max(0, Math.min(1000, Math.round((e.clientY - rect.top) / rect.height * 1000)));
+
+                if (drawToolMode === 'scale') {
+                  if (scalePoints.length === 0) {
+                    setScalePoints([[x, y]]);
+                    toast.info("已記錄放樣第一點 A！請點選第二點 B！");
+                  } else {
+                    const p1 = scalePoints[0];
+                    const p2 = [x, y];
+                    const distPx = Math.sqrt((x - p1[0])**2 + (y - p1[1])**2);
+                    const userCm = prompt("請輸入這條基準線 (門寬) 的實際長度 (單位: 公分 cm):", "90");
+                    const doorCm = parseFloat(userCm) || 90;
+                    const ratio = (doorCm / 100.0) / distPx;
+                    setPixelToMeterRatio(ratio);
+                    setDoorGapSettings(prev => ({
+                      ...prev,
+                      pickedLine: { p1, p2, distPx: Math.round(distPx), doorCm }
+                    }));
+                    setScalePoints([]);
+                    setDrawToolMode('view');
+                    toast.success(`📏 比例尺放樣成功！基準: ${doorCm}cm (${Math.round(distPx)}px)`);
+                  }
+                } else if (drawToolMode === 'pline') {
+                  setPlinePoints(prev => [...prev, [x, y]]);
+                }
+              }}
+              onWheel={(e) => {
+                if (!file) return;
+                e.preventDefault();
+                const zoom = e.deltaY < 0 ? 0.15 : -0.15;
+                setScale(prev => Math.max(0.5, Math.min(5, prev + zoom)));
+              }}
+              onMouseDown={(e) => {
+                if (!file) return;
+                if (drawToolMode === 'scale') return;
+                const imgEl = modalImgRef.current || imgContainerRef.current;
+                if (!imgEl) return;
+                const rect = imgEl.getBoundingClientRect();
+                const x = Math.max(0, Math.min(1000, Math.round((e.clientX - rect.left) / rect.width * 1000)));
+                const y = Math.max(0, Math.min(1000, Math.round((e.clientY - rect.top) / rect.height * 1000)));
+                setRectStart([x, y]);
+                setRectCurrent([x, y]);
+                setIsRectDrawing(true);
+              }}
+              onMouseMove={(e) => {
+                if (!file) return;
+                const imgEl = modalImgRef.current || imgContainerRef.current;
+                if (!imgEl) return;
+                const rect = imgEl.getBoundingClientRect();
+                const x = Math.max(0, Math.min(1000, Math.round((e.clientX - rect.left) / rect.width * 1000)));
+                const y = Math.max(0, Math.min(1000, Math.round((e.clientY - rect.top) / rect.height * 1000)));
+                setMousePos([x, y]);
+
+                if (isRectDrawing) {
+                  setRectCurrent([x, y]);
+                }
+              }}
+              onMouseUp={() => {
+                if (isRectDrawing && rectStart && rectCurrent) {
+                  setIsRectDrawing(false);
+                  const p1 = rectStart;
+                  const p2 = rectCurrent;
+                  const xmin = Math.min(p1[0], p2[0]);
+                  const xmax = Math.max(p1[0], p2[0]);
+                  const ymin = Math.min(p1[1], p2[1]);
+                  const ymax = Math.max(p1[1], p2[1]);
+                  setRectStart(null);
+                  setRectCurrent(null);
+                  if ((xmax - xmin) > 15 && (ymax - ymin) > 15) {
+                    handleFinishPline([[xmin, ymin], [xmax, ymin], [xmax, ymax], [xmin, ymax]]);
+                  }
+                }
+              }}
+              onMouseLeave={() => {
+                setIsRectDrawing(false);
+              }}
+            >
+              {previewUrl && (
+                <div
+                  style={{
+                    position: 'relative',
+                    display: 'inline-block',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    maxWidth: '100%',
+                    maxHeight: '100%',
+                    transform: `scale(${scale})`,
+                    transition: 'transform 0.1s ease',
+                    transformOrigin: 'center center'
+                  }}
+                >
+                  <img
+                    ref={modalImgRef}
+                    src={previewUrl}
+                    alt="Preview Large Modal"
+                    draggable={false}
+                    onDragStart={(e) => e.preventDefault()}
+                    style={{
+                      maxWidth: '100%',
+                      maxHeight: '80vh',
+                      width: 'auto',
+                      height: 'auto',
+                      display: 'block',
+                      userSelect: 'none',
+                      WebkitUserDrag: 'none',
+                      WebkitUserSelect: 'none'
+                    }}
+                  />
+                  <svg
+                    style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+                    viewBox="0 0 1000 1000"
+                    preserveAspectRatio="none"
+                  >
+                    {rows && rows.length > 0 && rows.map((row, idx) => {
+                      if (!row.selected) return null;
+                      const color = OVERLAY_COLORS[idx % OVERLAY_COLORS.length];
+                      let poly = row.polygon;
+                      if (!poly || !Array.isArray(poly) || poly.length < 3) return null;
+                      const pointsStr = poly.map(pt => `${pt[0]},${pt[1]}`).join(' ');
+                      const avgX = poly.reduce((sum, pt) => sum + pt[0], 0) / poly.length;
+                      const avgY = poly.reduce((sum, pt) => sum + pt[1], 0) / poly.length;
+
+                      return (
+                        <g key={idx}>
+                          <polygon points={pointsStr} fill={color.bg} stroke={color.border} strokeWidth="3" strokeDasharray="6 3" />
+                          <foreignObject x={avgX - 65} y={avgY - 14} width="130" height="28" style={{ overflow: 'visible' }}>
+                            <div style={{ display: 'flex', justifyContent: 'center' }}>
+                              <span style={{ backgroundColor: color.badgeBg, color: color.badgeText, fontSize: '11px', fontWeight: 'bold', padding: '2px 6px', borderRadius: '4px', whiteSpace: 'nowrap', boxShadow: '0 2px 5px rgba(0,0,0,0.6)' }}>
+                                {row.space_name} ({row.area_m2}㎡ / {row.area_ping}坪)
+                              </span>
+                            </div>
+                          </foreignObject>
+                        </g>
+                      );
+                    })}
+                    {scalePoints.length > 0 && (
+                      <g key="scale_pt_a_m">
+                        <circle cx={scalePoints[0][0]} cy={scalePoints[0][1]} r="8" fill="#ef4444" stroke="#ffffff" strokeWidth="3" />
+                        <line x1={scalePoints[0][0]} y1={scalePoints[0][1]} x2={mousePos[0]} y2={mousePos[1]} stroke="#ef4444" strokeWidth="4" strokeDasharray="5 3" />
+                        <circle cx={mousePos[0]} cy={mousePos[1]} r="6" fill="#ef4444" stroke="#ffffff" strokeWidth="2" />
+                        <text x={scalePoints[0][0] + 15} y={scalePoints[0][1] + 5} fill="#ef4444" fontSize="16" fontWeight="bold">點 A (請點選點 B 放樣門寬)</text>
+                      </g>
+                    )}
+                    {plinePoints.length > 0 && (
+                      <g key="active_pline_m">
+                        <polyline points={plinePoints.map(p => `${p[0]},${p[1]}`).join(' ')} fill="rgba(239, 68, 68, 0.25)" stroke="#ef4444" strokeWidth="3" />
+                        <line x1={plinePoints[plinePoints.length - 1][0]} y1={plinePoints[plinePoints.length - 1][1]} x2={mousePos[0]} y2={mousePos[1]} stroke="#ef4444" strokeWidth="3" strokeDasharray="5 3" />
+                        {plinePoints.map((p, i) => (<circle key={i} cx={p[0]} cy={p[1]} r="7" fill="#ef4444" stroke="#ffffff" strokeWidth="2" />))}
+                        <circle cx={mousePos[0]} cy={mousePos[1]} r="6" fill="#ef4444" stroke="#ffffff" strokeWidth="2" />
+                      </g>
+                    )}
+                    {isRectDrawing && rectStart && rectCurrent && (
+                      <g key="active_rect_m">
+                        <rect x={Math.min(rectStart[0], rectCurrent[0])} y={Math.min(rectStart[1], rectCurrent[1])} width={Math.abs(rectCurrent[0] - rectStart[0])} height={Math.abs(rectCurrent[1] - rectStart[1])} fill="rgba(239, 68, 68, 0.35)" stroke="#ef4444" strokeWidth="3" strokeDasharray="6 3" />
+                      </g>
+                    )}
+                    {doorGapSettings.pickedLine && (
+                      <g key="door_calib_line_m">
+                        <line x1={doorGapSettings.pickedLine.p1[0]} y1={doorGapSettings.pickedLine.p1[1]} x2={doorGapSettings.pickedLine.p2[0]} y2={doorGapSettings.pickedLine.p2[1]} stroke="#ef4444" strokeWidth="5" />
+                        <circle cx={doorGapSettings.pickedLine.p1[0]} cy={doorGapSettings.pickedLine.p1[1]} r="8" fill="#ef4444" stroke="#ffffff" strokeWidth="2" />
+                        <circle cx={doorGapSettings.pickedLine.p2[0]} cy={doorGapSettings.pickedLine.p2[1]} r="8" fill="#ef4444" stroke="#ffffff" strokeWidth="2" />
+                        <foreignObject
+                          x={(doorGapSettings.pickedLine.p1[0] + doorGapSettings.pickedLine.p2[0])/2 - 75}
+                          y={(doorGapSettings.pickedLine.p1[1] + doorGapSettings.pickedLine.p2[1])/2 - 15}
+                          width="150"
+                          height="30"
+                          style={{ overflow: 'visible' }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'center' }}>
+                            <span style={{
+                              backgroundColor: '#ef4444',
+                              color: '#ffffff',
+                              fontWeight: 'bold',
+                              fontSize: '11px',
+                              padding: '3px 8px',
+                              borderRadius: '12px',
+                              whiteSpace: 'nowrap',
+                              boxShadow: '0 2px 6px rgba(0,0,0,0.6)',
+                              border: '1px solid #ffffff'
+                            }}>
+                              📏 放樣門寬基準 ({doorGapSettings.pickedLine.doorCm || 90}cm)
+                            </span>
+                          </div>
+                        </foreignObject>
+                      </g>
+                    )}
+                  </svg>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+const styles = {
+  container: {
+    minHeight: '100vh',
+    backgroundColor: '#020617',
+    color: '#f8fafc',
+    fontFamily: '"Outfit", "Noto Sans TC", sans-serif',
+    padding: '16px 24px',
+    boxSizing: 'border-box'
+  },
+  header: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: '16px',
+    borderBottom: '1px solid #1e293b',
+    marginBottom: '16px'
+  },
+  logoBox: {
+    backgroundColor: '#0284c7',
+    color: '#ffffff',
+    fontWeight: 'bold',
+    fontSize: '14px',
+    padding: '4px 10px',
+    borderRadius: '4px',
+    marginRight: '12px',
+    letterSpacing: '1px'
+  },
+  panel: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#0f172a',
+    border: '1px solid #1e293b',
+    borderRadius: '8px',
+    padding: '12px 16px',
+    marginBottom: '16px',
+    gap: '12px',
+    flexWrap: 'wrap'
+  },
+  btnPrimary: {
+    backgroundColor: '#059669',
+    color: '#ffffff',
+    border: 'none',
+    padding: '10px 18px',
+    borderRadius: '6px',
+    fontWeight: 'bold',
+    fontSize: '13px',
+    cursor: 'pointer'
+  },
+  btnSecondary: {
+    backgroundColor: '#1e293b',
+    color: '#34d399',
+    border: '1px solid #059669',
+    padding: '10px 16px',
+    borderRadius: '6px',
+    fontWeight: 'bold',
+    fontSize: '13px',
+    cursor: 'pointer'
+  },
+  mainGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '16px'
+  },
+  card: {
+    backgroundColor: '#0f172a',
+    border: '1px solid #1e293b',
+    borderRadius: '8px',
+    padding: '16px'
+  },
+  cardTitle: {
+    fontSize: '14px',
+    fontWeight: 'bold',
+    color: '#38bdf8',
+    marginBottom: '12px'
+  },
+  previewBox: {
+    height: '560px',
+    backgroundColor: '#020617',
+    borderRadius: '6px',
+    overflow: 'hidden',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  table: {
+    width: '100%',
+    borderCollapse: 'collapse',
+    fontSize: '12px'
+  },
+  th: {
+    backgroundColor: '#1e293b',
+    color: '#94a3b8',
+    padding: '8px 6px',
+    textAlign: 'left',
+    borderBottom: '1px solid #334155',
+    whiteSpace: 'nowrap'
+  },
+  td: {
+    padding: '8px 6px',
+    borderBottom: '1px solid #1e293b',
+    color: '#e2e8f0',
+    whiteSpace: 'nowrap'
+  },
+  inputNum: {
+    backgroundColor: '#1e293b',
+    border: '1px solid #475569',
+    color: '#ffffff',
+    padding: '3px 6px',
+    borderRadius: '4px',
+    width: '55px',
+    fontSize: '12px'
+  },
+  inputModel: {
+    backgroundColor: '#1e293b',
+    border: '1px solid #475569',
+    color: '#ffffff',
+    padding: '3px 6px',
+    borderRadius: '4px',
+    width: '110px',
+    fontSize: '12px'
+  },
+  inputQty: {
+    backgroundColor: '#1e293b',
+    border: '1px solid #475569',
+    color: '#ffffff',
+    padding: '3px 6px',
+    borderRadius: '4px',
+    width: '40px',
+    fontSize: '12px'
+  },
+  selectSys: {
+    backgroundColor: '#1e293b',
+    border: '1px solid #475569',
+    color: '#ffffff',
+    padding: '3px 6px',
+    borderRadius: '4px',
+    fontSize: '12px'
+  },
+  chkLabel: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '3px',
+    marginRight: '6px',
+    fontSize: '11px',
+    color: '#cbd5e1'
+  }
+};
 
 export default App;
