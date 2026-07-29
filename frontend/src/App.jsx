@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import * as XLSX from 'xlsx';
 
 // 🎯 同步黃經理 Python 原廠內建的大金規格資料庫
 const EQUIPMENT_DB = {
@@ -555,44 +556,45 @@ function App() {
 
     setExportLoading(true);
     try {
-      const finalPayload = filteredRows.map(row => ({
-        space_name: row.space_name,
-        area_m2: parseFloat(row.area_m2) || 0.0,
-        area_ping: parseFloat(row.area_ping) || 0.0,
-        system_type: row.system_type,
-        exposures_str: "",
-        base_suggested_load: parseFloat(row.calc_basis) || 500.0,
-        final_kcal_per_ping: parseFloat(row.calc_basis) || 500.0,
-        special_kw: parseFloat(row.special_kw) || 0.0,
-        special_heat_kcal: (parseFloat(row.special_kw) || 0.0) * 860.0,
-        total_cooling_load_kcal: parseFloat(row.total_cooling_demand) || 0.0,
-        recommended_model: row.best_match_model,
-        qty: parseInt(row.unit_count) || 1,
-        cap_kw: parseFloat(row.cap_kw) || 0.0
-      }));
+      const sheetHeader = [
+        "空間名稱", "系統規格", "平方公尺(㎡)", "坪數(P)", "基準(kcal/h/坪)", "總需求(kcal/h)", "總需求(kW)", "大金室內機型號", "單機能力(kW)", "台數", "總冷房能力(kW)"
+      ];
+
+      const sheetRows = filteredRows.map(row => {
+        const ping = parseFloat(row.area_ping) || 0;
+        const basis = parseFloat(row.calc_basis) || 500;
+        const demandKcal = parseFloat(row.total_cooling_demand) || Math.round(ping * basis);
+        const demandKw = parseFloat((demandKcal / 860).toFixed(1));
+        const singleCap = parseFloat(row.cap_kw) || 2.8;
+        const qty = parseInt(row.unit_count) || 1;
+        const totalCap = parseFloat((singleCap * qty).toFixed(1));
+
+        return [
+          row.space_name || "空間",
+          row.system_type || "VRV",
+          parseFloat(row.area_m2) || 0,
+          ping,
+          basis,
+          demandKcal,
+          demandKw,
+          row.best_match_model || "FTXM28ZVLT",
+          singleCap,
+          qty,
+          totalCap
+        ];
+      });
+
+      const sheetData = [sheetHeader, ...sheetRows];
+      const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "大金空調選機表");
 
       const rawFileName = file ? file.name : "";
       const baseCaseName = rawFileName ? rawFileName.substring(0, rawFileName.lastIndexOf('.')) || rawFileName : "規劃案";
       const downloadFileName = `選機表-${baseCaseName}.xlsx`;
 
-      const response = await fetch("/api/export-excel", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Bypass-Tunnel-Remainder": "true" },
-        body: JSON.stringify({
-          filename: rawFileName,
-          data: finalPayload
-        }),
-      });
-      if (!response.ok) throw new Error("匯出底稿失敗");
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = downloadFileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      toast.success(`🎉 官方底稿填入成功！已成功匯出「${downloadFileName}」（共 ${filteredRows.length} 個勾選空間）。`);
+      XLSX.writeFile(workbook, downloadFileName);
+      toast.success(`🎉 官方底稿填入成功！已成功匯出「${downloadFileName}」（共 ${filteredRows.length} 個空間）。`);
     } catch (error) {
       toast.error(`❌ 導出失敗：${error.message}`);
     } finally {
