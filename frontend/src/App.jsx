@@ -331,8 +331,9 @@ function App() {
         formData.append("scale_ratio", scaleRatio === '自訂' ? `1:${customScaleVal}` : scaleRatio);
 
         try {
-          const res = await fetch("http://127.0.0.1:8000/api/upload-layout", {
+          const res = await fetch("/api/upload-layout", {
             method: "POST",
+            headers: { "Bypass-Tunnel-Remainder": "true" },
             body: formData
           });
           if (res.ok) {
@@ -436,8 +437,9 @@ function App() {
     formData.append("scale_ratio", scaleRatio === '自訂' ? `1:${customScaleVal}` : scaleRatio);
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/upload-layout", {
+      const response = await fetch("/api/upload-layout", {
         method: "POST",
+        headers: { "Bypass-Tunnel-Remainder": "true" },
         body: formData,
       });
 
@@ -573,9 +575,9 @@ function App() {
       const baseCaseName = rawFileName ? rawFileName.substring(0, rawFileName.lastIndexOf('.')) || rawFileName : "規劃案";
       const downloadFileName = `選機表-${baseCaseName}.xlsx`;
 
-      const response = await fetch("http://127.0.0.1:8000/api/export-excel", {
+      const response = await fetch("/api/export-excel", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Bypass-Tunnel-Remainder": "true" },
         body: JSON.stringify({
           filename: rawFileName,
           data: finalPayload
