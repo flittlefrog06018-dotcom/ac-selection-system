@@ -793,47 +793,10 @@ function App() {
           onChange={handleFileChange}
           style={{ display: 'none' }}
         />
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontSize: '13px', color: file ? '#34d399' : '#94a3b8', fontWeight: file ? 'bold' : 'normal' }}>
             {file ? `📄 已選取：${file.name}` : '⚠️ 尚未選擇圖面 (請於下方視窗點選或拖曳檔案)'}
           </span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#0f172a', padding: '4px 10px', borderRadius: '6px', border: '1px solid #334155' }}>
-            <span style={{ fontSize: '12px', color: '#f59e0b', fontWeight: 'bold' }}>📄 紙張:</span>
-            <select
-              value={paperSize}
-              onChange={(e) => handlePaperOrRatioChange(e.target.value, scaleRatio)}
-              style={{ backgroundColor: '#1e293b', color: '#f8fafc', border: '1px solid #475569', borderRadius: '4px', padding: '3px 6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
-            >
-              <option value="A3">A3 (420×297mm)</option>
-              <option value="A4">A4 (297×210mm)</option>
-              <option value="A2">A2 (594×420mm)</option>
-              <option value="自訂">自訂規格</option>
-            </select>
-
-            <span style={{ fontSize: '12px', color: '#38bdf8', fontWeight: 'bold', marginLeft: '6px' }}>📐 比例:</span>
-            <select
-              value={scaleRatio}
-              onChange={(e) => handlePaperOrRatioChange(paperSize, e.target.value)}
-              style={{ backgroundColor: '#1e293b', color: '#38bdf8', border: '1px solid #0284c7', borderRadius: '4px', padding: '3px 6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
-            >
-              <option value="1:100">1 : 100</option>
-              <option value="1:200">1 : 200</option>
-              <option value="1:500">1 : 500</option>
-              <option value="1:50">1 : 50</option>
-              <option value="1:150">1 : 150</option>
-              <option value="自訂">1 : 自訂</option>
-            </select>
-
-            {scaleRatio === '自訂' && (
-              <input
-                type="number"
-                value={customScaleVal}
-                onChange={(e) => handlePaperOrRatioChange(paperSize, '自訂', e.target.value)}
-                placeholder="100"
-                style={{ width: '55px', backgroundColor: '#1e293b', color: '#34d399', border: '1px solid #34d399', borderRadius: '4px', padding: '2px 4px', fontSize: '12px', textAlign: 'center', fontWeight: 'bold' }}
-              />
-            )}
-          </div>
         </div>
         <button
           onClick={handleAnalyze}
