@@ -36,6 +36,9 @@ const OVERLAY_COLORS = [
   { bg: 'rgba(236, 72, 153, 0.35)', border: '#ec4899', badgeBg: '#ec4899', badgeText: '#ffffff' }
 ];
 
+// 🎯 100% 精確中心熱點標定 (16 16) 十字游標：確保滑鼠點擊基準點必為十字正中心 (含中心白點標靶)
+const CROSSHAIR_CURSOR_STYLE = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'><line x1='16' y1='0' x2='16' y2='32' stroke='%23ef4444' stroke-width='2'/><line x1='0' y1='16' x2='32' y2='16' stroke='%23ef4444' stroke-width='2'/><circle cx='16' cy='16' r='3' fill='%23ffffff' stroke='%23ef4444' stroke-width='1.5'/></svg>") 16 16, crosshair`;
+
 // 🎯 安全配機演算法：改用純陣列遍歷與數學除法，100% 杜絕卡死
 const clientSideSelectEquipment = (totalDemandKcal, systemType) => {
   const totalLoadKw = totalDemandKcal / 860.0;
@@ -178,6 +181,7 @@ function App() {
   const imgContainerRef = useRef(null);
   const imgRef = useRef(null);
   const modalImgRef = useRef(null);
+  const modalSvgRef = useRef(null);
 
   // 🎯 新增互動繪圖與標定工具模式: 'view', 'scale', 'rect', 'pline'
   const [drawToolMode, setDrawToolMode] = useState('view');
@@ -190,6 +194,50 @@ function App() {
   const [rectCurrent, setRectCurrent] = useState(null);
   const [isRectDrawing, setIsRectDrawing] = useState(false);
   const [mousePos, setMousePos] = useState([0, 0]);
+
+  // 🎯 新增圖面實體紙張與比例標定 (A3 / A4 / 1:100 / 1:200 自圖面設定)
+  const [paperSize, setPaperSize] = useState('A3'); // Options: 'A3', 'A4', 'A2', '自訂'
+  const [scaleRatio, setScaleRatio] = useState('1:100'); // Options: '1:100', '1:200', '1:500', '1:50', '1:150', '自訂'
+  const [customScaleVal, setCustomScaleVal] = useState('100');
+
+  const handlePaperOrRatioChange = (newPaper, newRatioStr, customVal) => {
+    setPaperSize(newPaper);
+    setScaleRatio(newRatioStr);
+    if (customVal !== undefined) setCustomScaleVal(customVal);
+
+    let ratioNum = 100;
+    if (newRatioStr === '自訂') {
+      ratioNum = parseFloat(customVal !== undefined ? customVal : customScaleVal) || 100;
+    } else {
+      const parts = newRatioStr.split(':');
+      ratioNum = parts.length > 1 ? parseFloat(parts[1]) || 100 : 100;
+    }
+
+    // A3 邊長 0.358m 平均, A4 邊長 0.253m 平均, A2 邊長 0.507m 平均
+    let paperBaseMeters = 0.358;
+    if (newPaper === 'A4') paperBaseMeters = 0.253;
+    if (newPaper === 'A2') paperBaseMeters = 0.507;
+
+    const newRatio = (paperBaseMeters * ratioNum) / 1000.0;
+    setPixelToMeterRatio(newRatio);
+
+    if (rows && rows.length > 0) {
+      setRows(prevRows => prevRows.map(row => {
+        if (!row.polygon || row.polygon.length < 3) return row;
+        const pxArea = calculateShoelaceArea(row.polygon);
+        const realAreaM2 = parseFloat((pxArea * newRatio * newRatio).toFixed(2));
+        const realAreaPing = parseFloat((realAreaM2 * 0.3025).toFixed(2));
+        const baseKcal = row.calc_basis || 500;
+        const initialDemand = Math.round(realAreaPing * baseKcal);
+        return {
+          ...row,
+          area_m2: realAreaM2,
+          area_ping: realAreaPing,
+          total_cooling_demand: initialDemand
+        };
+      }));
+    }
+  };
 
   // 🎯 鍵盤快捷鍵處置 (遵照 Python 原型腳本: 'c' 閉合多邊形, 'd' 撤銷, 'm' 切換模式)
   React.useEffect(() => {
@@ -265,12 +313,58 @@ function App() {
 
 
 
-  const processFile = (selectedFile) => {
+  const processFile = async (selectedFile) => {
     if (selectedFile) {
       setFile(selectedFile);
-      if (selectedFile.name.toLowerCase().endswith?.('.dxf') || selectedFile.name.toLowerCase().endsWith('.dxf')) {
+      const isPdf = selectedFile.name.toLowerCase().endsWith('.pdf') || selectedFile.type === 'application/pdf';
+      const isDxf = selectedFile.name.toLowerCase().endsWith('.dxf');
+
+      if (isDxf) {
         setPreviewUrl(null);
         toast.info("📐 已選取 CAD 向量檔 (.dxf)！請點擊 [🚀 執行圖面自動解析] 以繪製全圖並計算空間。");
+      } else if (isPdf) {
+        toast.info("📄 正在將 PDF 轉化為高清圖面以利框選編輯，請稍候...");
+        const formData = new FormData();
+        formData.append("file", selectedFile);
+        formData.append("case_type", "commercial");
+        formData.append("paper_size", paperSize);
+        formData.append("scale_ratio", scaleRatio === '自訂' ? `1:${customScaleVal}` : scaleRatio);
+
+        try {
+          const res = await fetch("http://127.0.0.1:8000/api/upload-layout", {
+            method: "POST",
+            body: formData
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.image_preview) {
+              setPreviewUrl(data.image_preview);
+            }
+            const spacesList = (data.spaces || []).filter(s => s.polygon && Array.isArray(s.polygon) && s.polygon.length >= 3);
+            if (spacesList.length > 0) {
+              const normalizedData = spacesList.map(item => ({
+                ...item,
+                selected: true,
+                system_type: item.system_type || "VRV",
+                calc_basis: item.base_suggested_load || 500,
+                total_cooling_demand: item.total_cooling_load_kcal || 0,
+                best_match_model: item.recommended_model || "FTXM28ZVLT",
+                unit_count: item.qty || 1,
+                cap_kw: item.cap_kw || 2.8,
+                modifiers: item.modifiers || { 全內周: false, 二面牆: false, 西曬: false, 挑高: false, 頂曬: false }
+              }));
+              setRows(normalizedData);
+              toast.success("✨ PDF 圖面解析完成！已載入空間數據。");
+            } else {
+              setRows([]);
+              setIsCanvasModalOpen(true);
+              toast.info("💡 偵測到此 PDF 未標示文字面積，已自動為您開啟大視窗放樣編輯器！請點選【矩形拉框】或【多邊形 PLine】劃定空間區域！");
+            }
+          }
+        } catch (err) {
+          setPreviewUrl(URL.createObjectURL(selectedFile));
+          setIsCanvasModalOpen(true);
+        }
       } else {
         setPreviewUrl(URL.createObjectURL(selectedFile));
       }
@@ -338,6 +432,8 @@ function App() {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("case_type", "commercial");
+    formData.append("paper_size", paperSize);
+    formData.append("scale_ratio", scaleRatio === '自訂' ? `1:${customScaleVal}` : scaleRatio);
 
     try {
       const response = await fetch("http://127.0.0.1:8000/api/upload-layout", {
@@ -349,7 +445,8 @@ function App() {
 
       const data = await response.json();
 
-      const spacesList = Array.isArray(data) ? data : (data.spaces || data.data || []);
+      const rawList = Array.isArray(data) ? data : (data.spaces || data.data || []);
+      const spacesList = rawList.filter(item => item.polygon && Array.isArray(item.polygon) && item.polygon.length >= 3);
       if (!Array.isArray(data) && data.image_preview) {
         setPreviewUrl(data.image_preview);
       }
@@ -642,31 +739,35 @@ function App() {
 
     const realAreaM2 = parseFloat((pxArea * ratio * ratio).toFixed(2));
     const realAreaPing = parseFloat((realAreaM2 * 0.3025).toFixed(2));
-    const defaultName = `自訂區域_${rows.length + 1}`;
-    const baseKcal = getFuzzyBaseLoadByName(defaultName);
-    const initialDemand = Math.round(realAreaPing * baseKcal);
-    const autoMatch = clientSideSelectEquipment(initialDemand, "VRV");
+    setRows(prev => {
+      const validPolygonRows = prev.filter(r => r.polygon && Array.isArray(r.polygon) && r.polygon.length >= 3);
+      const nextNum = validPolygonRows.length + 1;
+      const defaultName = `空間 ${nextNum}`;
+      const baseKcal = getFuzzyBaseLoadByName(defaultName);
+      const initialDemand = Math.round(realAreaPing * baseKcal);
+      const autoMatch = clientSideSelectEquipment(initialDemand, "VRV");
 
-    const newSpaceRow = {
-      space_name: defaultName,
-      area_m2: realAreaM2,
-      area_ping: realAreaPing,
-      system_type: "VRV",
-      calc_basis: baseKcal,
-      total_cooling_demand: initialDemand,
-      best_match_model: autoMatch.model,
-      unit_count: autoMatch.qty,
-      cap_kw: autoMatch.cap,
-      special_kw: 0,
-      modifiers: { 全內周: false, 二面牆: false, 西曬: false, 挑高: false, 頂曬: false },
-      selected: true,
-      polygon: pts,
-      is_custom_drawn: true
-    };
+      const newSpaceRow = {
+        space_name: defaultName,
+        area_m2: realAreaM2,
+        area_ping: realAreaPing,
+        system_type: "VRV",
+        calc_basis: baseKcal,
+        total_cooling_demand: initialDemand,
+        best_match_model: autoMatch.model,
+        unit_count: autoMatch.qty,
+        cap_kw: autoMatch.cap,
+        special_kw: 0,
+        modifiers: { 全內周: false, 二面牆: false, 西曬: false, 挑高: false, 頂曬: false },
+        selected: true,
+        polygon: pts,
+        is_custom_drawn: true
+      };
 
-    setRows(prev => [...prev, newSpaceRow]);
+      return [...validPolygonRows, newSpaceRow];
+    });
     setPlinePoints([]);
-    toast.success(`✅ 已成功劃定【${defaultName}】 (${realAreaM2}㎡ / ${realAreaPing}坪)！`);
+    toast.success(`✅ 已成功劃定【空間】 (${realAreaM2}㎡ / ${realAreaPing}坪)！`);
   };
 
   return (
@@ -692,10 +793,47 @@ function App() {
           onChange={handleFileChange}
           style={{ display: 'none' }}
         />
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           <span style={{ fontSize: '13px', color: file ? '#34d399' : '#94a3b8', fontWeight: file ? 'bold' : 'normal' }}>
             {file ? `📄 已選取：${file.name}` : '⚠️ 尚未選擇圖面 (請於下方視窗點選或拖曳檔案)'}
           </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#0f172a', padding: '4px 10px', borderRadius: '6px', border: '1px solid #334155' }}>
+            <span style={{ fontSize: '12px', color: '#f59e0b', fontWeight: 'bold' }}>📄 紙張:</span>
+            <select
+              value={paperSize}
+              onChange={(e) => handlePaperOrRatioChange(e.target.value, scaleRatio)}
+              style={{ backgroundColor: '#1e293b', color: '#f8fafc', border: '1px solid #475569', borderRadius: '4px', padding: '3px 6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+            >
+              <option value="A3">A3 (420×297mm)</option>
+              <option value="A4">A4 (297×210mm)</option>
+              <option value="A2">A2 (594×420mm)</option>
+              <option value="自訂">自訂規格</option>
+            </select>
+
+            <span style={{ fontSize: '12px', color: '#38bdf8', fontWeight: 'bold', marginLeft: '6px' }}>📐 比例:</span>
+            <select
+              value={scaleRatio}
+              onChange={(e) => handlePaperOrRatioChange(paperSize, e.target.value)}
+              style={{ backgroundColor: '#1e293b', color: '#38bdf8', border: '1px solid #0284c7', borderRadius: '4px', padding: '3px 6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+            >
+              <option value="1:100">1 : 100</option>
+              <option value="1:200">1 : 200</option>
+              <option value="1:500">1 : 500</option>
+              <option value="1:50">1 : 50</option>
+              <option value="1:150">1 : 150</option>
+              <option value="自訂">1 : 自訂</option>
+            </select>
+
+            {scaleRatio === '自訂' && (
+              <input
+                type="number"
+                value={customScaleVal}
+                onChange={(e) => handlePaperOrRatioChange(paperSize, '自訂', e.target.value)}
+                placeholder="100"
+                style={{ width: '55px', backgroundColor: '#1e293b', color: '#34d399', border: '1px solid #34d399', borderRadius: '4px', padding: '2px 4px', fontSize: '12px', textAlign: 'center', fontWeight: 'bold' }}
+              />
+            )}
+          </div>
         </div>
         <button
           onClick={handleAnalyze}
@@ -991,6 +1129,17 @@ function App() {
                     const avgX = poly.reduce((sum, pt) => sum + pt[0], 0) / poly.length;
                     const avgY = poly.reduce((sum, pt) => sum + pt[1], 0) / poly.length;
 
+                    // 計算長度與寬度 (cm) 整數
+                    const xs = poly.map(pt => pt[0]);
+                    const ys = poly.map(pt => pt[1]);
+                    const widthPx = Math.max(...xs) - Math.min(...xs);
+                    const heightPx = Math.max(...ys) - Math.min(...ys);
+                    const r = pixelToMeterRatio || 0.016;
+                    const lenCm = Math.round(widthPx * r * 100);
+                    const wCm = Math.round(heightPx * r * 100);
+                    const spaceTitle = row.space_name || `空間 ${idx + 1}`;
+                    const badgeTextStr = `${spaceTitle} (${lenCm}cm × ${wCm}cm | ${row.area_m2}㎡ / ${row.area_ping}坪)`;
+
                     return (
                       <g key={idx}>
                         <polygon
@@ -1001,9 +1150,9 @@ function App() {
                           strokeDasharray="6 3"
                         />
                         <foreignObject
-                          x={avgX - 65}
+                          x={avgX - 85}
                           y={avgY - 14}
-                          width="130"
+                          width="170"
                           height="28"
                           style={{ overflow: 'visible' }}
                         >
@@ -1021,7 +1170,7 @@ function App() {
                                 userSelect: 'none'
                               }}
                             >
-                              {row.space_name} ({row.area_m2}㎡ / {row.area_ping}坪)
+                              {badgeTextStr}
                             </span>
                           </div>
                         </foreignObject>
@@ -1218,7 +1367,7 @@ function App() {
                                 ✂️ 分割
                               </button>
                             )}
-                            <div style={{ display: 'flex', gap: '3px', fontSize: '11px', userSelect: 'none' }}>
+                            <div style={{ display: 'flex', gap: '3px', fontSize: '11px', userSelect: 'none', alignItems: 'center' }}>
                               <span onClick={() => moveRow(index, 'up')} style={{ cursor: 'pointer', opacity: index === 0 ? 0.2 : 0.8 }} title="上移">🔼</span>
                               <span onClick={() => moveRow(index, 'down')} style={{ cursor: 'pointer', opacity: index === rows.length - 1 ? 0.2 : 0.8 }} title="下移">🔽</span>
                             </div>
@@ -1377,7 +1526,45 @@ function App() {
               </span>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#0f172a', padding: '4px 10px', borderRadius: '6px', border: '1px solid #334155' }}>
+                <span style={{ fontSize: '12px', color: '#f59e0b', fontWeight: 'bold' }}>📄 紙張:</span>
+                <select
+                  value={paperSize}
+                  onChange={(e) => handlePaperOrRatioChange(e.target.value, scaleRatio)}
+                  style={{ backgroundColor: '#1e293b', color: '#f8fafc', border: '1px solid #475569', borderRadius: '4px', padding: '3px 6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+                >
+                  <option value="A3">A3 (420×297mm)</option>
+                  <option value="A4">A4 (297×210mm)</option>
+                  <option value="A2">A2 (594×420mm)</option>
+                  <option value="自訂">自訂規格</option>
+                </select>
+
+                <span style={{ fontSize: '12px', color: '#38bdf8', fontWeight: 'bold', marginLeft: '4px' }}>📐 比例:</span>
+                <select
+                  value={scaleRatio}
+                  onChange={(e) => handlePaperOrRatioChange(paperSize, e.target.value)}
+                  style={{ backgroundColor: '#1e293b', color: '#38bdf8', border: '1px solid #0284c7', borderRadius: '4px', padding: '3px 6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+                >
+                  <option value="1:100">1 : 100</option>
+                  <option value="1:200">1 : 200</option>
+                  <option value="1:500">1 : 500</option>
+                  <option value="1:50">1 : 50</option>
+                  <option value="1:150">1 : 150</option>
+                  <option value="自訂">1 : 自訂</option>
+                </select>
+
+                {scaleRatio === '自訂' && (
+                  <input
+                    type="number"
+                    value={customScaleVal}
+                    onChange={(e) => handlePaperOrRatioChange(paperSize, '自訂', e.target.value)}
+                    placeholder="100"
+                    style={{ width: '50px', backgroundColor: '#1e293b', color: '#34d399', border: '1px solid #34d399', borderRadius: '4px', padding: '2px 4px', fontSize: '12px', textAlign: 'center', fontWeight: 'bold' }}
+                  />
+                )}
+              </div>
+
               <button
                 onClick={() => {
                   setDrawToolMode('scale');
@@ -1479,6 +1666,10 @@ function App() {
                   setRectStart(null);
                   setRectCurrent(null);
                   setIsRectDrawing(false);
+                  setRows([]);
+                  setDoorGapSettings(prev => ({ ...prev, pickedLine: null, p1: null, isPickingDoorPoints: false }));
+                  setPixelToMeterRatio(null);
+                  toast.info("🧹 已全面重置清空！圖面劃定區塊、門寬標定連線與資料表已整張清空。");
                 }}
                 style={{
                   backgroundColor: '#334155',
@@ -1580,7 +1771,7 @@ function App() {
                 justifyContent: 'center',
                 overflow: 'hidden',
                 position: 'relative',
-                cursor: 'crosshair'
+                cursor: CROSSHAIR_CURSOR_STYLE
               }}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
@@ -1596,7 +1787,7 @@ function App() {
                   triggerFileSelect();
                   return;
                 }
-                const imgEl = modalImgRef.current || imgContainerRef.current;
+                const imgEl = modalSvgRef.current || modalImgRef.current;
                 if (!imgEl) return;
                 const rect = imgEl.getBoundingClientRect();
                 const x = Math.max(0, Math.min(1000, Math.round((e.clientX - rect.left) / rect.width * 1000)));
@@ -1634,8 +1825,8 @@ function App() {
               }}
               onMouseDown={(e) => {
                 if (!file) return;
-                if (drawToolMode === 'scale') return;
-                const imgEl = modalImgRef.current || imgContainerRef.current;
+                if (drawToolMode !== 'rect') return;
+                const imgEl = modalSvgRef.current || modalImgRef.current;
                 if (!imgEl) return;
                 const rect = imgEl.getBoundingClientRect();
                 const x = Math.max(0, Math.min(1000, Math.round((e.clientX - rect.left) / rect.width * 1000)));
@@ -1646,7 +1837,7 @@ function App() {
               }}
               onMouseMove={(e) => {
                 if (!file) return;
-                const imgEl = modalImgRef.current || imgContainerRef.current;
+                const imgEl = modalSvgRef.current || modalImgRef.current;
                 if (!imgEl) return;
                 const rect = imgEl.getBoundingClientRect();
                 const x = Math.max(0, Math.min(1000, Math.round((e.clientX - rect.left) / rect.width * 1000)));
@@ -1681,13 +1872,12 @@ function App() {
                 <div
                   style={{
                     position: 'relative',
-                    display: 'inline-block',
+                    display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     maxWidth: '100%',
                     maxHeight: '100%',
                     transform: `scale(${scale})`,
-                    transition: 'transform 0.1s ease',
                     transformOrigin: 'center center'
                   }}
                 >
@@ -1709,6 +1899,7 @@ function App() {
                     }}
                   />
                   <svg
+                    ref={modalSvgRef}
                     style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
                     viewBox="0 0 1000 1000"
                     preserveAspectRatio="none"
@@ -1722,19 +1913,36 @@ function App() {
                       const avgX = poly.reduce((sum, pt) => sum + pt[0], 0) / poly.length;
                       const avgY = poly.reduce((sum, pt) => sum + pt[1], 0) / poly.length;
 
+                      const xs = poly.map(pt => pt[0]);
+                      const ys = poly.map(pt => pt[1]);
+                      const widthPx = Math.max(...xs) - Math.min(...xs);
+                      const heightPx = Math.max(...ys) - Math.min(...ys);
+                      const r = pixelToMeterRatio || 0.016;
+                      const lenCm = Math.round(widthPx * r * 100);
+                      const wCm = Math.round(heightPx * r * 100);
+                      const spaceTitle = row.space_name || `空間 ${idx + 1}`;
+                      const badgeTextStr = `${spaceTitle} (${lenCm}cm × ${wCm}cm | ${row.area_m2}㎡ / ${row.area_ping}坪)`;
+
                       return (
                         <g key={idx}>
                           <polygon points={pointsStr} fill={color.bg} stroke={color.border} strokeWidth="3" strokeDasharray="6 3" />
-                          <foreignObject x={avgX - 65} y={avgY - 14} width="130" height="28" style={{ overflow: 'visible' }}>
+                          <foreignObject x={avgX - 85} y={avgY - 14} width="170" height="28" style={{ overflow: 'visible' }}>
                             <div style={{ display: 'flex', justifyContent: 'center' }}>
                               <span style={{ backgroundColor: color.badgeBg, color: color.badgeText, fontSize: '11px', fontWeight: 'bold', padding: '2px 6px', borderRadius: '4px', whiteSpace: 'nowrap', boxShadow: '0 2px 5px rgba(0,0,0,0.6)' }}>
-                                {row.space_name} ({row.area_m2}㎡ / {row.area_ping}坪)
+                                {badgeTextStr}
                               </span>
                             </div>
                           </foreignObject>
                         </g>
                       );
                     })}
+                    {/* CAD 視覺輔助滿版動態十字對齊輔助線 */}
+                    {mousePos && mousePos[0] > 0 && (
+                      <g key="cad_crosshair_m">
+                        <line x1={mousePos[0]} y1="0" x2={mousePos[0]} y2="1000" stroke="rgba(239, 68, 68, 0.45)" strokeWidth="1.5" strokeDasharray="5 3" />
+                        <line x1="0" y1={mousePos[1]} x2="1000" y2={mousePos[1]} stroke="rgba(239, 68, 68, 0.45)" strokeWidth="1.5" strokeDasharray="5 3" />
+                      </g>
+                    )}
                     {scalePoints.length > 0 && (
                       <g key="scale_pt_a_m">
                         <circle cx={scalePoints[0][0]} cy={scalePoints[0][1]} r="8" fill="#ef4444" stroke="#ffffff" strokeWidth="3" />

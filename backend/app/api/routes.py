@@ -243,10 +243,12 @@ except ImportError:
 @router.post("/upload-layout")
 async def upload_layout(
     file: UploadFile = File(...),
-    case_type: str = Form("1")
+    case_type: str = Form("1"),
+    paper_size: str = Form("A3"),
+    scale_ratio: str = Form("1:100")
 ):
     print("\n[Backend] Received upload request...")
-    print(f"[Backend] Filename: {file.filename}")
+    print(f"[Backend] Filename: {file.filename}, Paper Size: {paper_size}, Scale: {scale_ratio}")
     print(f"[Backend] API key loaded: {'Yes' if API_KEY else 'No'}")
     
     if not API_KEY:
