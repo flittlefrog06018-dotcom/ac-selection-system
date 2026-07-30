@@ -197,6 +197,7 @@ function App() {
   const [mousePos, setMousePos] = useState([0, 0]);
   const [draggingVertex, setDraggingVertex] = useState(null); // { rowIdx, ptIdx }
   const [draggingBox, setDraggingBox] = useState(null); // { rowIdx, startPos: [x,y], initialPoly: [...] }
+  const [isSnapshotBaked, setIsSnapshotBaked] = useState(false);
 
   // 🎯 新增圖面實體紙張與比例標定 (A3 / A4 / 1:100 / 1:200 自圖面設定)
   const [paperSize, setPaperSize] = useState('A3'); // Options: 'A3', 'A4', 'A2', '自訂'
@@ -682,6 +683,7 @@ function App() {
 
       const snapshotUrl = canvas.toDataURL("image/jpeg", 0.92);
       setPreviewUrl(snapshotUrl);
+      setIsSnapshotBaked(true);
     } catch (e) {
       console.warn("Snapshot render warning:", e);
     }
@@ -1219,7 +1221,7 @@ function App() {
                   viewBox="0 0 1000 1000"
                   preserveAspectRatio="none"
                 >
-                  {rows && rows.length > 0 && rows.map((row, idx) => {
+                  {!isSnapshotBaked && rows && rows.length > 0 && rows.map((row, idx) => {
                     if (!row.selected) return null;
                     const color = OVERLAY_COLORS[idx % OVERLAY_COLORS.length];
                     let poly = row.polygon;
