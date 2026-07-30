@@ -195,6 +195,7 @@ function App() {
   const [rectCurrent, setRectCurrent] = useState(null);
   const [isRectDrawing, setIsRectDrawing] = useState(false);
   const [mousePos, setMousePos] = useState([0, 0]);
+  const [draggingVertex, setDraggingVertex] = useState(null); // { rowIdx, ptIdx }
 
   // 🎯 新增圖面實體紙張與比例標定 (A3 / A4 / 1:100 / 1:200 自圖面設定)
   const [paperSize, setPaperSize] = useState('A3'); // Options: 'A3', 'A4', 'A2', '自訂'
@@ -1900,11 +1901,54 @@ function App() {
                 const y = Math.max(0, Math.min(1000, Math.round((e.clientY - rect.top) / rect.height * 1000)));
                 setMousePos([x, y]);
 
+                if (draggingVertex) {
+                  const { rowIdx, ptIdx } = draggingVertex;
+                  setRows(prevRows => {
+                    const newRows = [...prevRows];
+                    const targetRow = { ...newRows[rowIdx] };
+                    const newPoly = targetRow.polygon ? [...targetRow.polygon] : [];
+                    newPoly[ptIdx] = [x, y];
+                    targetRow.polygon = newPoly;
+
+                    let areaPx = 0;
+                    const n = newPoly.length;
+                    for (let i = 0; i < n; i++) {
+                      const j = (i + 1) % n;
+                      areaPx += newPoly[i][0] * newPoly[j][1];
+                      areaPx -= newPoly[j][0] * newPoly[i][1];
+                    }
+                    areaPx = Math.abs(areaPx) / 2.0;
+
+                    const r = pixelToMeterRatio || 0.016;
+                    const sqm = Math.round(areaPx * (r ** 2) * 100) / 100;
+                    const ping = Math.round(sqm * 0.3025 * 100) / 100;
+
+                    targetRow.area_m2 = sqm;
+                    targetRow.area_ping = ping;
+
+                    const baseKcal = parseFloat(targetRow.calc_basis) || 500;
+                    const demandKcal = Math.round(ping * baseKcal);
+                    targetRow.total_cooling_demand = demandKcal;
+
+                    const { model, qty, cap } = clientSideSelectEquipment(demandKcal, targetRow.system_type || "VRV");
+                    targetRow.best_match_model = model;
+                    targetRow.unit_count = qty;
+                    targetRow.cap_kw = cap;
+
+                    newRows[rowIdx] = targetRow;
+                    return newRows;
+                  });
+                }
+
                 if (isRectDrawing) {
                   setRectCurrent([x, y]);
                 }
               }}
               onMouseUp={() => {
+                if (draggingVertex) {
+                  setDraggingVertex(null);
+                  toast.success("✨ 已完成頂點點位拉伸！即時更新面積與大金配機結果。");
+                }
                 if (isRectDrawing && rectStart && rectCurrent) {
                   setIsRectDrawing(false);
                   const p1 = rectStart;
@@ -1956,7 +2000,7 @@ function App() {
                   />
                   <svg
                     ref={modalSvgRef}
-                    style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+                    style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'auto' }}
                     viewBox="0 0 1000 1000"
                     preserveAspectRatio="none"
                   >
@@ -1981,14 +2025,38 @@ function App() {
 
                       return (
                         <g key={idx}>
-                          <polygon points={pointsStr} fill={color.bg} stroke={color.border} strokeWidth="3" strokeDasharray="6 3" />
-                          <foreignObject x={avgX - 85} y={avgY - 14} width="170" height="28" style={{ overflow: 'visible' }}>
+                          <polygon points={pointsStr} fill={color.bg} stroke={row.box_color || color.border || "#FF8800"} strokeWidth="3.5" strokeDasharray="6 3" />
+                          <foreignObject x={avgX - 85} y={avgY - 14} width="170" height="28" style={{ overflow: 'visible', pointerEvents: 'none' }}>
                             <div style={{ display: 'flex', justifyContent: 'center' }}>
                               <span style={{ backgroundColor: color.badgeBg, color: color.badgeText, fontSize: '11px', fontWeight: 'bold', padding: '2px 6px', borderRadius: '4px', whiteSpace: 'nowrap', boxShadow: '0 2px 5px rgba(0,0,0,0.6)' }}>
                                 {badgeTextStr}
                               </span>
                             </div>
                           </foreignObject>
+
+                          {/* 🎯 實時互動可拖曳 / 拉伸之頂點圓形控制控制點 (Vertex Drag Handles) */}
+                          {poly.map((pt, ptIdx) => (
+                            <circle
+                              key={`v_handle_${idx}_${ptIdx}`}
+                              cx={pt[0]}
+                              cy={pt[1]}
+                              r="9"
+                              fill="#ffffff"
+                              stroke={row.box_color || color.border || "#FF8800"}
+                              strokeWidth="3.5"
+                              style={{ cursor: 'grab', pointerEvents: 'all' }}
+                              onMouseDown={(e) => {
+                                e.stopPropagation();
+                                setDraggingVertex({ rowIdx: idx, ptIdx });
+                                toast.info(`🖐️ 按住拖曳中：微調【${row.space_name || '空間'}】頂點 #${ptIdx + 1}`);
+                              }}
+                              onTouchStart={(e) => {
+                                e.stopPropagation();
+                                setDraggingVertex({ rowIdx: idx, ptIdx });
+                              }}
+                              title={`按住拖曳拉伸【${row.space_name}】頂點 #${ptIdx + 1}`}
+                            />
+                          ))}
                         </g>
                       );
                     })}
