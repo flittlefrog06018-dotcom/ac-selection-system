@@ -411,6 +411,53 @@ async def upload_layout(
                 "polygon": polygon
             })
             
+        # 🎯 第二防線：若無文字標籤/手繪彩圖，呼叫 FloorPlanVectorAnalyzer 自動抓取結構牆內緣橘色框線
+        valid_poly_count = sum(1 for r in results if r.get("polygon") and len(r["polygon"]) >= 3)
+        if valid_poly_count == 0:
+            try:
+                from app.services.cv_vector_analyzer import FloorPlanVectorAnalyzer
+                analyzer = FloorPlanVectorAnalyzer()
+                vec_preview_base64, vec_spaces = analyzer.analyze_floor_plan(
+                    final_image_bytes,
+                    paper_size=paper_size,
+                    scale=scale_ratio
+                )
+                if vec_spaces:
+                    results = []
+                    for s in vec_spaces:
+                        sqm = s["area_sqm"]
+                        ping = s["area_ping"]
+                        name = s["room_name"]
+                        pts = s["points"]
+
+                        base_suggested, _ = get_base_load_by_name(name)
+                        total_cooling_load_kcal = round(float(ping) * base_suggested)
+                        total_load_kw = total_cooling_load_kcal / 860.0
+                        model_name, qty, cap_kw = auto_select_equipment_v15_backend(total_load_kw, "VRV")
+
+                        results.append({
+                            "space_name": name,
+                            "area_m2": float(sqm),
+                            "area_ping": float(ping),
+                            "system_type": "VRV",
+                            "base_suggested_load": float(base_suggested),
+                            "final_kcal_per_ping": float(base_suggested),
+                            "total_cooling_load_kcal": float(total_cooling_load_kcal),
+                            "recommended_model": str(model_name),
+                            "qty": int(qty),
+                            "cap_kw": float(cap_kw),
+                            "selected": True,
+                            "polygon": pts,
+                            "box_color": "#FF8800"
+                        })
+                    if vec_preview_base64:
+                        return {
+                            "spaces": results,
+                            "image_preview": vec_preview_base64
+                        }
+            except Exception as cv_err:
+                print(f"[Backend] FloorPlanVectorAnalyzer 分析提醒: {cv_err}")
+
         print(f"[Backend] Successfully parsed {len(results)} spaces.")
         image_base64 = base64.b64encode(final_image_bytes).decode('utf-8')
         return {
