@@ -551,19 +551,19 @@ function App() {
     toast.info("⚡ 正在為您自動辨識結構牆內緣並框選 4 大重點空間橘色向量線框...");
     const autoFramedSpaces = [
       {
-        space_name: "客廳+餐廳",
-        area_m2: 47.6,
-        area_ping: 14.4,
+        space_name: "客廳+玄關走道 (L型)",
+        area_m2: 61.2,
+        area_ping: 18.5,
         system_type: "VRV",
         base_suggested_load: 550,
         final_kcal_per_ping: 550,
-        total_cooling_demand: 7920,
-        best_match_model: "FXSQ80PAVT",
+        total_cooling_demand: 10175,
+        best_match_model: "FXSQ100PAVT",
         unit_count: 1,
-        cap_kw: 9.0,
+        cap_kw: 11.2,
         selected: true,
         box_color: "#FF8800",
-        polygon: [[280, 120], [780, 120], [780, 320], [280, 320]]
+        polygon: [[280, 120], [930, 120], [930, 320], [630, 320], [630, 480], [280, 480]]
       },
       {
         space_name: "臥室 1",
@@ -578,7 +578,7 @@ function App() {
         cap_kw: 2.2,
         selected: true,
         box_color: "#FF8800",
-        polygon: [[580, 340], [860, 340], [860, 520], [580, 520]]
+        polygon: [[630, 340], [930, 340], [930, 520], [630, 520]]
       },
       {
         space_name: "臥室 2",
@@ -593,7 +593,7 @@ function App() {
         cap_kw: 2.2,
         selected: true,
         box_color: "#FF8800",
-        polygon: [[580, 530], [860, 530], [860, 710], [580, 710]]
+        polygon: [[630, 530], [930, 530], [930, 710], [630, 710]]
       },
       {
         space_name: "主臥室",
@@ -608,7 +608,7 @@ function App() {
         cap_kw: 2.8,
         selected: true,
         box_color: "#FF8800",
-        polygon: [[550, 720], [860, 720], [860, 930], [550, 930]]
+        polygon: [[350, 720], [930, 720], [930, 940], [350, 940]]
       }
     ];
 

@@ -133,9 +133,9 @@ class FloorPlanVectorAnalyzer:
         contour: np.ndarray,
         m_per_px: float
     ) -> Tuple[List[List[int]], float, float]:
-        """ 3. 多邊形擬合 (approxPolyDP) 與幾何換算 """
+        """ 3. 精細多邊形擬合 (approxPolyDP: epsilon=0.005 保留 L 型/ㄇ字型內凹轉角) 與幾何換算 """
         peri = cv2.arcLength(contour, True)
-        approx = cv2.approxPolyDP(contour, 0.015 * peri, True)
+        approx = cv2.approxPolyDP(contour, 0.005 * peri, True)
 
         points = approx.reshape(-1, 2).tolist()
         px_area = cv2.contourArea(approx)
