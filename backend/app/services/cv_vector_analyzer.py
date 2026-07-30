@@ -63,7 +63,7 @@ class FloorPlanVectorAnalyzer:
         return real_paper_meters_width / float(img_w)
 
     def extract_structure_contours(self, img_bgr: np.ndarray) -> List[Tuple[str, np.ndarray]]:
-        """ 2. HSV 色彩提取與家具線條抹平 (Morphological Closing 11x11) """
+        """ 2. HSV 彩色著色區提取 + 黑白工程圖結構牆封閉房間提取 """
         hsv = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV)
         img_h, img_w = img_bgr.shape[:2]
 
@@ -73,10 +73,10 @@ class FloorPlanVectorAnalyzer:
 
         detected_spaces = []
 
+        # A. 優先嘗試彩色著色區域提取 (黃、藍、綠、紅、粉紅)
         for room_hint_name, lower_b, upper_b in color_ranges:
             mask = cv2.inRange(hsv, np.array(lower_b), np.array(upper_b))
 
-            # 11x11 形態學閉運算抹平內部家具與軟裝線條
             kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (11, 11))
             closed_mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations=2)
 
@@ -90,6 +90,41 @@ class FloorPlanVectorAnalyzer:
                 if area_px < (img_h * img_w * 0.005):
                     continue
                 detected_spaces.append((room_hint_name, cnt))
+
+        # B. 若為黑白工程 CAD/PDF 圖面 (無彩色著色)，啟動黑白結構牆封閉房間檢測
+        if not detected_spaces:
+            gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
+            
+            # 高斯平滑
+            blur = cv2.GaussianBlur(gray, (5, 5), 0)
+            
+            # 自適應二值化：鎖定黑/深色牆線
+            thresh = cv2.adaptiveThreshold(
+                blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 4
+            )
+            
+            # 形態學門縫閉合：連接大門與隔間門缺口
+            door_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (13, 13))
+            closed_walls = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, door_kernel, iterations=2)
+            
+            # 取得房間封閉白區
+            rooms_mask = cv2.bitwise_not(closed_walls)
+            
+            # 切除圖面四周黑框 (離邊界 20px)
+            border_mask = np.zeros((img_h, img_w), dtype=np.uint8)
+            border_mask[20:img_h-20, 20:img_w-20] = 255
+            rooms_mask = cv2.bitwise_and(rooms_mask, border_mask)
+            
+            contours, _ = cv2.findContours(rooms_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+            
+            for cnt in contours:
+                area_px = cv2.contourArea(cnt)
+                # 門檻：過濾細小家具噪點與整個建築全圖
+                if (img_h * img_w * 0.01) < area_px < (img_h * img_w * 0.45):
+                    rect = cv2.boundingRect(cnt)
+                    rw, rh = rect[2], rect[3]
+                    if rw > 40 and rh > 40:
+                        detected_spaces.append(("結構空間", cnt))
 
         return detected_spaces
 
