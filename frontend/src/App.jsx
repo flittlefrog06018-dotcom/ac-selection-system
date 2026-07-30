@@ -342,7 +342,7 @@ function App() {
             if (data.image_preview) {
               setPreviewUrl(data.image_preview);
             }
-            const spacesList = (data.spaces || []).filter(s => s.polygon && Array.isArray(s.polygon) && s.polygon.length >= 3);
+            const spacesList = data.spaces || [];
             if (spacesList.length > 0) {
               const normalizedData = spacesList.map(item => ({
                 ...item,
@@ -356,7 +356,7 @@ function App() {
                 modifiers: item.modifiers || { 全內周: false, 二面牆: false, 西曬: false, 挑高: false, 頂曬: false }
               }));
               setRows(normalizedData);
-              toast.success("✨ PDF 圖面解析完成！已載入空間數據。");
+              toast.success(`✨ 圖面解析完成！已成功載入 ${normalizedData.length} 個空間與手寫面積數據。`);
             } else {
               setRows([]);
               setIsCanvasModalOpen(true);
@@ -448,8 +448,7 @@ function App() {
 
       const data = await response.json();
 
-      const rawList = Array.isArray(data) ? data : (data.spaces || data.data || []);
-      const spacesList = rawList.filter(item => item.polygon && Array.isArray(item.polygon) && item.polygon.length >= 3);
+      const spacesList = Array.isArray(data) ? data : (data.spaces || data.data || []);
       if (!Array.isArray(data) && data.image_preview) {
         setPreviewUrl(data.image_preview);
       }
