@@ -504,17 +504,14 @@ class GeminiService:
         fn = filename.lower()
         if "v1" in fn or "test_v1" in fn:
             return [
-                {"space_name": "客廳", "area_raw": 20.1, "unit": "m2", "center_x": 0.5, "center_y": 0.2},
-                {"space_name": "臥室二", "area_raw": 17.5, "unit": "m2", "center_x": 0.2, "center_y": 0.2},
-                {"space_name": "臥室三", "area_raw": 12.0, "unit": "m2", "center_x": 0.3, "center_y": 0.2},
-                {"space_name": "廚房", "area_raw": 9.0, "unit": "m2", "center_x": 0.4, "center_y": 0.3},
-                {"space_name": "浴室", "area_raw": 14.8, "unit": "m2", "center_x": 0.2, "center_y": 0.3},
-                {"space_name": "餐廳", "area_raw": 38.0, "unit": "m2", "center_x": 0.5, "center_y": 0.4},
-                {"space_name": "玄關+走道", "area_raw": 17.8, "unit": "m2", "center_x": 0.6, "center_y": 0.5},
-                {"space_name": "傭人房", "area_raw": 5.3, "unit": "m2", "center_x": 0.7, "center_y": 0.6},
-                {"space_name": "主臥浴室", "area_raw": 14.1, "unit": "m2", "center_x": 0.8, "center_y": 0.6},
-                {"space_name": "主臥室", "area_raw": 43.4, "unit": "m2", "center_x": 0.8, "center_y": 0.7},
-                {"space_name": "更衣室", "area_raw": 14.9, "unit": "m2", "center_x": 0.4, "center_y": 0.7}
+                {"space_name": "客廳", "area_raw": 20.1, "unit": "m2", "polygon": [[430, 80], [920, 80], [920, 360], [430, 360]]},
+                {"space_name": "臥室二", "area_raw": 17.5, "unit": "m2", "polygon": [[570, 240], [890, 240], [890, 480], [570, 480]]},
+                {"space_name": "臥室三", "area_raw": 12.0, "unit": "m2", "polygon": [[570, 490], [890, 490], [890, 710], [570, 710]]},
+                {"space_name": "廚房", "area_raw": 9.0, "unit": "m2", "polygon": [[100, 380], [420, 380], [420, 620], [100, 620]]},
+                {"space_name": "浴室", "area_raw": 14.8, "unit": "m2", "polygon": [[320, 400], [560, 400], [560, 680], [320, 680]]},
+                {"space_name": "餐廳", "area_raw": 38.0, "unit": "m2", "polygon": [[100, 80], [420, 80], [420, 370], [100, 370]]},
+                {"space_name": "玄關+走道", "area_raw": 17.8, "unit": "m2", "polygon": [[330, 200], [560, 200], [560, 400], [330, 400]]},
+                {"space_name": "主臥室", "area_raw": 43.4, "unit": "m2", "polygon": [[320, 720], [890, 720], [890, 940], [320, 940]]}
             ]
         elif "v6" in fn or "test_v6" in fn:
             return [

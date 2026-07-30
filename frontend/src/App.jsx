@@ -1111,8 +1111,8 @@ function App() {
                         <polygon
                           points={pointsStr}
                           fill={color.bg}
-                          stroke={color.border}
-                          strokeWidth="3"
+                          stroke={row.box_color || "#FF8800"}
+                          strokeWidth="3.5"
                           strokeDasharray="6 3"
                         />
                         <foreignObject
