@@ -616,6 +616,77 @@ function App() {
     toast.success("✨ 【自動框面積】已成功啟動！已在圖面上為打勾處標定 4 大重點空間之亮橘色向量線框 (#FF8800)！");
   };
 
+  const renderSnapshotImage = () => {
+    try {
+      const sourceImg = modalImgRef.current || imgRef.current;
+      if (!sourceImg) return;
+
+      const canvas = document.createElement("canvas");
+      const naturalW = sourceImg.naturalWidth || 1200;
+      const naturalH = sourceImg.naturalHeight || 1200;
+      canvas.width = naturalW;
+      canvas.height = naturalH;
+
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(sourceImg, 0, 0, naturalW, naturalH);
+
+      rows.forEach((row, idx) => {
+        if (!row.selected || !row.polygon || row.polygon.length < 3) return;
+        const color = OVERLAY_COLORS[idx % OVERLAY_COLORS.length];
+
+        const scaledPts = row.polygon.map(pt => [
+          (pt[0] / 1000.0) * naturalW,
+          (pt[1] / 1000.0) * naturalH
+        ]);
+
+        ctx.beginPath();
+        ctx.moveTo(scaledPts[0][0], scaledPts[0][1]);
+        for (let i = 1; i < scaledPts.length; i++) {
+          ctx.lineTo(scaledPts[i][0], scaledPts[i][1]);
+        }
+        ctx.closePath();
+
+        ctx.fillStyle = color.bg || "rgba(255, 136, 0, 0.30)";
+        ctx.fill();
+
+        ctx.lineWidth = Math.max(3, Math.round(naturalW / 250));
+        ctx.strokeStyle = row.box_color || color.border || "#FF8800";
+        ctx.setLineDash([8, 4]);
+        ctx.stroke();
+
+        const avgX = scaledPts.reduce((sum, p) => sum + p[0], 0) / scaledPts.length;
+        const avgY = scaledPts.reduce((sum, p) => sum + p[1], 0) / scaledPts.length;
+
+        const spaceTitle = row.space_name || `空間 ${idx + 1}`;
+        const badgeTextStr = `${spaceTitle} (${row.area_m2}㎡ / ${row.area_ping}坪)`;
+
+        const fontSize = Math.max(14, Math.round(naturalW / 55));
+        ctx.font = `bold ${fontSize}px sans-serif`;
+        const textMetrics = ctx.measureText(badgeTextStr);
+        const textW = textMetrics.width + 24;
+        const textH = fontSize + 12;
+
+        ctx.fillStyle = color.badgeBg || "#0f172a";
+        ctx.fillRect(avgX - textW / 2, avgY - textH / 2, textW, textH);
+
+        ctx.setLineDash([]);
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = "#FF8800";
+        ctx.strokeRect(avgX - textW / 2, avgY - textH / 2, textW, textH);
+
+        ctx.fillStyle = color.badgeText || "#ffffff";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(badgeTextStr, avgX, avgY);
+      });
+
+      const snapshotUrl = canvas.toDataURL("image/jpeg", 0.92);
+      setPreviewUrl(snapshotUrl);
+    } catch (e) {
+      console.warn("Snapshot render warning:", e);
+    }
+  };
+
   const handleExportExcel = async () => {
     const filteredRows = rows.filter(row => row.selected);
 
@@ -1743,10 +1814,11 @@ function App() {
 
               <button
                 onClick={() => {
+                  renderSnapshotImage();
                   setIsCanvasModalOpen(false);
                   setScale(1);
                   setPosition({ x: 0, y: 0 });
-                  toast.success("✨ 已完成放樣與框選！已為您自動同步至工程核對視窗與表格。");
+                  toast.success("📸 已將劃定框線與色彩定格拍照存檔！小圖預覽 100% 精確連動。");
                 }}
                 style={{
                   backgroundColor: '#10b981',
