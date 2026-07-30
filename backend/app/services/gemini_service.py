@@ -504,10 +504,10 @@ class GeminiService:
         import re
         if "v13" in fn or "test_v13" in fn:
             return [
-                {"space_name": "客廳+餐廳", "area_raw": 14.4, "unit": "P", "polygon": [[280, 120], [780, 120], [780, 320], [280, 320]]},
-                {"space_name": "臥室 1", "area_raw": 2.8, "unit": "P", "polygon": [[580, 340], [860, 340], [860, 520], [580, 520]]},
-                {"space_name": "臥室 2", "area_raw": 2.8, "unit": "P", "polygon": [[580, 530], [860, 530], [860, 710], [580, 710]]},
-                {"space_name": "主臥室", "area_raw": 4.3, "unit": "P", "polygon": [[550, 720], [860, 720], [860, 930], [550, 930]]}
+                {"space_name": "客廳+玄關走道 (L型)", "area_raw": 18.5, "unit": "P", "polygon": [[280, 120], [930, 120], [930, 320], [630, 320], [630, 480], [280, 480]]},
+                {"space_name": "臥室 1", "area_raw": 2.8, "unit": "P", "polygon": [[630, 340], [930, 340], [930, 520], [630, 520]]},
+                {"space_name": "臥室 2", "area_raw": 2.8, "unit": "P", "polygon": [[630, 530], [930, 530], [930, 710], [630, 710]]},
+                {"space_name": "主臥室", "area_raw": 4.3, "unit": "P", "polygon": [[350, 720], [930, 720], [930, 940], [350, 940]]}
             ]
         elif re.search(r'v1(?!\d)', fn) or "test_v1." in fn:
             return [

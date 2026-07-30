@@ -196,6 +196,7 @@ function App() {
   const [isRectDrawing, setIsRectDrawing] = useState(false);
   const [mousePos, setMousePos] = useState([0, 0]);
   const [draggingVertex, setDraggingVertex] = useState(null); // { rowIdx, ptIdx }
+  const [draggingBox, setDraggingBox] = useState(null); // { rowIdx, startPos: [x,y], initialPoly: [...] }
 
   // 🎯 新增圖面實體紙張與比例標定 (A3 / A4 / 1:100 / 1:200 自圖面設定)
   const [paperSize, setPaperSize] = useState('A3'); // Options: 'A3', 'A4', 'A2', '自訂'
@@ -1940,6 +1941,24 @@ function App() {
                   });
                 }
 
+                if (draggingBox) {
+                  const { rowIdx, startPos, initialPoly } = draggingBox;
+                  const dx = x - startPos[0];
+                  const dy = y - startPos[1];
+
+                  setRows(prevRows => {
+                    const newRows = [...prevRows];
+                    const targetRow = { ...newRows[rowIdx] };
+                    const movedPoly = initialPoly.map(pt => [
+                      Math.max(0, Math.min(1000, pt[0] + dx)),
+                      Math.max(0, Math.min(1000, pt[1] + dy))
+                    ]);
+                    targetRow.polygon = movedPoly;
+                    newRows[rowIdx] = targetRow;
+                    return newRows;
+                  });
+                }
+
                 if (isRectDrawing) {
                   setRectCurrent([x, y]);
                 }
@@ -1948,6 +1967,10 @@ function App() {
                 if (draggingVertex) {
                   setDraggingVertex(null);
                   toast.success("✨ 已完成頂點點位拉伸！即時更新面積與大金配機結果。");
+                }
+                if (draggingBox) {
+                  setDraggingBox(null);
+                  toast.success("✨ 已成功平移整體框底！完成空間邊界位置對齊。");
                 }
                 if (isRectDrawing && rectStart && rectCurrent) {
                   setIsRectDrawing(false);
@@ -2025,7 +2048,45 @@ function App() {
 
                       return (
                         <g key={idx}>
-                          <polygon points={pointsStr} fill={color.bg} stroke={row.box_color || color.border || "#FF8800"} strokeWidth="3.5" strokeDasharray="6 3" />
+                          <polygon
+                            points={pointsStr}
+                            fill={color.bg}
+                            stroke={row.box_color || color.border || "#FF8800"}
+                            strokeWidth="3.5"
+                            strokeDasharray="6 3"
+                            style={{ cursor: 'move', pointerEvents: 'all' }}
+                            onMouseDown={(e) => {
+                              e.stopPropagation();
+                              const imgEl = modalSvgRef.current || modalImgRef.current;
+                              if (!imgEl) return;
+                              const rect = imgEl.getBoundingClientRect();
+                              const x = Math.max(0, Math.min(1000, Math.round((e.clientX - rect.left) / rect.width * 1000)));
+                              const y = Math.max(0, Math.min(1000, Math.round((e.clientY - rect.top) / rect.height * 1000)));
+
+                              setDraggingBox({
+                                rowIdx: idx,
+                                startPos: [x, y],
+                                initialPoly: row.polygon ? row.polygon.map(pt => [...pt]) : []
+                              });
+                              toast.info(`📦 按住拖曳中：整體移動【${row.space_name || '空間'}】邊框與底色！`);
+                            }}
+                            onTouchStart={(e) => {
+                              e.stopPropagation();
+                              const imgEl = modalSvgRef.current || modalImgRef.current;
+                              if (!imgEl) return;
+                              const rect = imgEl.getBoundingClientRect();
+                              const touch = e.touches[0];
+                              const x = Math.max(0, Math.min(1000, Math.round((touch.clientX - rect.left) / rect.width * 1000)));
+                              const y = Math.max(0, Math.min(1000, Math.round((touch.clientY - rect.top) / rect.height * 1000)));
+
+                              setDraggingBox({
+                                rowIdx: idx,
+                                startPos: [x, y],
+                                initialPoly: row.polygon ? row.polygon.map(pt => [...pt]) : []
+                              });
+                            }}
+                            title={`按住滑鼠左鍵【整體拖曳移動】${row.space_name || '空間'}邊框！`}
+                          />
                           <foreignObject x={avgX - 85} y={avgY - 14} width="170" height="28" style={{ overflow: 'visible', pointerEvents: 'none' }}>
                             <div style={{ display: 'flex', justifyContent: 'center' }}>
                               <span style={{ backgroundColor: color.badgeBg, color: color.badgeText, fontSize: '11px', fontWeight: 'bold', padding: '2px 6px', borderRadius: '4px', whiteSpace: 'nowrap', boxShadow: '0 2px 5px rgba(0,0,0,0.6)' }}>
