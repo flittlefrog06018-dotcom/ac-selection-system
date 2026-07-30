@@ -1105,13 +1105,12 @@ function App() {
                 style={{
                   position: 'relative',
                   display: 'inline-block',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  lineHeight: 0,
+                  fontSize: 0,
                   maxWidth: '100%',
                   maxHeight: '100%',
                   transform: 'none',
-                  transition: 'none',
-                  transformOrigin: 'center center'
+                  transition: 'none'
                 }}
               >
                 {file && file.type === "application/pdf" && previewUrl && !previewUrl.startsWith("data:image") ? (
@@ -1995,9 +1994,9 @@ function App() {
                 <div
                   style={{
                     position: 'relative',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    display: 'inline-block',
+                    lineHeight: 0,
+                    fontSize: 0,
                     maxWidth: '100%',
                     maxHeight: '100%',
                     transform: `scale(${scale})`,
