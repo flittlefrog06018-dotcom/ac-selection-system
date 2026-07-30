@@ -501,8 +501,8 @@ class GeminiService:
         """
         Mock rooms if the API key is not present or if library imports fail.
         """
-        fn = filename.lower()
-        if "v1" in fn or "test_v1" in fn:
+        import re
+        if re.search(r'v1(?!\d)', fn) or "test_v1." in fn or fn == "test_v1":
             return [
                 {"space_name": "客廳", "area_raw": 20.1, "unit": "m2", "polygon": [[430, 80], [920, 80], [920, 360], [430, 360]]},
                 {"space_name": "臥室二", "area_raw": 17.5, "unit": "m2", "polygon": [[570, 240], [890, 240], [890, 480], [570, 480]]},
