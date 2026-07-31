@@ -1301,7 +1301,7 @@ function App() {
                   viewBox="0 0 1000 1000"
                   preserveAspectRatio="none"
                 >
-                  {!isSnapshotBaked && rows && rows.length > 0 && rows.map((row, idx) => {
+                  {!isSnapshotBaked && showColoredMasks && rows && rows.length > 0 && rows.map((row, idx) => {
                     if (!row.selected) return null;
                     const color = OVERLAY_COLORS[idx % OVERLAY_COLORS.length];
                     let poly = row.polygon;
