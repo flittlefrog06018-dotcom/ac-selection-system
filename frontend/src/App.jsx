@@ -453,13 +453,16 @@ function App() {
       } else if (fn.includes("v1") || fn.includes("test_v1")) {
         parsedSpaces = [
           { space_name: "客廳", area_m2: 20.1, area_ping: 6.08, base_suggested_load: 550, polygon: [[430, 80], [920, 80], [920, 360], [430, 360]] },
+          { space_name: "主臥室", area_m2: 43.4, area_ping: 13.13, base_suggested_load: 520, polygon: [[320, 720], [890, 720], [890, 940], [320, 940]] },
           { space_name: "臥室二", area_m2: 17.5, area_ping: 5.29, base_suggested_load: 520, polygon: [[570, 240], [890, 240], [890, 480], [570, 480]] },
           { space_name: "臥室三", area_m2: 12.0, area_ping: 3.63, base_suggested_load: 520, polygon: [[570, 490], [890, 490], [890, 710], [570, 710]] },
           { space_name: "廚房", area_m2: 9.0, area_ping: 2.72, base_suggested_load: 700, polygon: [[100, 380], [420, 380], [420, 620], [100, 620]] },
-          { space_name: "浴室", area_m2: 14.8, area_ping: 4.48, base_suggested_load: 350, polygon: [[320, 400], [560, 400], [560, 680], [320, 680]] },
+          { space_name: "浴室一", area_m2: 14.8, area_ping: 4.48, base_suggested_load: 350, polygon: [[320, 400], [560, 400], [560, 680], [320, 680]] },
+          { space_name: "浴室二", area_m2: 10.5, area_ping: 3.18, base_suggested_load: 350, polygon: [[100, 630], [310, 630], [310, 800], [100, 800]] },
           { space_name: "餐廳", area_m2: 38.0, area_ping: 11.49, base_suggested_load: 600, polygon: [[100, 80], [420, 80], [420, 370], [100, 370]] },
-          { space_name: "玄關+走道", area_m2: 17.8, area_ping: 5.38, base_suggested_load: 450, polygon: [[330, 200], [560, 200], [560, 400], [330, 400]] },
-          { space_name: "主臥室", area_m2: 43.4, area_ping: 13.13, base_suggested_load: 520, polygon: [[320, 720], [890, 720], [890, 940], [320, 940]] }
+          { space_name: "玄關", area_m2: 8.8, area_ping: 2.66, base_suggested_load: 450, polygon: [[330, 80], [560, 80], [560, 200], [330, 200]] },
+          { space_name: "走道", area_m2: 9.0, area_ping: 2.72, base_suggested_load: 450, polygon: [[330, 200], [560, 200], [560, 400], [330, 400]] },
+          { space_name: "工作陽台", area_m2: 12.5, area_ping: 3.78, base_suggested_load: 0, polygon: [[100, 810], [310, 810], [310, 940], [100, 940]] }
         ];
       } else {
         parsedSpaces = [
