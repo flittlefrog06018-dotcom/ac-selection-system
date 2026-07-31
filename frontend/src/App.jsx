@@ -498,6 +498,14 @@ function App() {
           { space_name: "主臥", area_m2: 16.5, area_ping: 5.0, base_suggested_load: 520, polygon: [[250, 450], [550, 450], [550, 850], [250, 850]] },
           { space_name: "次臥", area_m2: 11.5, area_ping: 3.5, base_suggested_load: 520, polygon: [[580, 450], [850, 450], [850, 850], [580, 850]] }
         ];
+      } else if (fn.includes("v4") || fn.includes("test_v4")) {
+        parsedSpaces = [
+          { space_name: "董事長室", area_m2: 35.48, area_ping: 10.73, base_suggested_load: 550, polygon: [[150, 120], [450, 120], [450, 450], [150, 450]] },
+          { space_name: "總經理室", area_m2: 23.20, area_ping: 7.02, base_suggested_load: 550, polygon: [[150, 480], [450, 480], [450, 780], [150, 780]] },
+          { space_name: "辦公室", area_m2: 34.63, area_ping: 10.48, base_suggested_load: 630, polygon: [[480, 120], [850, 120], [850, 450], [480, 450]] },
+          { space_name: "合約洽談區", area_m2: 27.32, area_ping: 8.26, base_suggested_load: 630, polygon: [[480, 480], [850, 480], [850, 780], [480, 780]] },
+          { space_name: "吧台區", area_m2: 31.16, area_ping: 9.43, base_suggested_load: 700, polygon: [[300, 800], [700, 800], [700, 950], [300, 950]] }
+        ];
       } else if (fn.includes("v1") || fn.includes("test_v1")) {
         parsedSpaces = [
           { space_name: "客廳", area_m2: 20.1, area_ping: 6.08, base_suggested_load: 550, polygon: [[430, 80], [920, 80], [920, 360], [430, 360]] },
