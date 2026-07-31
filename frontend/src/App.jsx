@@ -317,64 +317,24 @@ function App() {
 
 
 
+  const convertFileToPreviewImage = (selectedFile) => {
+    if (!selectedFile) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target.result;
+      setPreviewUrl(dataUrl);
+      setIsSnapshotBaked(false);
+    };
+    reader.readAsDataURL(selectedFile);
+  };
+
   const processFile = async (selectedFile) => {
     if (selectedFile) {
       setFile(selectedFile);
-      const isPdf = selectedFile.name.toLowerCase().endsWith('.pdf') || selectedFile.type === 'application/pdf';
-      const isDxf = selectedFile.name.toLowerCase().endsWith('.dxf');
-
-      if (isDxf) {
-        setPreviewUrl(null);
-        toast.info("📐 已選取 CAD 向量檔 (.dxf)！請點擊 [🚀 執行圖面自動解析] 以繪製全圖並計算空間。");
-      } else if (isPdf) {
-        toast.info("📄 正在將 PDF 轉化為高清圖面以利框選編輯，請稍候...");
-        const formData = new FormData();
-        formData.append("file", selectedFile);
-        formData.append("case_type", "commercial");
-        formData.append("paper_size", paperSize);
-        formData.append("scale_ratio", scaleRatio === '自訂' ? `1:${customScaleVal}` : scaleRatio);
-
-        try {
-          const res = await fetch("/api/upload-layout", {
-            method: "POST",
-            headers: { "Bypass-Tunnel-Remainder": "true" },
-            body: formData
-          });
-          if (res.ok) {
-            const data = await res.json();
-            if (data.image_preview) {
-              setPreviewUrl(data.image_preview);
-            }
-            const spacesList = data.spaces || [];
-            if (spacesList.length > 0) {
-              const normalizedData = spacesList.map(item => ({
-                ...item,
-                selected: true,
-                system_type: item.system_type || "VRV",
-                calc_basis: item.base_suggested_load || 500,
-                total_cooling_demand: item.total_cooling_load_kcal || 0,
-                best_match_model: item.recommended_model || "FTXM28ZVLT",
-                unit_count: item.qty || 1,
-                cap_kw: item.cap_kw || 2.8,
-                modifiers: item.modifiers || { 全內周: false, 二面牆: false, 西曬: false, 挑高: false, 頂曬: false }
-              }));
-              setRows(normalizedData);
-              toast.success(`✨ 圖面解析完成！已成功載入 ${normalizedData.length} 個空間與手寫面積數據。`);
-            } else {
-              setRows([]);
-              setIsCanvasModalOpen(true);
-              toast.info("💡 偵測到此 PDF 未標示文字面積，已自動為您開啟大視窗放樣編輯器！請點選【矩形拉框】或【多邊形 PLine】劃定空間區域！");
-            }
-          }
-        } catch (err) {
-          setPreviewUrl(URL.createObjectURL(selectedFile));
-          setIsCanvasModalOpen(true);
-        }
-      } else {
-        setPreviewUrl(URL.createObjectURL(selectedFile));
-      }
+      convertFileToPreviewImage(selectedFile);
       setScale(1);
       setPosition({ x: 0, y: 0 });
+      toast.success(`📄 已成功載入圖檔：${selectedFile.name}！請點擊 [🚀 執行圖面自動解析]`);
     }
   };
 
