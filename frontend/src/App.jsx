@@ -430,6 +430,51 @@ function App() {
     setLoading(true);
     toast.info("已啟動高精準雙軌辨識，正在解析圖面中，請稍候...");
 
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("case_type", "commercial");
+    formData.append("paper_size", paperSize);
+    formData.append("scale_ratio", scaleRatio === '自訂' ? `1:${customScaleVal}` : scaleRatio);
+
+    try {
+      const res = await fetch("/api/upload-layout", {
+        method: "POST",
+        headers: { "Bypass-Tunnel-Remainder": "true" },
+        body: formData
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const spacesList = Array.isArray(data) ? data : (data.spaces || data.data || []);
+        if (spacesList.length > 0) {
+          const normalizedData = spacesList.map(item => {
+            const baseKcal = item.base_suggested_load || getFuzzyBaseLoadByName(item.space_name) || 520;
+            const ping = parseFloat(item.area_ping) || (item.area_m2 ? Math.round(item.area_m2 / 3.3058 * 100) / 100 : 0);
+            const initialDemand = Math.round(ping * baseKcal);
+            const autoMatch = clientSideSelectEquipment(initialDemand, "VRV");
+            return {
+              ...item,
+              selected: true,
+              system_type: "VRV",
+              calc_basis: baseKcal,
+              total_cooling_demand: initialDemand,
+              best_match_model: autoMatch.model,
+              unit_count: autoMatch.qty,
+              cap_kw: autoMatch.cap,
+              special_kw: 0,
+              modifiers: { 全內周: false, 二面牆: false, 西曬: false, 挑高: false, 頂曬: false },
+              is_matched: true
+            };
+          });
+          setRows(normalizedData);
+          setLoading(false);
+          toast.success(`✨ 已連線 Python 雲端 AI 引擎！精準解析出 ${normalizedData.length} 個動態空間。`);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn("Backend API connect fallback:", e);
+    }
+
     setTimeout(() => {
       const fn = file ? (file.name || "").toLowerCase() : "";
       let parsedSpaces = [];

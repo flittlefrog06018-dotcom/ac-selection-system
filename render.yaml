@@ -1,12 +1,10 @@
 services:
   - type: web
-    name: ac-selection-system
+    name: ac-selection-backend
     env: python
     region: singapore
     buildCommand: "pip install -r backend/requirements.txt"
     startCommand: "python backend/main.py"
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.10.11
-      - key: GEMINI_API_KEY
-        value: "AQ.Ab8RN6Kd9HoU-3YA2zqXngcI24DFbBF_svgySXxRMxo6zs0w7A"
+      - key: PORT
+        value: 8000
