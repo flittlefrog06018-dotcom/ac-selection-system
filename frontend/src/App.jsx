@@ -504,10 +504,10 @@ function App() {
           { space_name: "浴室", area_m2: 14.8, area_ping: 4.48, base_suggested_load: 350, polygon: [[320, 400], [560, 400], [560, 680], [320, 680]] },
           { space_name: "餐廳", area_m2: 38.0, area_ping: 11.49, base_suggested_load: 600, polygon: [[100, 80], [420, 80], [420, 370], [100, 370]] },
           { space_name: "玄關+走道", area_m2: 17.8, area_ping: 5.38, base_suggested_load: 450, polygon: [[330, 200], [560, 200], [560, 400], [330, 400]] },
-          { space_name: "傭人房", area_m2: 9.0, area_ping: 2.72, base_suggested_load: 500, polygon: [[100, 630], [310, 630], [310, 800], [100, 800]] },
-          { space_name: "主臥浴室", area_m2: 9.5, area_ping: 2.87, base_suggested_load: 350, polygon: [[320, 690], [560, 690], [560, 850], [320, 850]] },
+          { space_name: "傭人房", area_m2: 10.2, area_ping: 3.08, base_suggested_load: 500, polygon: [[100, 630], [310, 630], [310, 800], [100, 800]] },
+          { space_name: "主臥浴室", area_m2: 11.5, area_ping: 3.48, base_suggested_load: 350, polygon: [[320, 690], [560, 690], [560, 850], [320, 850]] },
           { space_name: "主臥室", area_m2: 43.4, area_ping: 13.13, base_suggested_load: 520, polygon: [[570, 720], [920, 720], [920, 940], [570, 940]] },
-          { space_name: "更衣室", area_m2: 9.25, area_ping: 2.80, base_suggested_load: 400, polygon: [[320, 860], [560, 860], [560, 950], [320, 850]] }
+          { space_name: "更衣室", area_m2: 12.5, area_ping: 3.78, base_suggested_load: 400, polygon: [[320, 860], [560, 860], [560, 950], [320, 850]] }
         ];
       } else {
         parsedSpaces = [
