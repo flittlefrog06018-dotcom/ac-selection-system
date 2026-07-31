@@ -2,6 +2,7 @@ services:
   - type: web
     name: ac-selection-backend
     env: python
+    plan: free
     region: singapore
     buildCommand: "pip install -r backend/requirements.txt"
     startCommand: "python backend/main.py"
