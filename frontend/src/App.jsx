@@ -448,18 +448,21 @@ function App() {
         if (spacesList.length > 0) {
           const normalizedData = spacesList.map(item => {
             const baseKcal = item.base_suggested_load || getFuzzyBaseLoadByName(item.space_name) || 520;
-            const ping = parseFloat(item.area_ping) || (item.area_m2 ? Math.round(item.area_m2 / 3.3058 * 100) / 100 : 0);
-            const initialDemand = Math.round(ping * baseKcal);
+            const areaM2 = item.area_m2 !== undefined ? parseFloat(item.area_m2) : 0;
+            const ping = item.area_ping !== undefined ? parseFloat(item.area_ping) : Math.round(areaM2 * 0.3025 * 100) / 100;
+            const initialDemand = item.total_cooling_load_kcal || Math.round(ping * baseKcal);
             const autoMatch = clientSideSelectEquipment(initialDemand, "VRV");
             return {
               ...item,
+              area_m2: areaM2,
+              area_ping: ping,
               selected: true,
               system_type: "VRV",
               calc_basis: baseKcal,
               total_cooling_demand: initialDemand,
-              best_match_model: autoMatch.model,
-              unit_count: autoMatch.qty,
-              cap_kw: autoMatch.cap,
+              best_match_model: item.recommended_model || autoMatch.model,
+              unit_count: item.qty || autoMatch.qty,
+              cap_kw: item.cap_kw || autoMatch.cap,
               special_kw: 0,
               modifiers: { 全內周: false, 二面牆: false, 西曬: false, 挑高: false, 頂曬: false },
               is_matched: true
