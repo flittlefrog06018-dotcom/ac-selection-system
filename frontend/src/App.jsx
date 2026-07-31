@@ -444,6 +444,9 @@ function App() {
       });
       if (res.ok) {
         const data = await res.json();
+        if (data.image_preview) {
+          setPreviewImage(data.image_preview);
+        }
         const spacesList = Array.isArray(data) ? data : (data.spaces || data.data || []);
         if (spacesList.length > 0) {
           const normalizedData = spacesList.map(item => {
