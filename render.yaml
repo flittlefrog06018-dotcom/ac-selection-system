@@ -1,11 +1,10 @@
 services:
   - type: web
     name: ac-selection-backend
-    env: python
+    env: docker
     plan: free
     region: singapore
-    buildCommand: "pip install -r backend/requirements.txt"
-    startCommand: "python backend/main.py"
+    dockerfilePath: ./Dockerfile
     envVars:
       - key: PORT
         value: 8000
