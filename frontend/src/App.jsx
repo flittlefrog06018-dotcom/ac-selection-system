@@ -171,6 +171,7 @@ function App() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
+  const [showColoredMasks, setShowColoredMasks] = useState(false);
 
   const [scale, setScale] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -455,10 +456,10 @@ function App() {
           { space_name: "浴室", area_m2: 14.8, area_ping: 4.48, base_suggested_load: 350, polygon: [[320, 400], [560, 400], [560, 680], [320, 680]] },
           { space_name: "餐廳", area_m2: 38.0, area_ping: 11.49, base_suggested_load: 600, polygon: [[100, 80], [420, 80], [420, 370], [100, 370]] },
           { space_name: "玄關+走道", area_m2: 17.8, area_ping: 5.38, base_suggested_load: 450, polygon: [[330, 200], [560, 200], [560, 400], [330, 400]] },
-          { space_name: "傭人房", area_m2: 10.2, area_ping: 3.08, base_suggested_load: 500, polygon: [[100, 630], [310, 630], [310, 800], [100, 800]] },
-          { space_name: "主臥浴室", area_m2: 11.5, area_ping: 3.48, base_suggested_load: 350, polygon: [[320, 690], [560, 690], [560, 850], [320, 850]] },
+          { space_name: "傭人房", area_m2: 9.0, area_ping: 2.72, base_suggested_load: 500, polygon: [[100, 630], [310, 630], [310, 800], [100, 800]] },
+          { space_name: "主臥浴室", area_m2: 9.5, area_ping: 2.87, base_suggested_load: 350, polygon: [[320, 690], [560, 690], [560, 850], [320, 850]] },
           { space_name: "主臥室", area_m2: 43.4, area_ping: 13.13, base_suggested_load: 520, polygon: [[570, 720], [920, 720], [920, 940], [570, 940]] },
-          { space_name: "更衣室", area_m2: 12.5, area_ping: 3.78, base_suggested_load: 400, polygon: [[320, 860], [560, 860], [560, 950], [320, 950]] }
+          { space_name: "更衣室", area_m2: 9.25, area_ping: 2.80, base_suggested_load: 400, polygon: [[320, 860], [560, 860], [560, 950], [320, 850]] }
         ];
       } else {
         parsedSpaces = [
@@ -978,21 +979,39 @@ function App() {
         <section style={styles.card}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', ...styles.cardTitle, flexWrap: 'wrap', gap: '8px' }}>
             <span>🖼️ 實時圖面比對核對視窗</span>
-            <button
-              onClick={triggerFileSelect}
-              style={{
-                backgroundColor: '#334155',
-                color: '#38bdf8',
-                border: '1px solid #475569',
-                padding: '4px 10px',
-                borderRadius: '4px',
-                fontSize: '12px',
-                cursor: 'pointer',
-                fontWeight: 'bold'
-              }}
-            >
-              📁 {file ? "更換圖面" : "選擇圖檔"}
-            </button>
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <button
+                onClick={() => setShowColoredMasks(!showColoredMasks)}
+                style={{
+                  backgroundColor: showColoredMasks ? '#0284c7' : '#334155',
+                  color: '#fff',
+                  border: '1px solid #475569',
+                  padding: '4px 10px',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold'
+                }}
+                title="點擊切換顯示/隱藏圖面彩色面積遮罩"
+              >
+                🎨 {showColoredMasks ? "隱藏彩色遮罩" : "顯示框線遮罩"}
+              </button>
+              <button
+                onClick={triggerFileSelect}
+                style={{
+                  backgroundColor: '#334155',
+                  color: '#38bdf8',
+                  border: '1px solid #475569',
+                  padding: '4px 10px',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold'
+                }}
+              >
+                📁 {file ? "更換圖面" : "選擇圖檔"}
+              </button>
+            </div>
           </div>
           <div
             style={{
@@ -1055,7 +1074,8 @@ function App() {
                   const p1 = doorGapSettings.p1;
                   const p2 = [x, y];
                   const distPx = Math.sqrt((x - p1[0])**2 + (y - p1[1])**2);
-                  const doorCm = doorGapSettings.doorWidthCm || 90;
+                  const userCm = prompt("請輸入此門縫實際開口寬度 (單位: 公分 cm):", "90");
+                  const doorCm = parseFloat(userCm) || 90;
                   const ratio = (doorCm / 100.0) / distPx;
                   setPixelToMeterRatio(ratio);
                   toast.success(`📏 已成功點選門框兩點！測得長度: ${Math.round(distPx)}px，已完成 ${doorCm}cm 精確放樣連動校正！`);
@@ -1101,12 +1121,14 @@ function App() {
                 setIsRectDrawing(false);
                 const p1 = rectStart;
                 const p2 = rectCurrent;
-                const xmin = Math.min(p1[0], p2[0]);
-                const xmax = Math.max(p1[0], p2[0]);
-                const ymin = Math.min(p1[1], p2[1]);
-                const ymax = Math.max(p1[1], p2[1]);
-                if ((xmax - xmin) > 10 && (ymax - ymin) > 10) {
-                  handleFinishPline([[xmin, ymin], [xmax, ymin], [xmax, ymax], [xmin, ymax]]);
+                const minX = Math.min(p1[0], p2[0]);
+                const maxX = Math.max(p1[0], p2[0]);
+                const minY = Math.min(p1[1], p2[1]);
+                const maxY = Math.max(p1[1], p2[1]);
+
+                if (maxX - minX > 20 && maxY - minY > 20) {
+                  const newPoly = [[minX, minY], [maxX, minY], [maxX, maxY], [minX, maxY]];
+                  handleFinishPline(newPoly);
                 }
                 setRectStart(null);
                 setRectCurrent(null);
