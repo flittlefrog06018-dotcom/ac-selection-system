@@ -61,6 +61,18 @@ class CVSegmentationService:
         return round(meter_sq, 2), round(ping, 2)
 
     @staticmethod
+    def calculate_area_m2_shoelace(polygon_pixels: np.ndarray, meters_per_pixel: float) -> Tuple[float, float]:
+        """
+        Shoelace 演算法：依據 0.9m 綠色門寬基準 (meters_per_pixel) 計算多邊形之實際 m² 面積與坪數
+        """
+        x = polygon_pixels[:, 0]
+        y = polygon_pixels[:, 1]
+        pixel_area = 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
+        area_m2 = pixel_area * (meters_per_pixel ** 2)
+        ping = area_m2 * 0.3025
+        return round(area_m2, 2), round(ping, 2)
+
+    @staticmethod
     def detect_exterior_walls(contour: np.ndarray, img_shape: Tuple[int, int]) -> Dict[str, Any]:
         """
         區分內牆與外牆：結合幾何外圍邊界與凸包 (Convex Hull)
