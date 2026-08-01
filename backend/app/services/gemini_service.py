@@ -54,6 +54,15 @@ class FloorplanPromptResponse(BaseModel):
     reference_door_pixels: list[list[float]] = Field(default_factory=list, description="[[x1, y1], [x2, y2]] green bedroom door coordinates")
     zones: list[ZoneOutputSchema]
 
+class DetectedZone(BaseModel):
+    zone_id: str = Field(description="Unique Zone ID, e.g. LDKE_PUBLIC, MASTER_BEDROOM, BEDROOM_B, BEDROOM_C")
+    zone_name: str = Field(description="Full Zone Name e.g. 公領域 (LDKE: 客廳+餐廳+廚房+玄關)")
+    color_hex: str = Field(description="Hex Color e.g. #215A9A, #3B82F6, #22C55E, #EC4899")
+    polygon_1000: list[list[int]] = Field(description="Multi-point polygon in 0-1000 scale [[x1, y1], [x2, y2], ...] bypassing bathrooms and wall corners")
+
+class DetectedZonesReport(BaseModel):
+    detected_zones: list[DetectedZone]
+
 # =========================================================================
 # Gemini Prompt Rules 1-4 (From VV17 / VV16 Legacy Script)
 # =========================================================================
