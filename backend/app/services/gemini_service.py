@@ -489,7 +489,7 @@ class GeminiService:
         """
         Mock rooms if the API key is not present or if library imports fail.
         """
-        import re
+        fn = filename.lower()
         if "v13" in fn or "test_v13" in fn:
             return [
                 {"space_name": "客廳+玄關走道 (L型)", "area_raw": 18.5, "unit": "P", "polygon": [[280, 120], [930, 120], [930, 320], [630, 320], [630, 480], [280, 480]]},
@@ -504,7 +504,15 @@ class GeminiService:
                 {"space_name": "臥室 B (次臥 B)", "area_raw": 9.25, "unit": "m2", "polygon": [[425, 485], [570, 485], [570, 710], [425, 710]], "box_color": "#22C55E"},
                 {"space_name": "臥室 A (次臥 A)", "area_raw": 11.57, "unit": "m2", "polygon": [[240, 300], [420, 300], [420, 480], [240, 480]], "box_color": "#EC4899"}
             ]
-        elif fn.startswith("test_v1.") or fn == "test_v1.pdf" or fn == "test_v1.jpg":
+        elif "v4" in fn or "test_v4" in fn:
+            return [
+                {"space_name": "董事長室", "area_raw": 35.48, "unit": "m2", "polygon": [[150, 120], [450, 120], [450, 450], [150, 450]]},
+                {"space_name": "總經理室", "area_raw": 23.20, "unit": "m2", "polygon": [[150, 480], [450, 480], [450, 780], [150, 780]]},
+                {"space_name": "辦公室", "area_raw": 34.63, "unit": "m2", "polygon": [[480, 120], [850, 120], [850, 450], [480, 450]]},
+                {"space_name": "合約洽談區", "area_raw": 27.32, "unit": "m2", "polygon": [[480, 480], [850, 480], [850, 780], [480, 780]]},
+                {"space_name": "吧台區", "area_raw": 31.16, "unit": "m2", "polygon": [[300, 800], [700, 800], [700, 950], [300, 950]]}
+            ]
+        elif "v1" in fn or "test_v1" in fn:
             return [
                 {"space_name": "客廳", "area_raw": 20.1, "unit": "m2", "polygon": [[430, 80], [920, 80], [920, 360], [430, 360]]},
                 {"space_name": "臥室二", "area_raw": 17.5, "unit": "m2", "polygon": [[570, 240], [890, 240], [890, 480], [570, 480]]},
