@@ -447,6 +447,11 @@ function App() {
         if (data.image_preview) {
           setPreviewImage(data.image_preview);
         }
+        if (data.is_blank_plan) {
+          setShowColoredMasks(true);
+        } else {
+          setShowColoredMasks(false);
+        }
         const spacesList = Array.isArray(data) ? data : (data.spaces || data.data || []);
         if (spacesList.length > 0) {
           const normalizedData = spacesList.map(item => {

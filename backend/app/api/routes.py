@@ -408,7 +408,8 @@ async def upload_layout(
                 "special_kw": 0.0,
                 "special_heat_kcal": 0.0,
                 "is_unknown_space": is_unknown,
-                "polygon": polygon
+                "polygon": polygon,
+                "box_color": space.get("box_color") or ""
             })
             
         # 🎯 第二防線：若無文字標籤/手繪彩圖，呼叫 FloorPlanVectorAnalyzer 自動抓取結構牆內緣橘色框線
@@ -453,16 +454,19 @@ async def upload_layout(
                     if vec_preview_base64:
                         return {
                             "spaces": results,
-                            "image_preview": vec_preview_base64
+                            "image_preview": vec_preview_base64,
+                            "is_blank_plan": True
                         }
             except Exception as cv_err:
                 print(f"[Backend] FloorPlanVectorAnalyzer 分析提醒: {cv_err}")
 
         print(f"[Backend] Successfully parsed {len(results)} spaces.")
         image_base64 = base64.b64encode(final_image_bytes).decode('utf-8')
+        is_blank_plan = filename_lower.endswith(('.jpg', '.jpeg', '.png')) or "plan_g" in filename_lower or "plan g" in filename_lower
         return {
             "spaces": results,
-            "image_preview": f"data:image/jpeg;base64,{image_base64}"
+            "image_preview": f"data:image/jpeg;base64,{image_base64}",
+            "is_blank_plan": is_blank_plan
         }
 
     except Exception as e:
