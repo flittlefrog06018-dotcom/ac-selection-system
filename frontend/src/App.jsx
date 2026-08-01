@@ -1087,20 +1087,6 @@ function App() {
         >
           {loading ? "⚡ AI 正在全力計算中..." : "🚀 執行圖面自動解析"}
         </button>
-        <button
-          onClick={handleLoadBlankCanvas}
-          style={{
-            backgroundColor: '#0284c7',
-            color: '#fff',
-            border: 'none',
-            padding: '10px 16px',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontWeight: 'bold'
-          }}
-        >
-          📄 載入空白工程畫布
-        </button>
         <button onClick={handleExportExcel} disabled={exportLoading || rows.length === 0} style={styles.btnSecondary}>
           {exportLoading ? "⏳ 正在產生檔案..." : "📊 導出至官方「選機表-.xlsx」"}
         </button>
