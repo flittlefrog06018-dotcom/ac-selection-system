@@ -371,10 +371,7 @@ function App() {
       convertFileToPreviewImage(selectedFile);
       setScale(1);
       setPosition({ x: 0, y: 0 });
-      toast.success(`📄 已載入圖檔：${selectedFile.name}，正在自動進行 AI 視覺解析...`);
-      setTimeout(() => {
-        handleAnalyze(selectedFile);
-      }, 200);
+      toast.success(`📄 已成功匯入圖檔：${selectedFile.name}！請點擊 [🚀 執行圖面自動解析] 開始辨識。`);
     }
   };
 
