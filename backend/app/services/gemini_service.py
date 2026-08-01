@@ -67,23 +67,12 @@ class DetectedZonesReport(BaseModel):
 # Gemini Prompt Rules 1-4 (From VV17 / VV16 Legacy Script)
 # =========================================================================
 BASE_CORE_PROMPT = """
-你是一位極其專業且嚴謹的空調工程圖面數據審查專家。你的核心任務是從圖紙（包括 CAD 電子圖與手繪現場草圖）中精確提取各個空間的真實名稱、面積數值、單位與在圖面中的幾何座標 [ymin, xmin, ymax, xmax]。
-【必須遵守的通用原則】：
-1. 【100% 忠實還原圖面真實文字與數字】：
-   - 提取的空間名稱與面積數值，必須 100% 忠實照抄圖面上手寫或印刷的文字標籤（例如手寫「客廳 10P」輸出名稱「客廳」、數值 10.0、單位 "P"；手寫「主臥 15P」輸出名稱「主臥」、數值 15.0、單位 "P"；手寫「書房 3P」輸出名稱「書房」、數值 3.0、單位 "P"）。
-   - 絕對禁止擅自腦補或使用寫死的模板數字！圖面上手寫或印什麼，就輸出什麼！
-   - 防腦補鋼印：嚴禁擅自改字、縮寫或追加「一、二」等數字編號！
-2. 【面積單位精確判定】:
-   - 若文字帶有 "P"、"坪" 或手寫字標有 P (如 10P, 15P, 3P, 1.5P)，單位 unit 必須精確輸出為 "P"！
-   - 若文字標註為 "m2" 或 "㎡" (如 20.1m2, 38m2, 14.1m2)，單位 unit 必須精確輸出為 "m2"！
-3. 【幾何框與中心點】：
-   - 必須精確填寫每個空間在圖片中對應的邊界框 box_2d [ymin, xmin, ymax, xmax] (0.0 到 1.0 歸一化座標)，且必須緊貼該空間手畫或印刷的實體隔間線與格子。
-   - 必須提供中心點 center_x 與 center_y (0.0 到 1.0 之間)。
-4. 【建築圖面幾何護欄】：
-   - 【嚴禁將靠牆櫃體判定為牆】：圖面中靠牆之衣櫃、電視櫃、鞋櫃，一律視為房間內部空間，絕對禁止將其扣除或判定為實體隔牆。
-   - 【主臥室嚴禁包含衛浴】：主臥室幾何邊界必須嚴格止於衣櫃與房間牆，絕對禁止將下方的廁所/衛浴劃入。
-   - 【大門玄關完整包含】：客餐廳區左下角大門與進門玄關，必須完整劃入評估空間。
-   - 【物理比例尺反算】：識別圖面上標註如 `A4 1:500`，自動帶入物理比例換算實體空間坪數。
+You are an expert architectural spatial parser. Analyze the floor plan image and return precise boundaries for each zone.
+
+CRITICAL INSTRUCTION FOR BOUNDARIES:
+- DO NOT use bounding boxes or rectangular coordinates.
+- Return each zone as a SINGLE, CLOSED POLYGON defined by an array of normalized coordinates (0-1000).
+- For non-rectangular areas (like LDKE public area), trace the wall bounds continuously to form a complex polygon (e.g., 6 to 12 vertices) that accurately includes the kitchen, dining, entrance, and living room while STRICTLY EXCLUDING the bathrooms.
 """
 
 def get_prompt_rule_1(text_stream: str, file_name: str = "") -> str:
@@ -129,12 +118,10 @@ def get_prompt_rule_3() -> str:
 
 def get_prompt_rule_4() -> str:
     return BASE_CORE_PROMPT + """
-    【當前模式：空白底圖 / 勾選色條手繪圖面 (🔴 Plan G 專屬勾選空間精確辨識 🔴)】
-    1. 【僅提取勾選 (✓) 或彩色著色填滿之選定目標空間】：
-       - 本案核心任務：僅提取圖面上畫有勾選符號 (✓) 或手繪彩色螢光筆色條/顏色著色填滿的「選定目標空間」（如：黃色 L 型客餐廳廚房、藍色臥室、綠色臥室、粉色主臥室）。
-       - 【絕對主動過濾忽略】：任何未打勾、未著色填滿的背景空間（如「陽台」、「天井」、「裝飾版」或未打勾之浴室），絕對禁止列入選機清單。
-    2. 【物理比例尺與紙張自動反算】：
-       - 請自動讀取右下角標註之實體紙張與比例尺文字（例如 `A4 1:500`），依據空間多邊形頂點 coordinates 結合比例尺，精確計算出每個選定空間之真實平方米 m2 與坪數 P。
+    【CRITICAL INSTRUCTION FOR BOUNDARIES】:
+    - DO NOT use bounding boxes or rectangular coordinates.
+    - Return each zone as a SINGLE, CLOSED POLYGON defined by an array of normalized coordinates (0-1000).
+    - For non-rectangular areas (like LDKE public area), trace the wall bounds continuously to form a complex polygon (e.g., 6 to 12 vertices) that accurately includes the kitchen, dining, entrance, and living room while STRICTLY EXCLUDING the bathrooms.
     """
 
 
