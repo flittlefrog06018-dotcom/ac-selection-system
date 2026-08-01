@@ -1350,7 +1350,7 @@ function App() {
                   />
                 )}
 
-                {/* 🎯 實時圖面向量多邊形彩色遮罩與放樣紅線 */}
+                {/* 🎯 實時圖面純淨影像呈現 (完全接收 Gemini/後端 API 產出之半透明彩色遮罩合成圖與文字數據) */}
                 <svg
                   style={{
                     position: 'absolute',
@@ -1363,65 +1363,6 @@ function App() {
                   viewBox="0 0 1000 1000"
                   preserveAspectRatio="none"
                 >
-                  {!isSnapshotBaked && showColoredMasks && rows && rows.length > 0 && rows.map((row, idx) => {
-                    if (!row.selected) return null;
-                    const color = OVERLAY_COLORS[idx % OVERLAY_COLORS.length];
-                    let poly = row.polygon;
-
-                    // 若無有效幾何座標，不繪製假方框遮擋畫面
-                    if (!poly || !Array.isArray(poly) || poly.length < 3) {
-                      return null;
-                    }
-
-                    // 將 [[x1, y1], [x2, y2], ...] 轉為 SVG "x1,y1 x2,y2 ..." 點字串 (標準 [x, y] 格式)
-                    const pointsStr = poly.map(pt => `${pt[0]},${pt[1]}`).join(' ');
-
-                    // 計算該多邊形之幾何中心 (Centroid) 以放置空間名稱標籤
-                    const avgX = poly.reduce((sum, pt) => sum + pt[0], 0) / poly.length;
-                    const avgY = poly.reduce((sum, pt) => sum + pt[1], 0) / poly.length;
-
-                    // 計算長度與寬度 (cm) 整數
-                    const spaceTitle = row.space_name || `空間 ${idx + 1}`;
-                    const badgeTextStr = `${spaceTitle} | ${row.area_m2}㎡ / ${row.area_ping}坪`;
-
-                    const customFill = row.box_color ? (row.box_color.startsWith('#') ? `${row.box_color}55` : row.box_color) : color.bg;
-                    const customBadgeBg = row.box_color || color.badgeBg;
-
-                    return (
-                      <g key={idx}>
-                        <polygon
-                          points={pointsStr}
-                          fill={customFill}
-                          stroke="none"
-                        />
-                        <foreignObject
-                          x={avgX - 85}
-                          y={avgY - 14}
-                          width="170"
-                          height="28"
-                          style={{ overflow: 'visible' }}
-                        >
-                          <div style={{ display: 'flex', justifyContent: 'center' }}>
-                            <span
-                              style={{
-                                backgroundColor: customBadgeBg,
-                                color: color.badgeText,
-                                fontSize: '11px',
-                                fontWeight: 'bold',
-                                padding: '2px 6px',
-                                borderRadius: '4px',
-                                whiteSpace: 'nowrap',
-                                boxShadow: '0 2px 5px rgba(0,0,0,0.6)',
-                                userSelect: 'none'
-                              }}
-                            >
-                              {badgeTextStr}
-                            </span>
-                          </div>
-                        </foreignObject>
-                      </g>
-                    );
-                  })}
                   {/* 🎯 即時渲染放樣標定紅點與紅連線 (遵照 OpenCV 原型腳本: 紅點與紅連線) */}
                   {scalePoints.length > 0 && (
                     <g key="scale_pt_a">
