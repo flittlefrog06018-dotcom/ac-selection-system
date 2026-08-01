@@ -446,6 +446,8 @@ function App() {
         const data = await res.json();
         if (data.image_preview) {
           setPreviewImage(data.image_preview);
+          setPreviewUrl(data.image_preview);
+          setIsSnapshotBaked(true);
         }
         if (data.is_blank_plan) {
           setShowColoredMasks(true);

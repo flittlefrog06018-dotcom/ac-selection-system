@@ -237,6 +237,8 @@ except ImportError:
     try:
         from services.gemini_service import GeminiService
     except ImportError:
+        GeminiService = None
+
 def bake_colored_masks_to_image(image_bytes: bytes, spaces: list) -> str:
     try:
         import cv2
