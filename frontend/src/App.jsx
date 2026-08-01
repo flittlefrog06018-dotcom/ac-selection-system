@@ -2280,41 +2280,8 @@ function App() {
                           <polygon
                             points={pointsStr}
                             fill={customFillModal}
-                            stroke={row.box_color || color.border || "#FF8800"}
-                            strokeWidth="3.5"
-                            strokeDasharray="6 3"
-                            style={{ cursor: 'move', pointerEvents: 'all' }}
-                            onMouseDown={(e) => {
-                              e.stopPropagation();
-                              const imgEl = modalSvgRef.current || modalImgRef.current;
-                              if (!imgEl) return;
-                              const rect = imgEl.getBoundingClientRect();
-                              const x = Math.max(0, Math.min(1000, Math.round((e.clientX - rect.left) / rect.width * 1000)));
-                              const y = Math.max(0, Math.min(1000, Math.round((e.clientY - rect.top) / rect.height * 1000)));
-
-                              setDraggingBox({
-                                rowIdx: idx,
-                                startPos: [x, y],
-                                initialPoly: row.polygon ? row.polygon.map(pt => [...pt]) : []
-                              });
-                              toast.info(`📦 按住拖曳中：整體移動【${row.space_name || '空間'}】邊框與底色！`);
-                            }}
-                            onTouchStart={(e) => {
-                              e.stopPropagation();
-                              const imgEl = modalSvgRef.current || modalImgRef.current;
-                              if (!imgEl) return;
-                              const rect = imgEl.getBoundingClientRect();
-                              const touch = e.touches[0];
-                              const x = Math.max(0, Math.min(1000, Math.round((touch.clientX - rect.left) / rect.width * 1000)));
-                              const y = Math.max(0, Math.min(1000, Math.round((touch.clientY - rect.top) / rect.height * 1000)));
-
-                              setDraggingBox({
-                                rowIdx: idx,
-                                startPos: [x, y],
-                                initialPoly: row.polygon ? row.polygon.map(pt => [...pt]) : []
-                              });
-                            }}
-                            title={`按住滑鼠左鍵【整體拖曳移動】${row.space_name || '空間'}邊框！`}
+                            stroke="none"
+                            style={{ pointerEvents: 'none' }}
                           />
                           <foreignObject x={avgX - 85} y={avgY - 14} width="170" height="28" style={{ overflow: 'visible', pointerEvents: 'none' }}>
                             <div style={{ display: 'flex', justifyContent: 'center' }}>
@@ -2323,30 +2290,6 @@ function App() {
                               </span>
                             </div>
                           </foreignObject>
-
-                          {/* 🎯 實時互動可拖曳 / 拉伸之頂點圓形控制控制點 (Vertex Drag Handles) */}
-                          {poly.map((pt, ptIdx) => (
-                            <circle
-                              key={`v_handle_${idx}_${ptIdx}`}
-                              cx={pt[0]}
-                              cy={pt[1]}
-                              r="9"
-                              fill="#ffffff"
-                              stroke={row.box_color || color.border || "#FF8800"}
-                              strokeWidth="3.5"
-                              style={{ cursor: 'grab', pointerEvents: 'all' }}
-                              onMouseDown={(e) => {
-                                e.stopPropagation();
-                                setDraggingVertex({ rowIdx: idx, ptIdx });
-                                toast.info(`🖐️ 按住拖曳中：微調【${row.space_name || '空間'}】頂點 #${ptIdx + 1}`);
-                              }}
-                              onTouchStart={(e) => {
-                                e.stopPropagation();
-                                setDraggingVertex({ rowIdx: idx, ptIdx });
-                              }}
-                              title={`按住拖曳拉伸【${row.space_name}】頂點 #${ptIdx + 1}`}
-                            />
-                          ))}
                         </g>
                       );
                     })}
