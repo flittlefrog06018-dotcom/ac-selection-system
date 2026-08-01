@@ -433,10 +433,25 @@ async def upload_layout(
             elif not isinstance(polygon, list) or len(polygon) < 3:
                 polygon = []
 
+            fill_color_map = {
+                "#EAB308": "rgba(234, 179, 8, 0.35)",
+                "#3B82F6": "rgba(59, 130, 246, 0.35)",
+                "#22C55E": "rgba(34, 197, 94, 0.35)",
+                "#EC4899": "rgba(236, 72, 153, 0.35)",
+                "#E0C832": "rgba(224, 200, 50, 0.35)",
+                "#6293C8": "rgba(98, 147, 200, 0.35)",
+            }
+            hex_color = space.get("box_color") or space.get("color_hex") or "#E0C832"
+            fill_c = space.get("fill_color") or fill_color_map.get(hex_color.upper(), f"{hex_color}55")
+            stroke_c = space.get("stroke_color") or hex_color
+
             results.append({
+                "zone_id": space.get("zone_id") or f"ZONE_{len(results)+1}",
                 "space_name": name,
+                "zone_name": name,
                 "area_m2": float(area_m2),
                 "area_ping": float(area_ping),
+                "ping": float(area_ping),
                 "system_type": str(system_spec),
                 "base_suggested_load": float(base_suggested),
                 "final_kcal_per_ping": float(base_suggested),
@@ -449,7 +464,10 @@ async def upload_layout(
                 "special_heat_kcal": 0.0,
                 "is_unknown_space": is_unknown,
                 "polygon": polygon,
-                "box_color": space.get("box_color") or ""
+                "polygon_1000": polygon,
+                "box_color": hex_color,
+                "fill_color": fill_c,
+                "stroke_color": stroke_c
             })
             
         # 🎯 第二防線：若無文字標籤/手繪彩圖，呼叫 FloorPlanVectorAnalyzer 自動抓取結構牆內緣橘色框線
