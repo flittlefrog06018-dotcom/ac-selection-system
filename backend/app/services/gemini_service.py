@@ -139,41 +139,14 @@ class GeminiService:
         with open(temp_file_path, "wb") as f:
             f.write(file_content)
             
-        try:
-            api_key = settings.GEMINI_API_KEY if hasattr(settings, "GEMINI_API_KEY") and settings.GEMINI_API_KEY else "AQ.Ab8RN6Kd9HoU-3YA2zqXngcI24DFbBF_svgySXxRMxo6zs0w7A"
-            if not api_key or genai is None:
-                logger.warning("Gemini SDK not configured or API key empty. Using Mock data.")
-                return cls._get_mock_spaces(filename)
-                
-            client = genai.Client(api_key=api_key)
             ext = os.path.splitext(filename)[1].lower()
-            pil_image = None
             
-            # 1. Processing JPG/PNG (Rule 4: 手繪現場草圖與圖片專用防線)
-            if ext in [".jpg", ".jpeg", ".png"]:
-                try:
-                    pil_image = Image.open(temp_file_path)
-                except Exception:
-                    pass
-
-                if pil_image and genai is not None and api_key:
-                    try:
-                        prompt = get_prompt_rule_4()
-                        result = cls._call_gemini_structured(client, pil_image, prompt)
-                        if result and len(result) > 0:
-                            return cls._apply_jpg_adjustments(result)
-                    except Exception as g_err:
-                        logger.warning(f"Gemini API image analysis failed: {g_err}")
-
-                return cls._extract_raster_image_spaces(filename, temp_file_path)
-                
-            # 2. Processing PDF (Rule 1/2/3: CAD/XChange 註解/手寫雙軌分析)
-            elif ext == ".pdf":
+            # 1. Processing PDF (Rule 1/2/3: CAD/XChange 註解/向量文字地毯式高精抓取)
+            if ext == ".pdf":
                 vector_spaces = cls._extract_vector_spaces(temp_file_path)
-                
-                if convert_from_path is None or pdfplumber is None:
-                    logger.warning("pdf2image or pdfplumber is not installed.")
-                    return vector_spaces if vector_spaces else []
+                if vector_spaces and len(vector_spaces) > 0:
+                    logger.info(f"Successfully extracted {len(vector_spaces)} authentic vector spaces from PDF.")
+                    return vector_spaces
                     
                 poppler_candidates = [
                     r"C:\Users\flitt\OneDrive\桌面\floorplan_test\utils\poppler\bin",
