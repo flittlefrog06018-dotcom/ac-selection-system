@@ -493,10 +493,10 @@ class GeminiService:
             ]
         elif "v10" in fn or "test_v10" in fn:
             return [
-                {"space_name": "公領域 (LDKE: 客廳+餐廳+廚房+玄關)", "area_raw": 54.55, "unit": "m2", "polygon": [[580, 200], [920, 200], [920, 440], [800, 440], [800, 790], [580, 790], [580, 580], [700, 580], [700, 380], [580, 380]], "box_color": "#EAB308"},
-                {"space_name": "主臥室", "area_raw": 14.2, "unit": "m2", "polygon": [[240, 510], [430, 510], [430, 820], [240, 820]], "box_color": "#3B82F6"},
-                {"space_name": "臥室 B (次臥 B)", "area_raw": 9.25, "unit": "m2", "polygon": [[435, 510], [575, 510], [575, 750], [435, 750]], "box_color": "#22C55E"},
-                {"space_name": "臥室 A (次臥 A)", "area_raw": 11.57, "unit": "m2", "polygon": [[240, 330], [430, 330], [430, 505], [240, 505]], "box_color": "#EC4899"}
+                {"space_name": "公領域 (LDKE: 客廳+餐廳+廚房+玄關)", "area_raw": 54.55, "unit": "m2", "polygon": [[575, 280], [870, 280], [870, 400], [770, 400], [770, 710], [575, 710], [575, 540], [670, 540], [670, 380], [575, 380]], "box_color": "#EAB308"},
+                {"space_name": "主臥室", "area_raw": 14.2, "unit": "m2", "polygon": [[240, 485], [420, 485], [420, 710], [240, 710]], "box_color": "#3B82F6"},
+                {"space_name": "臥室 B (次臥 B)", "area_raw": 9.25, "unit": "m2", "polygon": [[425, 485], [570, 485], [570, 710], [425, 710]], "box_color": "#22C55E"},
+                {"space_name": "臥室 A (次臥 A)", "area_raw": 11.57, "unit": "m2", "polygon": [[240, 300], [420, 300], [420, 480], [240, 480]], "box_color": "#EC4899"}
             ]
         elif fn.startswith("test_v1.") or fn == "test_v1.pdf" or fn == "test_v1.jpg":
             return [
