@@ -237,7 +237,45 @@ except ImportError:
     try:
         from services.gemini_service import GeminiService
     except ImportError:
-        GeminiService = None
+def bake_colored_masks_to_image(image_bytes: bytes, spaces: list) -> str:
+    try:
+        import cv2
+        import numpy as np
+        import base64
+
+        nparr = np.frombuffer(image_bytes, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if img is None:
+            return ""
+
+        h, w, _ = img.shape
+        overlay = img.copy()
+
+        COLOR_HEX_MAP = {
+            "#EAB308": (8, 179, 234),   # Yellow BGR
+            "#3B82F6": (246, 130, 59),  # Blue BGR
+            "#22C55E": (94, 197, 34),   # Green BGR
+            "#EC4899": (153, 72, 236),  # Pink BGR
+            "#FF8800": (0, 136, 255),   # Orange BGR
+        }
+
+        for s in spaces:
+            poly = s.get("polygon")
+            hex_color = (s.get("box_color") or "#FF8800").upper()
+            bgr = COLOR_HEX_MAP.get(hex_color, (0, 136, 255))
+            if poly and isinstance(poly, list) and len(poly) >= 3:
+                pts = np.array([[(pt[0] / 1000.0) * w, (pt[1] / 1000.0) * h] for pt in poly], dtype=np.int32)
+                cv2.fillPoly(overlay, [pts], bgr)
+                cv2.polylines(img, [pts], isClosed=True, color=bgr, thickness=max(2, int(w / 300)))
+
+        alpha = 0.38
+        cv2.addWeighted(overlay, alpha, img, 1 - alpha, 0, img)
+
+        _, buffer = cv2.imencode('.jpg', img, [cv2.IMWRITE_JPEG_QUALITY, 92])
+        return f"data:image/jpeg;base64,{base64.b64encode(buffer).decode('utf-8')}"
+    except Exception as e:
+        print(f"[Backend] Mask baking warning: {e}")
+        return ""
 
 # 🎯 圖面解析路由 (完全對齊 VV17 雙軌智慧策略引擎 + 官方 Excel 負荷表與大金配機)
 @router.post("/upload-layout")
@@ -461,11 +499,12 @@ async def upload_layout(
                 print(f"[Backend] FloorPlanVectorAnalyzer 分析提醒: {cv_err}")
 
         print(f"[Backend] Successfully parsed {len(results)} spaces.")
+        annotated_preview = bake_colored_masks_to_image(final_image_bytes, results)
         image_base64 = base64.b64encode(final_image_bytes).decode('utf-8')
         is_blank_plan = filename_lower.endswith(('.jpg', '.jpeg', '.png')) or "plan_g" in filename_lower or "plan g" in filename_lower
         return {
             "spaces": results,
-            "image_preview": f"data:image/jpeg;base64,{image_base64}",
+            "image_preview": annotated_preview if annotated_preview else f"data:image/jpeg;base64,{image_base64}",
             "is_blank_plan": is_blank_plan
         }
 

@@ -739,7 +739,10 @@ function App() {
     ];
 
     setRows(autoFramedSpaces);
-    toast.success("✨ 【自動框面積】成功！已在圖面上呈現黃(公領域)、藍(主臥)、綠(臥室B)、粉紅(臥室C)四大彩色半透明底框！");
+    setTimeout(() => {
+      renderSnapshotImage();
+    }, 100);
+    toast.success("✨ 【自動框面積】成功！已將黃(公領域)、藍(主臥)、綠(臥室B)、粉紅(臥室C) 100% 壓印烘焙至底圖畫布上！");
   };
 
   const renderSnapshotImage = () => {
