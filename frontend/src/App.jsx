@@ -371,7 +371,10 @@ function App() {
       convertFileToPreviewImage(selectedFile);
       setScale(1);
       setPosition({ x: 0, y: 0 });
-      toast.success(`📄 已成功載入圖檔：${selectedFile.name}！請點擊 [🚀 執行圖面自動解析]`);
+      toast.success(`📄 已載入圖檔：${selectedFile.name}，正在自動進行 AI 視覺解析...`);
+      setTimeout(() => {
+        handleAnalyze(selectedFile);
+      }, 200);
     }
   };
 
@@ -421,8 +424,9 @@ function App() {
     setRows(updatedRows);
   };
 
-  const handleAnalyze = async () => {
-    if (!file) {
+  const handleAnalyze = async (fileOverride = null) => {
+    const targetFile = fileOverride || file;
+    if (!targetFile) {
       toast.error("請先選擇要上傳的圖檔或 PDF 檔案！");
       return;
     }
@@ -431,7 +435,7 @@ function App() {
     toast.info("已啟動高精準雙軌辨識，正在解析圖面中，請稍候...");
 
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("file", targetFile);
     formData.append("case_type", "commercial");
     formData.append("paper_size", paperSize);
     formData.append("scale_ratio", scaleRatio === '自訂' ? `1:${customScaleVal}` : scaleRatio);
