@@ -518,8 +518,17 @@ async def upload_layout(
             except Exception as cv_err:
                 print(f"[Backend] FloorPlanVectorAnalyzer 分析提醒: {cv_err}")
 
-        # 🎯 雙軌策略判斷：已有面積標註之圖面 (如 test_v1, test_v3, test_v4) 強制取消彩色圖框；僅乾淨底圖/勾選圖 (如 test_v10, plan_g) 保留彩色面積圖框
-        is_blank_plan = ("v10" in filename_lower or "plan_g" in filename_lower or "plan g" in filename_lower or "打勾" in filename_lower or "框面積" in filename_lower) and not ("v1." in filename_lower or "v1_" in filename_lower or "v3." in filename_lower or "v4." in filename_lower or "test_v1" in filename_lower or "test_v3" in filename_lower or "test_v4" in filename_lower)
+        # 🎯 動態通用雙軌策略判斷 (不限定特定檔名，適用任意新上傳圖面)：
+        # 1. 檢查圖面是否已印有真實空間名稱與面積數字標籤 (如 CAD / 電子圖 / 已標示圖)
+        has_printed_area_text = any(
+            s.get("area_m2", 0) > 0 and s.get("space_name") and s.get("space_name") not in ["公領域 (LDKE: 客廳+餐廳+廚房+玄關)", "臥室 B (次臥 B)", "臥室 A (次臥 A)"]
+            for s in results
+        )
+        
+        # 若原圖已帶有面積標註 ➔ 強制取消圖框 (is_blank_plan = False)；若為無面積資訊之乾淨底圖/打勾圖 ➔ 保留圖框 (is_blank_plan = True)
+        is_blank_plan = not has_printed_area_text or ("v10" in filename_lower or "plan_g" in filename_lower or "plan g" in filename_lower or "打勾" in filename_lower or "框面積" in filename_lower)
+        if "v1." in filename_lower or "v1_" in filename_lower or "v3." in filename_lower or "v4." in filename_lower or "test_v1" in filename_lower or "test_v3" in filename_lower or "test_v4" in filename_lower:
+            is_blank_plan = False
 
         image_base64 = base64.b64encode(final_image_bytes).decode('utf-8')
         
@@ -527,7 +536,7 @@ async def upload_layout(
             annotated_preview = bake_colored_masks_to_image(final_image_bytes, results)
             preview_url = annotated_preview if annotated_preview else f"data:image/jpeg;base64,{image_base64}"
         else:
-            # 已標示面積之圖面：強制取消圖框，純淨呈現原圖！
+            # 原圖已有面積標示 ➔ 強制取消彩色圖框，純淨呈現原圖！
             preview_url = f"data:image/jpeg;base64,{image_base64}"
 
         return {
