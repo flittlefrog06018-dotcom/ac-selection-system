@@ -1377,15 +1377,8 @@ function App() {
                     const avgY = poly.reduce((sum, pt) => sum + pt[1], 0) / poly.length;
 
                     // 計算長度與寬度 (cm) 整數
-                    const xs = poly.map(pt => pt[0]);
-                    const ys = poly.map(pt => pt[1]);
-                    const widthPx = Math.max(...xs) - Math.min(...xs);
-                    const heightPx = Math.max(...ys) - Math.min(...ys);
-                    const r = pixelToMeterRatio || 0.016;
-                    const lenCm = Math.round(widthPx * r * 100);
-                    const wCm = Math.round(heightPx * r * 100);
                     const spaceTitle = row.space_name || `空間 ${idx + 1}`;
-                    const badgeTextStr = `${spaceTitle} (${lenCm}cm × ${wCm}cm | ${row.area_m2}㎡ / ${row.area_ping}坪)`;
+                    const badgeTextStr = `${spaceTitle} | ${row.area_m2}㎡ / ${row.area_ping}坪`;
 
                     const customFill = row.box_color ? (row.box_color.startsWith('#') ? `${row.box_color}55` : row.box_color) : color.bg;
                     const customBadgeBg = row.box_color || color.badgeBg;
@@ -2248,15 +2241,8 @@ function App() {
                       const avgX = poly.reduce((sum, pt) => sum + pt[0], 0) / poly.length;
                       const avgY = poly.reduce((sum, pt) => sum + pt[1], 0) / poly.length;
 
-                      const xs = poly.map(pt => pt[0]);
-                      const ys = poly.map(pt => pt[1]);
-                      const widthPx = Math.max(...xs) - Math.min(...xs);
-                      const heightPx = Math.max(...ys) - Math.min(...ys);
-                      const r = pixelToMeterRatio || 0.016;
-                      const lenCm = Math.round(widthPx * r * 100);
-                      const wCm = Math.round(heightPx * r * 100);
                       const spaceTitle = row.space_name || `空間 ${idx + 1}`;
-                      const badgeTextStr = `${spaceTitle} (${lenCm}cm × ${wCm}cm | ${row.area_m2}㎡ / ${row.area_ping}坪)`;
+                      const badgeTextStr = `${spaceTitle} | ${row.area_m2}㎡ / ${row.area_ping}坪`;
 
                       const customFillModal = row.box_color ? (row.box_color.startsWith('#') ? `${row.box_color}55` : row.box_color) : color.bg;
 
