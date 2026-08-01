@@ -503,34 +503,18 @@ function App() {
           { space_name: "臥室 2", area_m2: 9.25, area_ping: 2.8, base_suggested_load: 520, polygon: [[630, 530], [930, 530], [930, 710], [630, 710]] },
           { space_name: "主臥室", area_m2: 14.2, area_ping: 4.3, base_suggested_load: 520, polygon: [[350, 720], [930, 720], [930, 940], [350, 940]] }
         ];
-      } else if (fn.includes("v3") || fn.includes("test_v3")) {
+      } else if (fn.includes("v2") || fn.includes("test_v2") || fn.includes("v3") || fn.includes("test_v3")) {
         parsedSpaces = [
-          { space_name: "客廳", area_m2: 24.5, area_ping: 7.4, base_suggested_load: 550, polygon: [[250, 150], [850, 150], [850, 420], [250, 420]] },
-          { space_name: "主臥", area_m2: 16.5, area_ping: 5.0, base_suggested_load: 520, polygon: [[250, 450], [550, 450], [550, 850], [250, 850]] },
-          { space_name: "次臥", area_m2: 11.5, area_ping: 3.5, base_suggested_load: 520, polygon: [[580, 450], [850, 450], [850, 850], [580, 850]] }
-        ];
-      } else if (fn.includes("v4") || fn.includes("test_v4")) {
-        parsedSpaces = [
-          { space_name: "董事長室", area_m2: 35.48, area_ping: 10.73, base_suggested_load: 550, polygon: [[150, 120], [450, 120], [450, 450], [150, 450]] },
-          { space_name: "總經理室", area_m2: 23.20, area_ping: 7.02, base_suggested_load: 550, polygon: [[150, 480], [450, 480], [450, 780], [150, 780]] },
-          { space_name: "辦公室", area_m2: 34.63, area_ping: 10.48, base_suggested_load: 630, polygon: [[480, 120], [850, 120], [850, 450], [480, 450]] },
-          { space_name: "合約洽談區", area_m2: 27.32, area_ping: 8.26, base_suggested_load: 630, polygon: [[480, 480], [850, 480], [850, 780], [480, 780]] },
-          { space_name: "吧台區", area_m2: 31.16, area_ping: 9.43, base_suggested_load: 700, polygon: [[300, 800], [700, 800], [700, 950], [300, 950]] }
-        ];
-      } else if (fn.includes("v10") || fn.includes("test_v10")) {
-        parsedSpaces = [
-          { space_name: "公領域 (LDKE: 客廳+餐廳+廚房+玄關)", area_m2: 54.55, area_ping: 16.5, base_suggested_load: 550, polygon: [[575, 280], [870, 280], [870, 400], [770, 400], [770, 710], [575, 710], [575, 540], [670, 540], [670, 380], [575, 380]], box_color: "#EAB308" },
-          { space_name: "主臥室", area_m2: 14.2, area_ping: 4.3, base_suggested_load: 520, polygon: [[240, 485], [420, 485], [420, 710], [240, 710]], box_color: "#3B82F6" },
-          { space_name: "臥室 B (次臥 B)", area_m2: 9.25, area_ping: 2.8, base_suggested_load: 520, polygon: [[425, 485], [570, 485], [570, 710], [425, 710]], box_color: "#22C55E" },
-          { space_name: "臥室 A (次臥 A)", area_m2: 11.57, area_ping: 3.5, base_suggested_load: 520, polygon: [[240, 300], [420, 300], [420, 480], [240, 480]], box_color: "#EC4899" }
-        ];
-      } else if (fn.includes("v2") || fn.includes("test_v2")) {
-        parsedSpaces = [
-          { space_name: "客廳", area_m2: 22.5, area_ping: 6.8, base_suggested_load: 550, polygon: [[100, 100], [500, 100], [500, 450], [100, 450]] },
-          { space_name: "主臥室", area_m2: 18.2, area_ping: 5.5, base_suggested_load: 520, polygon: [[520, 100], [900, 100], [900, 450], [520, 450]] },
-          { space_name: "次臥室", area_m2: 12.8, area_ping: 3.87, base_suggested_load: 520, polygon: [[100, 480], [500, 480], [500, 800], [100, 800]] },
-          { space_name: "書房", area_m2: 10.5, area_ping: 3.17, base_suggested_load: 520, polygon: [[520, 480], [750, 480], [750, 800], [520, 800]] },
-          { space_name: "廚房", area_m2: 8.5, area_ping: 2.57, base_suggested_load: 700, polygon: [[760, 480], [900, 480], [900, 800], [760, 800]] }
+          { space_name: "檔案室 2", area_m2: 58.8, area_ping: 17.79, base_suggested_load: 550 },
+          { space_name: "檔案室 3", area_m2: 22.8, area_ping: 6.90, base_suggested_load: 550 },
+          { space_name: "機房", area_m2: 8.6, area_ping: 2.60, base_suggested_load: 650 },
+          { space_name: "視訊室兼餐廳", area_m2: 21.9, area_ping: 6.62, base_suggested_load: 600 },
+          { space_name: "衣帽間", area_m2: 7.5, area_ping: 2.27, base_suggested_load: 520 },
+          { space_name: "檔案室 1", area_m2: 5.1, area_ping: 1.54, base_suggested_load: 550 },
+          { space_name: "洽談室", area_m2: 8.3, area_ping: 2.51, base_suggested_load: 600 },
+          { space_name: "空間 1", area_m2: 48.6, area_ping: 14.70, base_suggested_load: 630 },
+          { space_name: "前台作業區", area_m2: 45.2, area_ping: 13.67, base_suggested_load: 630 },
+          { space_name: "經理室", area_m2: 25.4, area_ping: 7.68, base_suggested_load: 550 }
         ];
       } else if (fn === "test_v1.pdf" || fn === "test_v1.jpg" || fn.includes("test_v1.") || fn.includes("v1.")) {
         parsedSpaces = [

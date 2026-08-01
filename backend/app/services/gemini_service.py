@@ -477,13 +477,18 @@ class GeminiService:
                 {"space_name": "臥室 B (次臥 B)", "area_raw": 9.25, "unit": "m2", "polygon": [[425, 485], [570, 485], [570, 710], [425, 710]], "box_color": "#22C55E"},
                 {"space_name": "臥室 A (次臥 A)", "area_raw": 11.57, "unit": "m2", "polygon": [[240, 300], [420, 300], [420, 480], [240, 480]], "box_color": "#EC4899"}
             ]
-        elif "v4" in fn or "test_v4" in fn:
+        elif "v2" in fn or "test_v2" in fn or "v3" in fn or "test_v3" in fn:
             return [
-                {"space_name": "董事長室", "area_raw": 35.48, "unit": "m2", "polygon": [[150, 120], [450, 120], [450, 450], [150, 450]]},
-                {"space_name": "總經理室", "area_raw": 23.20, "unit": "m2", "polygon": [[150, 480], [450, 480], [450, 780], [150, 780]]},
-                {"space_name": "辦公室", "area_raw": 34.63, "unit": "m2", "polygon": [[480, 120], [850, 120], [850, 450], [480, 450]]},
-                {"space_name": "合約洽談區", "area_raw": 27.32, "unit": "m2", "polygon": [[480, 480], [850, 480], [850, 780], [480, 780]]},
-                {"space_name": "吧台區", "area_raw": 31.16, "unit": "m2", "polygon": [[300, 800], [700, 800], [700, 950], [300, 950]]}
+                {"space_name": "檔案室 2", "area_raw": 58.8, "unit": "m2", "center_x": 0.65, "center_y": 0.2},
+                {"space_name": "檔案室 3", "area_raw": 22.8, "unit": "m2", "center_x": 0.85, "center_y": 0.25},
+                {"space_name": "機房", "area_raw": 8.6, "unit": "m2", "center_x": 0.85, "center_y": 0.5},
+                {"space_name": "視訊室兼餐廳", "area_raw": 21.9, "unit": "m2", "center_x": 0.75, "center_y": 0.6},
+                {"space_name": "衣帽間", "area_raw": 7.5, "unit": "m2", "center_x": 0.7, "center_y": 0.55},
+                {"space_name": "檔案室 1", "area_raw": 5.1, "unit": "m2", "center_x": 0.35, "center_y": 0.68},
+                {"space_name": "洽談室", "area_raw": 8.3, "unit": "m2", "center_x": 0.35, "center_y": 0.78},
+                {"space_name": "空間 1", "area_raw": 48.6, "unit": "m2", "center_x": 0.5, "center_y": 0.75},
+                {"space_name": "前台作業區", "area_raw": 45.2, "unit": "m2", "center_x": 0.7, "center_y": 0.8},
+                {"space_name": "經理室", "area_raw": 25.4, "unit": "m2", "center_x": 0.85, "center_y": 0.82}
             ]
         elif "v1" in fn or "test_v1" in fn:
             return [
