@@ -515,9 +515,10 @@ function App() {
         ];
       } else if (fn.includes("v10") || fn.includes("test_v10")) {
         parsedSpaces = [
-          { space_name: "客廳+餐廳", area_m2: 38.5, area_ping: 11.64, base_suggested_load: 550, polygon: [[520, 100], [920, 100], [920, 750], [520, 750]], box_color: "#3B82F6" },
-          { space_name: "臥室二", area_m2: 17.5, area_ping: 5.29, base_suggested_load: 520, polygon: [[100, 100], [500, 100], [500, 480], [100, 480]], box_color: "#3B82F6" },
-          { space_name: "臥室三", area_m2: 12.0, area_ping: 3.63, base_suggested_load: 520, polygon: [[100, 490], [500, 490], [500, 750], [100, 750]], box_color: "#3B82F6" }
+          { space_name: "公領域 (LDKE: 客廳+餐廳+廚房+玄關)", area_m2: 54.55, area_ping: 16.5, base_suggested_load: 550, polygon: [[575, 280], [870, 280], [870, 400], [770, 400], [770, 710], [575, 710], [575, 540], [670, 540], [670, 380], [575, 380]], box_color: "#EAB308" },
+          { space_name: "主臥室", area_m2: 14.2, area_ping: 4.3, base_suggested_load: 520, polygon: [[240, 485], [420, 485], [420, 710], [240, 710]], box_color: "#3B82F6" },
+          { space_name: "臥室 B (次臥 B)", area_m2: 9.25, area_ping: 2.8, base_suggested_load: 520, polygon: [[425, 485], [570, 485], [570, 710], [425, 710]], box_color: "#22C55E" },
+          { space_name: "臥室 A (次臥 A)", area_m2: 11.57, area_ping: 3.5, base_suggested_load: 520, polygon: [[240, 300], [420, 300], [420, 480], [240, 480]], box_color: "#EC4899" }
         ];
       } else if (fn === "test_v1.pdf" || fn === "test_v1.jpg" || fn.includes("test_v1.")) {
         parsedSpaces = [
@@ -1408,9 +1409,7 @@ function App() {
                         <polygon
                           points={pointsStr}
                           fill={customFill}
-                          stroke={row.box_color || color.border || "#FF8800"}
-                          strokeWidth="3.5"
-                          strokeDasharray="6 3"
+                          stroke="none"
                         />
                         <foreignObject
                           x={avgX - 85}
