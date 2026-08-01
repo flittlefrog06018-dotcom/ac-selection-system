@@ -689,7 +689,7 @@ function App() {
         cap_kw: 10.0,
         selected: true,
         box_color: "#EAB308",
-        polygon: [[485, 305], [925, 305], [925, 435], [775, 435], [775, 785], [485, 785], [485, 575], [635, 575], [635, 385], [485, 385]]
+        polygon: [[580, 200], [920, 200], [920, 440], [800, 440], [800, 790], [580, 790], [580, 580], [700, 580], [700, 380], [580, 380]]
       },
       {
         space_name: "主臥室",
@@ -704,7 +704,7 @@ function App() {
         cap_kw: 2.8,
         selected: true,
         box_color: "#3B82F6",
-        polygon: [[205, 480], [480, 480], [480, 785], [205, 785]]
+        polygon: [[240, 510], [430, 510], [430, 820], [240, 820]]
       },
       {
         space_name: "臥室 B (次臥 B)",
@@ -719,7 +719,7 @@ function App() {
         cap_kw: 2.2,
         selected: true,
         box_color: "#22C55E",
-        polygon: [[485, 480], [635, 480], [635, 715], [485, 715]]
+        polygon: [[435, 510], [575, 510], [575, 750], [435, 750]]
       },
       {
         space_name: "臥室 A (次臥 A)",
@@ -734,7 +734,7 @@ function App() {
         cap_kw: 2.8,
         selected: true,
         box_color: "#EC4899",
-        polygon: [[205, 305], [480, 305], [480, 475], [205, 475]]
+        polygon: [[240, 330], [430, 330], [430, 505], [240, 505]]
       }
     ];
 
@@ -1395,12 +1395,15 @@ function App() {
                     const spaceTitle = row.space_name || `空間 ${idx + 1}`;
                     const badgeTextStr = `${spaceTitle} (${lenCm}cm × ${wCm}cm | ${row.area_m2}㎡ / ${row.area_ping}坪)`;
 
+                    const customFill = row.box_color ? (row.box_color.startsWith('#') ? `${row.box_color}55` : row.box_color) : color.bg;
+                    const customBadgeBg = row.box_color || color.badgeBg;
+
                     return (
                       <g key={idx}>
                         <polygon
                           points={pointsStr}
-                          fill={color.bg}
-                          stroke={row.box_color || "#FF8800"}
+                          fill={customFill}
+                          stroke={row.box_color || color.border || "#FF8800"}
                           strokeWidth="3.5"
                           strokeDasharray="6 3"
                         />
@@ -1414,7 +1417,7 @@ function App() {
                           <div style={{ display: 'flex', justifyContent: 'center' }}>
                             <span
                               style={{
-                                backgroundColor: color.badgeBg,
+                                backgroundColor: customBadgeBg,
                                 color: color.badgeText,
                                 fontSize: '11px',
                                 fontWeight: 'bold',
@@ -2265,11 +2268,13 @@ function App() {
                       const spaceTitle = row.space_name || `空間 ${idx + 1}`;
                       const badgeTextStr = `${spaceTitle} (${lenCm}cm × ${wCm}cm | ${row.area_m2}㎡ / ${row.area_ping}坪)`;
 
+                      const customFillModal = row.box_color ? (row.box_color.startsWith('#') ? `${row.box_color}55` : row.box_color) : color.bg;
+
                       return (
                         <g key={idx}>
                           <polygon
                             points={pointsStr}
-                            fill={color.bg}
+                            fill={customFillModal}
                             stroke={row.box_color || color.border || "#FF8800"}
                             strokeWidth="3.5"
                             strokeDasharray="6 3"
