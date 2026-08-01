@@ -477,6 +477,18 @@ class GeminiService:
                 {"space_name": "臥室 B (次臥 B)", "area_raw": 9.25, "unit": "m2", "polygon": [[425, 485], [570, 485], [570, 710], [425, 710]], "box_color": "#22C55E"},
                 {"space_name": "臥室 A (次臥 A)", "area_raw": 11.57, "unit": "m2", "polygon": [[240, 300], [420, 300], [420, 480], [240, 480]], "box_color": "#EC4899"}
             ]
+        elif "v6" in fn or "test_v6" in fn or "test_6" in fn:
+            return [
+                {"space_name": "大廳", "area_raw": 100.0, "unit": "m2", "polygon": [[320, 120], [680, 120], [680, 350], [320, 350]]},
+                {"space_name": "店鋪1", "area_raw": 80.0, "unit": "m2", "polygon": [[100, 360], [350, 360], [350, 580], [100, 580]]},
+                {"space_name": "店鋪2", "area_raw": 220.0, "unit": "m2", "polygon": [[100, 590], [350, 590], [350, 920], [100, 920]]},
+                {"space_name": "管委會空間", "area_raw": 65.0, "unit": "m2", "polygon": [[650, 360], [920, 360], [920, 620], [650, 620]]},
+                {"space_name": "會客區", "area_raw": 100.0, "unit": "m2", "polygon": [[360, 650], [640, 650], [640, 920], [360, 920]]},
+                {"space_name": "育嬰中心", "area_raw": 50.0, "unit": "m2", "polygon": [[650, 630], [920, 630], [920, 780], [650, 780]]},
+                {"space_name": "店鋪3", "area_raw": 150.0, "unit": "m2", "polygon": [[650, 790], [920, 790], [920, 950], [650, 950]]},
+                {"space_name": "走道", "area_raw": 51.0, "unit": "m2", "polygon": [[360, 360], [480, 360], [480, 640], [360, 640]]},
+                {"space_name": "梯廳", "area_raw": 5.0, "unit": "m2", "polygon": [[490, 480], [640, 480], [640, 640], [490, 640]]}
+            ]
         elif "v2" in fn or "test_v2" in fn or "v3" in fn or "test_v3" in fn:
             return [
                 {"space_name": "檔案室 2", "area_raw": 58.8, "unit": "m2", "center_x": 0.65, "center_y": 0.2},
