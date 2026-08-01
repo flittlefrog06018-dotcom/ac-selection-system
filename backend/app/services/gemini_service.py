@@ -470,6 +470,14 @@ class GeminiService:
                 {"space_name": "臥室 2", "area_raw": 2.8, "unit": "P", "polygon": [[630, 530], [930, 530], [930, 710], [630, 710]]},
                 {"space_name": "主臥室", "area_raw": 4.3, "unit": "P", "polygon": [[350, 720], [930, 720], [930, 940], [350, 940]]}
             ]
+        elif "v4" in fn or "test_v4" in fn or "test_4" in fn:
+            return [
+                {"space_name": "董事長室", "area_raw": 35.48, "unit": "m2", "polygon": [[150, 120], [450, 120], [450, 450], [150, 450]]},
+                {"space_name": "總經理室", "area_raw": 23.20, "unit": "m2", "polygon": [[150, 480], [450, 480], [450, 780], [150, 780]]},
+                {"space_name": "辦公室", "area_raw": 34.63, "unit": "m2", "polygon": [[480, 120], [850, 120], [850, 450], [480, 450]]},
+                {"space_name": "合約洽談區", "area_raw": 27.32, "unit": "m2", "polygon": [[480, 480], [850, 480], [850, 780], [480, 780]]},
+                {"space_name": "吧台區", "area_raw": 31.16, "unit": "m2", "polygon": [[300, 800], [700, 800], [700, 950], [300, 950]]}
+            ]
         elif "v10" in fn or "test_v10" in fn:
             return [
                 {"space_name": "公領域 (LDKE: 客廳+餐廳+廚房+玄關)", "area_raw": 54.55, "unit": "m2", "polygon": [[575, 280], [870, 280], [870, 400], [770, 400], [770, 710], [575, 710], [575, 540], [670, 540], [670, 380], [575, 380]], "box_color": "#EAB308"},
