@@ -44,6 +44,16 @@ class SpaceAirConditionPlan(BaseModel):
 class AirConditionReport(BaseModel):
     project_spaces: list[SpaceAirConditionPlan]
 
+class ZoneOutputSchema(BaseModel):
+    name: str = Field(description="Zone ID, e.g. LDKE_Public, Master_Bedroom, Bedroom_B, Bedroom_C")
+    display_name: str = Field(description="Display Name, e.g. 公領域 (LDKE), 主臥室, 臥室 B, 臥室 C")
+    color: str = Field(description="Hex Color e.g. #FFFF00, #0000FF, #00FF00, #FF00FF")
+    polygon_normalized: list[list[float]] = Field(description="Normalized polygon points [[x1, y1], [x2, y2], ...] (0.0 to 1.0)")
+
+class FloorplanPromptResponse(BaseModel):
+    reference_door_pixels: list[list[float]] = Field(default_factory=list, description="[[x1, y1], [x2, y2]] green bedroom door coordinates")
+    zones: list[ZoneOutputSchema]
+
 # =========================================================================
 # Gemini Prompt Rules 1-4 (From VV17 / VV16 Legacy Script)
 # =========================================================================
