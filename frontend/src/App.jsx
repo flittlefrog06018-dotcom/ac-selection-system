@@ -678,18 +678,18 @@ function App() {
     const autoFramedSpaces = [
       {
         space_name: "公領域 (LDKE: 客廳+餐廳+廚房+玄關)",
-        area_m2: 61.2,
-        area_ping: 18.5,
+        area_m2: 54.55,
+        area_ping: 16.5,
         system_type: "VRV",
         base_suggested_load: 550,
         final_kcal_per_ping: 550,
-        total_cooling_demand: 10175,
-        best_match_model: "FXSQ100PAVT",
+        total_cooling_demand: 9075,
+        best_match_model: "FXSQ90PAVT",
         unit_count: 1,
-        cap_kw: 11.2,
+        cap_kw: 10.0,
         selected: true,
         box_color: "#EAB308",
-        polygon: [[135, 120], [660, 120], [660, 390], [450, 390], [450, 890], [280, 890], [280, 670], [135, 670]]
+        polygon: [[485, 305], [925, 305], [925, 435], [775, 435], [775, 785], [485, 785], [485, 575], [635, 575], [635, 385], [485, 385]]
       },
       {
         space_name: "主臥室",
@@ -704,10 +704,10 @@ function App() {
         cap_kw: 2.8,
         selected: true,
         box_color: "#3B82F6",
-        polygon: [[678, 120], [890, 120], [890, 535], [615, 535], [615, 390], [678, 390]]
+        polygon: [[205, 480], [480, 480], [480, 785], [205, 785]]
       },
       {
-        space_name: "臥室 B (次臥 A)",
+        space_name: "臥室 B (次臥 B)",
         area_m2: 9.25,
         area_ping: 2.8,
         system_type: "VRV",
@@ -719,22 +719,22 @@ function App() {
         cap_kw: 2.2,
         selected: true,
         box_color: "#22C55E",
-        polygon: [[328, 120], [495, 120], [495, 385], [328, 385]]
+        polygon: [[485, 480], [635, 480], [635, 715], [485, 715]]
       },
       {
-        space_name: "臥室 C (次臥 B)",
-        area_m2: 9.25,
-        area_ping: 2.8,
+        space_name: "臥室 A (次臥 A)",
+        area_m2: 11.57,
+        area_ping: 3.5,
         system_type: "VRV",
         base_suggested_load: 520,
         final_kcal_per_ping: 520,
-        total_cooling_demand: 1456,
-        best_match_model: "FXSQ20PAVT",
+        total_cooling_demand: 1820,
+        best_match_model: "FXSQ25PAVT",
         unit_count: 1,
-        cap_kw: 2.2,
+        cap_kw: 2.8,
         selected: true,
         box_color: "#EC4899",
-        polygon: [[502, 120], [670, 120], [670, 385], [502, 385]]
+        polygon: [[205, 305], [480, 305], [480, 475], [205, 475]]
       }
     ];
 
