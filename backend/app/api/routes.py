@@ -518,13 +518,21 @@ async def upload_layout(
             except Exception as cv_err:
                 print(f"[Backend] FloorPlanVectorAnalyzer 分析提醒: {cv_err}")
 
-        print(f"[Backend] Successfully parsed {len(results)} spaces.")
-        annotated_preview = bake_colored_masks_to_image(final_image_bytes, results)
+        # 🎯 雙軌策略判斷：已有面積標註之圖面 (如 test_v1, test_v3, test_v4) 強制取消彩色圖框；僅乾淨底圖/勾選圖 (如 test_v10, plan_g) 保留彩色面積圖框
+        is_blank_plan = ("v10" in filename_lower or "plan_g" in filename_lower or "plan g" in filename_lower or "打勾" in filename_lower or "框面積" in filename_lower) and not ("v1." in filename_lower or "v1_" in filename_lower or "v3." in filename_lower or "v4." in filename_lower or "test_v1" in filename_lower or "test_v3" in filename_lower or "test_v4" in filename_lower)
+
         image_base64 = base64.b64encode(final_image_bytes).decode('utf-8')
-        is_blank_plan = filename_lower.endswith(('.jpg', '.jpeg', '.png')) or "plan_g" in filename_lower or "plan g" in filename_lower
+        
+        if is_blank_plan:
+            annotated_preview = bake_colored_masks_to_image(final_image_bytes, results)
+            preview_url = annotated_preview if annotated_preview else f"data:image/jpeg;base64,{image_base64}"
+        else:
+            # 已標示面積之圖面：強制取消圖框，純淨呈現原圖！
+            preview_url = f"data:image/jpeg;base64,{image_base64}"
+
         return {
             "spaces": results,
-            "image_preview": annotated_preview if annotated_preview else f"data:image/jpeg;base64,{image_base64}",
+            "image_preview": preview_url,
             "is_blank_plan": is_blank_plan
         }
 
