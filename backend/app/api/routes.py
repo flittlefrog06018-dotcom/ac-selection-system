@@ -280,8 +280,7 @@ def bake_colored_masks_to_image(image_bytes: bytes, spaces: list) -> str:
             hex_color = (s.get("box_color") or "#FF8800").upper()
             bgr = COLOR_HEX_MAP.get(hex_color, (0, 136, 255))
             if poly and isinstance(poly, list) and len(poly) >= 3:
-                # 精確貼合圖面結構中心與範圍
-                pts = np.array([[(pt[0] / 1000.0) * box_w + box_x, (pt[1] / 1000.0) * box_h + box_y] for pt in poly], dtype=np.int32)
+                pts = np.array([[(pt[0] / 1000.0) * w, (pt[1] / 1000.0) * h] for pt in poly], dtype=np.int32)
                 cv2.fillPoly(overlay, [pts], bgr)
                 cv2.polylines(img, [pts], isClosed=True, color=bgr, thickness=max(2, int(w / 350)))
 
