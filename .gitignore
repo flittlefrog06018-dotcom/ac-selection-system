@@ -11,3 +11,6 @@ frontend/dist/
 .DS_Store
 Thumbs.db
 temp/
+*.env
+config.env
+backend/config.env

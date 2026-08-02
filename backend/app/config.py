@@ -1,8 +1,21 @@
 import os
+try:
+    from dotenv import load_dotenv
+    env_paths = [
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.env"),
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env"),
+        os.path.join(os.getcwd(), "config.env"),
+        os.path.join(os.getcwd(), ".env")
+    ]
+    for p in env_paths:
+        if os.path.exists(p):
+            load_dotenv(p, override=True)
+except ImportError:
+    pass
 
 class Settings:
     # Gemini API settings
-    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "").strip()
     
     # Port configuration
     PORT: int = int(os.getenv("PORT", 8000))

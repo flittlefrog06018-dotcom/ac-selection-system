@@ -152,7 +152,7 @@ class GeminiService:
                 except Exception as img_err:
                     logger.error(f"Failed to open image file: {img_err}")
                 
-                if pil_image and api_key and not api_key.startswith("AQ.Ab8RN") and genai is not None:
+                if pil_image and api_key and genai is not None:
                     try:
                         client = genai.Client(api_key=api_key)
                         prompt = get_prompt_rule_4()
@@ -214,7 +214,7 @@ class GeminiService:
                     logger.warning(f"pdfplumber extraction failed: {ex}")
                     
                 # 🎯 VV17 智慧策略選擇器：動態切換 Rule 1, Rule 2 或 Rule 3 Prompt
-                if pil_image and genai is not None and api_key and not api_key.startswith("AQ.Ab8RN"):
+                if pil_image and genai is not None and api_key:
                     try:
                         client = genai.Client(api_key=api_key)
                         if xchange_hints:
