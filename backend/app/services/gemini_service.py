@@ -616,10 +616,10 @@ class GeminiService:
             ]
         elif "plan_g" in fn or "圖g" in fn or fn == "g" or "g." in fn:
             return [
-                {"space_name": "客廳+餐廳", "area_raw": 47.6, "unit": "m2", "polygon": [[575, 280], [870, 280], [870, 400], [770, 400], [770, 710], [575, 710], [575, 540], [670, 540], [670, 380], [575, 380]], "box_color": "#EAB308"},
-                {"space_name": "臥室 1", "area_raw": 9.25, "unit": "m2", "polygon": [[240, 300], [420, 300], [420, 480], [240, 480]], "box_color": "#EC4899"},
-                {"space_name": "臥室 2", "area_raw": 9.25, "unit": "m2", "polygon": [[425, 485], [570, 485], [570, 710], [425, 710]], "box_color": "#22C55E"},
-                {"space_name": "主臥室", "area_raw": 14.2, "unit": "m2", "polygon": [[240, 485], [420, 485], [420, 710], [240, 710]], "box_color": "#3B82F6"}
+                {"space_name": "客廳+餐廳", "area_raw": 47.6, "unit": "m2", "polygon": [[135, 120], [360, 120], [360, 390], [655, 390], [655, 475], [455, 475], [455, 630], [280, 630], [280, 890], [135, 890]], "box_color": "#EAB308"},
+                {"space_name": "臥室 1", "area_raw": 9.25, "unit": "m2", "polygon": [[368, 120], [532, 120], [532, 385], [368, 385]], "box_color": "#3B82F6"},
+                {"space_name": "臥室 2", "area_raw": 9.25, "unit": "m2", "polygon": [[540, 120], [700, 120], [700, 385], [540, 385]], "box_color": "#22C55E"},
+                {"space_name": "主臥室", "area_raw": 14.2, "unit": "m2", "polygon": [[708, 120], [895, 120], [895, 630], [735, 630], [735, 475], [665, 475], [665, 390], [708, 390]], "box_color": "#EC4899"}
             ]
         elif "v10" in fn or "test_v10" in fn:
             return [
