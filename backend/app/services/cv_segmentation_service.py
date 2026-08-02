@@ -94,6 +94,53 @@ class CVSegmentationService:
         }
 
     @staticmethod
+    def detect_blue_marker_contours(image_bytes: bytes) -> List[Dict[str, Any]]:
+        """
+        藍色螢光筆與打勾標記提取：使用 OpenCV HSV 顏色分割
+        自動尋找使用者手繪藍色螢光筆線框與藍筆打勾位置，精確計算邊界與面積
+        """
+        try:
+            nparr = np.frombuffer(image_bytes, np.uint8)
+            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            if img is None:
+                return []
+            
+            h, w, _ = img.shape
+            hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+            # 藍色螢光筆與藍筆 HSV 範圍
+            lower_blue = np.array([90, 35, 35])
+            upper_blue = np.array([135, 255, 255])
+            mask = cv2.inRange(hsv, lower_blue, upper_blue)
+
+            # 形態學閉合，填補線條缺口
+            kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
+            mask_closed = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+
+            contours, _ = cv2.findContours(mask_closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+            detected = []
+            for idx, cnt in enumerate(contours):
+                area = cv2.contourArea(cnt)
+                if area > 200:  # 過濾小雜訊
+                    x, y, bw, bh = cv2.boundingRect(cnt)
+                    norm_poly = [
+                        [round(x / w * 1000), round(y / h * 1000)],
+                        [round((x + bw) / w * 1000), round(y / h * 1000)],
+                        [round((x + bw) / w * 1000), round((y + bh) / h * 1000)],
+                        [round(x / w * 1000), round((y + bh) / h * 1000)]
+                    ]
+                    detected.append({
+                        "id": idx + 1,
+                        "area_px": area,
+                        "norm_polygon": norm_poly
+                    })
+            return detected
+        except Exception as e:
+            print(f"[CVSegmentationService] 藍色螢光筆提取提醒: {e}")
+            return []
+
+    @staticmethod
     def split_space_by_line(space_info: Dict[str, Any], p1: Tuple[float, float], p2: Tuple[float, float]) -> List[Dict[str, Any]]:
         """
         Anti-Gravity 互動校正：依據使用者在介面上劃出之分割線 (p1 -> p2)
