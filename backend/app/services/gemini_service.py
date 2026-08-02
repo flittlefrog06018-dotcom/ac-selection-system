@@ -117,11 +117,13 @@ def get_prompt_rule_3() -> str:
     """
 
 def get_prompt_rule_4() -> str:
-    return BASE_CORE_PROMPT + """
-    【CRITICAL INSTRUCTION FOR BOUNDARIES】:
-    - DO NOT use bounding boxes or rectangular coordinates.
-    - Return each zone as a SINGLE, CLOSED POLYGON defined by an array of normalized coordinates (0-1000).
-    - For non-rectangular areas (like LDKE public area), trace the wall bounds continuously to form a complex polygon (e.g., 6 to 12 vertices) that accurately includes the kitchen, dining, entrance, and living room while STRICTLY EXCLUDING the bathrooms.
+    return """
+    請依照我提供的底圖幫我繪製一張簡易的室內平面圖示意圖，並用半透明色塊標示出各個我打勾或勾選的空間。
+    
+    【核心任務與幾何繪圖指令】：
+    1. 精確識別圖面上所有打勾 (✓) 或勾選說明的空間區域，並輸出繁體中文空間名稱與估算面積數值 (m2 與 坪)。
+    2. 【多邊形邊界】：切勿使用簡單矩形！每個空間請依據牆體連續繪製單一閉合多邊形頂點點陣 polygon_points (0-1000 歸一化座標)。
+    3. 【公領域 LDKE 處置】：若客廳、餐廳、廚房、玄關相連通，請整合為一個單一的 L型/凹型連續多邊形 (6-12個頂點)，且【嚴格排除浴室與洗手降水區】。
     """
 
 
@@ -263,7 +265,7 @@ class GeminiService:
         """
         Calls Gemini 2.5 Flash using structured output schema.
         """
-        model_names = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
+        model_names = ['gemini-3.6-flash', 'gemini-1.5-flash', 'gemini-2.5-flash', 'gemini-2.0-flash']
         for model_name in model_names:
             for attempt in range(max_retries):
                 try:
