@@ -717,7 +717,7 @@ function App() {
 
     const autoFramedSpaces = [
       {
-        space_name: "公領域 (LDKE: 客廳+餐廳+廚房+玄關整合+90cm走道)",
+        space_name: "公領域 (LDKE: 客廳+餐廳+廚房+玄關)",
         area_m2: 54.55,
         area_ping: 16.5,
         system_type: "VRV",
@@ -729,26 +729,11 @@ function App() {
         cap_kw: 11.2,
         selected: true,
         box_color: "#EAB308",
-        polygon: [[590, 240], [905, 240], [905, 395], [805, 395], [805, 815], [585, 815], [585, 590], [460, 590], [460, 525], [590, 525]]
-      },
-      {
-        space_name: "臥室 A (次臥 A)",
-        area_m2: 11.57,
-        area_ping: 3.5,
-        system_type: "VRV",
-        base_suggested_load: 520,
-        final_kcal_per_ping: 520,
-        total_cooling_demand: 1820,
-        best_match_model: "FXSQ25PAVT",
-        unit_count: 1,
-        cap_kw: 2.8,
-        selected: true,
-        box_color: "#EC4899",
-        polygon: [[310, 310], [490, 310], [490, 520], [310, 520]]
+        polygon: [[575, 280], [870, 280], [870, 400], [770, 400], [770, 710], [575, 710], [575, 540], [670, 540], [670, 380], [575, 380]]
       },
       {
         space_name: "主臥室",
-        area_m2: 14.21,
+        area_m2: 14.2,
         area_ping: 4.3,
         system_type: "VRV",
         base_suggested_load: 520,
@@ -759,7 +744,7 @@ function App() {
         cap_kw: 2.8,
         selected: true,
         box_color: "#3B82F6",
-        polygon: [[310, 525], [455, 525], [455, 840], [310, 840]]
+        polygon: [[240, 485], [420, 485], [420, 710], [240, 710]]
       },
       {
         space_name: "臥室 B (次臥 B)",
@@ -774,7 +759,22 @@ function App() {
         cap_kw: 2.2,
         selected: true,
         box_color: "#22C55E",
-        polygon: [[460, 590], [580, 590], [580, 825], [460, 825]]
+        polygon: [[425, 485], [570, 485], [570, 710], [425, 710]]
+      },
+      {
+        space_name: "臥室 A (次臥 A)",
+        area_m2: 11.57,
+        area_ping: 3.5,
+        system_type: "VRV",
+        base_suggested_load: 520,
+        final_kcal_per_ping: 520,
+        total_cooling_demand: 1820,
+        best_match_model: "FXSQ25PAVT",
+        unit_count: 1,
+        cap_kw: 2.8,
+        selected: true,
+        box_color: "#EC4899",
+        polygon: [[240, 300], [420, 300], [420, 480], [240, 480]]
       }
     ];
 
