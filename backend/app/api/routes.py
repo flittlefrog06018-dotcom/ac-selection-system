@@ -554,6 +554,9 @@ async def upload_layout(
             preview_url = annotated_preview if annotated_preview else f"data:image/jpeg;base64,{image_base64}"
 
         return {
+            "status": "success",
+            "prompt_used": "請依照我提供的底圖幫我分析室內平面圖，自動辨識圖面上所有手畫『打勾』或『勾選』的空間。請繪製或標示出各個勾選空間的半透明色塊多邊形邊界，並無視內部的家具（床鋪、沙發）。同時請回傳每個勾選空間的名稱與歸一化座標 (0~100% Normalized Coordinates)。",
+            "detected_scale": f"{paper_size} {scale_ratio}",
             "spaces": results,
             "image_preview": preview_url,
             "is_blank_plan": is_blank_plan

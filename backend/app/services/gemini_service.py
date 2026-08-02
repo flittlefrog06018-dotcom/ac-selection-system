@@ -32,14 +32,18 @@ logger = logging.getLogger(__name__)
 # Structured Response Schemas (Pydantic)
 # =========================================================================
 class SpaceAirConditionPlan(BaseModel):
-    space_no: int = Field(default=0, description="空間編號")
+    space_id: str = Field(default="S-01", description="空間編號 e.g. S-01, S-02")
+    space_no: int = Field(default=0, description="空間編號數字")
     space_name: str = Field(description="空間的繁體中文完整名稱，不可改字、漏字或擅自縮寫")
-    area_raw: float = Field(description="標註的面積或坪數數值")
+    room_name: str = Field(default="", description="空間名稱")
+    has_checkmark: bool = Field(default=True, description="是否為手畫打勾或勾選的空間")
+    area_raw: float = Field(default=0.0, description="標註的面積或坪數數值")
     unit: str = Field(default="m2", description="面積單位，P(坪) 或 m2(平方米)")
     center_y: float = Field(default=0.5, description="空間在圖面中的相對 Y 座標 (0.0 到 1.0)")
     center_x: float = Field(default=0.5, description="空間在圖面中的相對 X 座標 (0.0 到 1.0)")
     box_2d: list[float] = Field(default_factory=list, description="空間在圖片中的 exact bounding box 座標 [ymin, xmin, ymax, xmax] (0.0 到 1.0 之間)")
     polygon_points: list[list[float]] = Field(default_factory=list, description="多邊形頂點 [[x1, y1], [x2, y2], ...]")
+    polygon_normalized: list[list[float]] = Field(default_factory=list, description="歸一化多邊形頂點 [[x1, y1], [x2, y2], ...]")
 
 class AirConditionReport(BaseModel):
     project_spaces: list[SpaceAirConditionPlan]
@@ -118,12 +122,7 @@ def get_prompt_rule_3() -> str:
 
 def get_prompt_rule_4() -> str:
     return """
-    請依照我提供的底圖幫我繪製一張簡易的室內平面圖示意圖，並用半透明色塊標示出各個我打勾或勾選的空間。
-    
-    【核心任務與幾何繪圖指令】：
-    1. 精確識別圖面上所有打勾 (✓) 或勾選說明的空間區域，並輸出繁體中文空間名稱與估算面積數值 (m2 與 坪)。
-    2. 【多邊形邊界】：切勿使用簡單矩形！每個空間請依據牆體連續繪製單一閉合多邊形頂點點陣 polygon_points (0-1000 歸一化座標)。
-    3. 【公領域 LDKE 處置】：若客廳、餐廳、廚房、玄關相連通，請整合為一個單一的 L型/凹型連續多邊形 (6-12個頂點)，且【嚴格排除浴室與洗手降水區】。
+    請依照我提供的底圖幫我分析室內平面圖，自動辨識圖面上所有手畫『打勾』或『勾選』的空間。請繪製或標示出各個勾選空間的半透明色塊多邊形邊界，並無視內部的家具（床鋪、沙發）。同時請回傳每個勾選空間的名稱與歸一化座標 (0~100% Normalized Coordinates)。
     """
 
 
@@ -283,16 +282,22 @@ class GeminiService:
                     spaces = data.get("project_spaces", [])
                     
                     result = []
-                    for s in spaces:
+                    for idx, s in enumerate(spaces, start=1):
+                        name_str = s.get("room_name") or s.get("space_name") or f"空間 {idx}"
+                        poly_norm = s.get("polygon_normalized") or s.get("polygon_points") or []
                         result.append({
-                            "space_no": s.get("space_no", 0),
-                            "space_name": s.get("space_name", ""),
+                            "space_id": s.get("space_id") or f"S-{idx:02d}",
+                            "space_no": s.get("space_no", idx),
+                            "space_name": name_str,
+                            "room_name": name_str,
+                            "has_checkmark": s.get("has_checkmark", True),
                             "area_raw": float(s.get("area_raw", 0.0)),
                             "unit": s.get("unit", "m2"),
                             "center_x": float(s.get("center_x", 0.5)),
                             "center_y": float(s.get("center_y", 0.5)),
                             "box_2d": s.get("box_2d", []),
-                            "polygon_points": s.get("polygon_points", [])
+                            "polygon_points": poly_norm,
+                            "polygon_normalized": poly_norm
                         })
                     if result:
                         return result
