@@ -264,10 +264,11 @@ class GeminiService:
         """
         Calls Gemini 2.5 Flash using structured output schema.
         """
-        model_names = ['gemini-3.6-flash', 'gemini-1.5-flash', 'gemini-2.5-flash', 'gemini-2.0-flash']
+        model_names = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp']
         for model_name in model_names:
             for attempt in range(max_retries):
                 try:
+                    print(f"\n[Gemini API] 🚀 正在發送圖片至 Google 雲端 AI 伺服器 (Model: {model_name})...")
                     response = client.models.generate_content(
                         model=model_name,
                         contents=[image, prompt],
@@ -280,6 +281,7 @@ class GeminiService:
                     
                     data = json.loads(response.text)
                     spaces = data.get("project_spaces", [])
+                    print(f"[Gemini API] ✨ 雲端 AI 成功回傳 {len(spaces)} 個空間解析資料！")
                     
                     result = []
                     for idx, s in enumerate(spaces, start=1):
