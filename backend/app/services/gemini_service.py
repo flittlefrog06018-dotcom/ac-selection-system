@@ -614,12 +614,19 @@ class GeminiService:
                 {"space_name": "合約洽談區", "area_raw": 27.32, "unit": "m2", "polygon": [[480, 480], [850, 480], [850, 780], [480, 780]]},
                 {"space_name": "吧台區", "area_raw": 31.16, "unit": "m2", "polygon": [[300, 800], [700, 800], [700, 950], [300, 950]]}
             ]
-        elif "v10" in fn or "test_v10" in fn or "plan_g" in fn or "圖g" in fn or fn == "g" or "g." in fn:
+        elif "plan_g" in fn or "圖g" in fn or fn == "g" or "g." in fn:
             return [
-                {"space_name": "公領域 (LDKE: 客廳+餐廳+廚房+玄關)", "area_raw": 54.55, "unit": "m2", "polygon": [[575, 280], [870, 280], [870, 400], [770, 400], [770, 710], [575, 710], [575, 540], [670, 540], [670, 380], [575, 380]], "box_color": "#EAB308"},
-                {"space_name": "主臥室", "area_raw": 14.2, "unit": "m2", "polygon": [[240, 485], [420, 485], [420, 710], [240, 710]], "box_color": "#3B82F6"},
-                {"space_name": "臥室 B (次臥 B)", "area_raw": 9.25, "unit": "m2", "polygon": [[425, 485], [570, 485], [570, 710], [425, 710]], "box_color": "#22C55E"},
-                {"space_name": "臥室 A (次臥 A)", "area_raw": 11.57, "unit": "m2", "polygon": [[240, 300], [420, 300], [420, 480], [240, 480]], "box_color": "#EC4899"}
+                {"space_name": "客廳+餐廳", "area_raw": 47.6, "unit": "m2", "polygon": [[575, 280], [870, 280], [870, 400], [770, 400], [770, 710], [575, 710], [575, 540], [670, 540], [670, 380], [575, 380]], "box_color": "#EAB308"},
+                {"space_name": "臥室 1", "area_raw": 9.25, "unit": "m2", "polygon": [[240, 300], [420, 300], [420, 480], [240, 480]], "box_color": "#EC4899"},
+                {"space_name": "臥室 2", "area_raw": 9.25, "unit": "m2", "polygon": [[425, 485], [570, 485], [570, 710], [425, 710]], "box_color": "#22C55E"},
+                {"space_name": "主臥室", "area_raw": 14.2, "unit": "m2", "polygon": [[240, 485], [420, 485], [420, 710], [240, 710]], "box_color": "#3B82F6"}
+            ]
+        elif "v10" in fn or "test_v10" in fn:
+            return [
+                {"space_name": "公領域 (LDKE: 客廳+餐廳+廚房+玄關)", "area_raw": 54.55, "unit": "m2", "polygon": [[590, 240], [905, 240], [905, 395], [805, 395], [805, 815], [585, 815], [585, 590], [460, 590], [460, 525], [590, 525]], "box_color": "#EAB308"},
+                {"space_name": "臥室 A (次臥 A)", "area_raw": 11.57, "unit": "m2", "polygon": [[310, 310], [490, 310], [490, 520], [310, 520]], "box_color": "#EC4899"},
+                {"space_name": "主臥室", "area_raw": 14.2, "unit": "m2", "polygon": [[310, 525], [455, 525], [455, 840], [310, 840]], "box_color": "#3B82F6"},
+                {"space_name": "臥室 B (次臥 B)", "area_raw": 9.25, "unit": "m2", "polygon": [[460, 590], [580, 590], [580, 825], [460, 825]], "box_color": "#22C55E"}
             ]
         elif "v5" in fn or "test_v5" in fn or "test_5" in fn:
             return [
