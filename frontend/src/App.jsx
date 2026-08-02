@@ -1125,7 +1125,13 @@ function App() {
             <span>🖼️ 實時圖面比對核對視窗</span>
             <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
               <button
-                onClick={() => setShowColoredMasks(!showColoredMasks)}
+                onClick={() => {
+                  const nextState = !showColoredMasks;
+                  setShowColoredMasks(nextState);
+                  if (nextState && rows.length === 0 && file) {
+                    handleAutoFrameAreas();
+                  }
+                }}
                 style={{
                   backgroundColor: showColoredMasks ? '#0284c7' : '#334155',
                   color: '#fff',
@@ -1421,6 +1427,65 @@ function App() {
                       <circle cx={mousePos[0]} cy={mousePos[1]} r="6" fill="#ef4444" stroke="#ffffff" strokeWidth="2" />
                     </g>
                   )}
+
+                  {/* 🎯 開啟彩色遮罩時：即時劃出半透明多邊形色塊與空間名稱/面積標章 */}
+                  {showColoredMasks && rows.map((row, idx) => {
+                    const poly = row.polygon || row.polygon_1000 || row.points || [];
+                    if (!poly || !Array.isArray(poly) || poly.length < 3) return null;
+                    
+                    const pointsStr = poly.map(pt => `${pt[0]},${pt[1]}`).join(" ");
+                    
+                    // 計算幾何中心點 (Centroid) 放樣標籤位置
+                    const sumX = poly.reduce((acc, pt) => acc + pt[0], 0);
+                    const sumY = poly.reduce((acc, pt) => acc + pt[1], 0);
+                    const centerX = Math.round(sumX / poly.length);
+                    const centerY = Math.round(sumY / poly.length);
+                    
+                    const COLOR_MAP = {
+                      "#EAB308": "rgba(234, 179, 8, 0.38)",
+                      "#3B82F6": "rgba(59, 130, 246, 0.38)",
+                      "#22C55E": "rgba(34, 197, 94, 0.38)",
+                      "#EC4899": "rgba(236, 72, 153, 0.38)",
+                      "#FF8800": "rgba(255, 136, 0, 0.38)"
+                    };
+                    const colorHex = (row.box_color || "#FF8800").toUpperCase();
+                    const fillColor = COLOR_MAP[colorHex] || `${colorHex}60`;
+                    
+                    return (
+                      <g key={`mask_zone_${idx}`}>
+                        <polygon
+                          points={pointsStr}
+                          fill={fillColor}
+                          stroke={colorHex}
+                          strokeWidth="3"
+                          strokeLinejoin="round"
+                        />
+                        <foreignObject
+                          x={centerX - 100}
+                          y={centerY - 16}
+                          width="200"
+                          height="32"
+                          style={{ overflow: 'visible' }}
+                        >
+                          <div style={{
+                            backgroundColor: colorHex,
+                            color: '#ffffff',
+                            fontWeight: 'bold',
+                            fontSize: '11px',
+                            padding: '3px 8px',
+                            borderRadius: '12px',
+                            textAlign: 'center',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.6)',
+                            border: '1px solid #ffffff',
+                            whiteSpace: 'nowrap',
+                            display: 'inline-block'
+                          }}>
+                            {row.space_name} | {row.area_m2}㎡ / {row.area_ping}坪
+                          </div>
+                        </foreignObject>
+                      </g>
+                    );
+                  })}
 
                   {/* 🎯 即時渲染正在按住拖曳的矩形框 */}
                   {isRectDrawing && rectStart && rectCurrent && (
