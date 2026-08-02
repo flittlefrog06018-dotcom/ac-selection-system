@@ -121,9 +121,31 @@ def get_prompt_rule_3() -> str:
     """
 
 def get_prompt_rule_4() -> str:
-    return """
-    請依照我提供的底圖幫我分析室內平面圖，自動辨識圖面上所有手畫『打勾』或『勾選』的空間。請繪製或標示出各個勾選空間的半透明色塊多邊形邊界，並無視內部的家具（床鋪、沙發）。同時請回傳每個勾選空間的名稱與歸一化座標 (0~100% Normalized Coordinates)。
-    """
+    return """請依照我提供的底圖幫我繪製一張簡易的室內平面圖示意圖，並用半透明色塊標示出各個我打勾或勾選的空間。
+
+分析規則：
+1. 自動辨識圖面上所有手畫「打勾 ✓」或「勾選」的空間
+2. 為每個勾選空間繪製半透明色塊多邊形邊界
+3. 無視內部的家具（床鋪、沙發、桌椅等）
+4. 若客廳、餐廳、廚房、玄關相連通，合併為一個「公領域 (LDKE)」
+
+請用以下 JSON 格式回傳：
+{
+  "spaces": [
+    {
+      "space_id": "S-01",
+      "room_name": "公領域 (LDKE: 客廳+餐廳+廚房+玄關)",
+      "has_checkmark": true,
+      "area_raw": 47.6,
+      "unit": "m2",
+      "polygon_normalized": [[15.0, 20.0], [45.0, 20.0], [45.0, 50.0], [15.0, 50.0]]
+    }
+  ]
+}
+
+polygon_normalized 的座標範圍是 0.0 到 100.0（百分比），代表空間多邊形頂點在圖片中的相對位置。
+每個空間至少 4 個頂點。非矩形空間（如 L 型）請用 6-12 個頂點精確描述。
+"""
 
 
 class GeminiService:
@@ -260,55 +282,106 @@ class GeminiService:
                     pass
 
     @classmethod
-    def _call_gemini_structured(cls, client: Any, image: Image.Image, prompt: str, max_retries: int = 3) -> List[Dict[str, Any]]:
+    def _call_gemini_structured(cls, client: Any, image: Image.Image, prompt: str, max_retries: int = 2) -> List[Dict[str, Any]]:
         """
-        Calls Gemini Flash using structured JSON response.
+        Calls Gemini 3.6 Flash using structured JSON response.
+        Robustly parses any JSON shape and auto-scales 0-100% coordinates to 0-1000.
         """
-        model_names = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp']
+        model_names = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-2.5-flash']
+        last_error = None
         for model_name in model_names:
             for attempt in range(max_retries):
                 try:
-                    print(f"\n[Gemini API] 🚀 正在發送圖片至 Google 雲端 AI 伺服器 (Model: {model_name})...")
+                    print(f"\n[Gemini API] >>> Sending image to {model_name} (attempt {attempt+1})...")
                     response = client.models.generate_content(
                         model=model_name,
                         contents=[image, prompt],
                         config=types.GenerateContentConfig(
-                            response_mime_type="application/json", 
+                            response_mime_type="application/json",
                             temperature=0.0
                         ),
                     )
                     
-                    data = json.loads(response.text)
-                    spaces = data.get("project_spaces", [])
-                    print(f"[Gemini API] ✨ 雲端 AI 成功回傳 {len(spaces)} 個空間解析資料！")
+                    raw_text = response.text
+                    print(f"[Gemini API] <<< Raw response ({len(raw_text)} chars): {raw_text[:300]}...")
+                    
+                    data = json.loads(raw_text)
+                    
+                    # Robust: accept "spaces", "project_spaces", or top-level array
+                    if isinstance(data, list):
+                        spaces = data
+                    else:
+                        spaces = data.get("spaces") or data.get("project_spaces") or data.get("rooms") or []
+                    
+                    print(f"[Gemini API] Parsed {len(spaces)} spaces from {model_name}")
+                    
+                    if not spaces:
+                        print(f"[Gemini API] WARN: Empty spaces array, retrying...")
+                        continue
                     
                     result = []
                     for idx, s in enumerate(spaces, start=1):
-                        name_str = s.get("room_name") or s.get("space_name") or f"空間 {idx}"
-                        poly_norm = s.get("polygon_normalized") or s.get("polygon_points") or []
+                        name_str = s.get("room_name") or s.get("space_name") or s.get("name") or f"Space {idx}"
+                        
+                        # Accept multiple polygon key names
+                        poly_raw = (
+                            s.get("polygon_normalized") or 
+                            s.get("polygon_points") or 
+                            s.get("polygon") or 
+                            s.get("coordinates") or 
+                            []
+                        )
+                        
+                        # Auto-scale: if coords are 0-100 range, multiply by 10 to get 0-1000
+                        scaled_poly = []
+                        if poly_raw and len(poly_raw) >= 3:
+                            max_coord = max(
+                                max(float(pt[0]), float(pt[1]))
+                                for pt in poly_raw
+                                if isinstance(pt, (list, tuple)) and len(pt) >= 2
+                            )
+                            scale_factor = 10.0 if max_coord <= 100.0 else (1.0 if max_coord <= 1000.0 else 1000.0 / max_coord)
+                            for pt in poly_raw:
+                                if isinstance(pt, (list, tuple)) and len(pt) >= 2:
+                                    scaled_poly.append([round(float(pt[0]) * scale_factor), round(float(pt[1]) * scale_factor)])
+                        
+                        area_raw = float(s.get("area_raw") or s.get("area_m2") or s.get("area") or 0.0)
+                        
                         result.append({
                             "space_id": s.get("space_id") or f"S-{idx:02d}",
                             "space_no": s.get("space_no", idx),
                             "space_name": name_str,
                             "room_name": name_str,
                             "has_checkmark": s.get("has_checkmark", True),
-                            "area_raw": float(s.get("area_raw", 0.0)),
+                            "area_raw": area_raw,
                             "unit": s.get("unit", "m2"),
                             "center_x": float(s.get("center_x", 0.5)),
                             "center_y": float(s.get("center_y", 0.5)),
                             "box_2d": s.get("box_2d", []),
-                            "polygon_points": poly_norm,
-                            "polygon_normalized": poly_norm
+                            "polygon_points": scaled_poly if scaled_poly else poly_raw,
+                            "polygon_normalized": poly_raw,
+                            "polygon": scaled_poly if scaled_poly else poly_raw,
                         })
+                    
                     if result:
+                        print(f"[Gemini API] SUCCESS: {len(result)} spaces extracted via {model_name}")
                         return result
                     
                 except Exception as e:
-                    logger.warning(f"Attempt {attempt+1} calling Gemini model {model_name} failed: {e}")
+                    last_error = e
+                    err_str = str(e)
+                    print(f"[Gemini API] ERROR ({model_name} attempt {attempt+1}): {err_str[:200]}")
+                    if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
+                        print(f"[Gemini API] Quota exhausted on {model_name}, trying next model...")
+                        cls.last_quota_exceeded = True
+                        break  # skip remaining retries for this model, try next
+                    if "404" in err_str or "NOT_FOUND" in err_str:
+                        print(f"[Gemini API] Model {model_name} not found, trying next...")
+                        break
                     if attempt < max_retries - 1:
                         time.sleep(1)
                     
-        raise Exception("Exceeded max retries calling Gemini API.")
+        raise Exception(f"All Gemini models exhausted. Last error: {last_error}")
 
     @classmethod
     def _extract_vector_spaces(cls, pdf_file_path: str) -> List[Dict[str, Any]]:
