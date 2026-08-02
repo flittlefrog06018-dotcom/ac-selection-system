@@ -352,7 +352,12 @@ async def upload_layout(request: Request):
             # DXF 為純 CAD 向量文字檔，跳過 PIL Image.open
             final_image_bytes = file_bytes
         else:
-            img = Image.open(io.BytesIO(file_bytes))
+            try:
+                img = Image.open(io.BytesIO(file_bytes))
+            except Exception as img_err:
+                print(f"[Backend] Image.open warning ({img_err}), creating fallback white canvas image...")
+                img = Image.new('RGB', (800, 600), color=(255, 255, 255))
+
             max_size = 1600
             if max(img.size) > max_size:
                 img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
@@ -364,7 +369,7 @@ async def upload_layout(request: Request):
         red_polygons = []
         try:
             from app.services.redline_extractor_service import RedlineExtractorService
-            if filename_lower.endswith('.pdf') or file.content_type == 'application/pdf':
+            if filename_lower.endswith('.pdf') or content_type == 'application/pdf':
                 red_polygons = RedlineExtractorService.extract_red_polygons_from_pdf(file_bytes)
             else:
                 red_polygons = RedlineExtractorService.extract_red_polygons_from_image(final_image_bytes)

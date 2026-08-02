@@ -431,8 +431,20 @@ function App() {
     setLoading(true);
     toast.info("已啟動高精準雙軌辨識，正在解析圖面中，請稍候...");
 
+    let sendBlob = targetFile;
+    if (!(targetFile instanceof Blob)) {
+      if (previewUrl && previewUrl.startsWith("data:")) {
+        try {
+          const fetchRes = await fetch(previewUrl);
+          sendBlob = await fetchRes.blob();
+        } catch (e) {
+          console.warn("Failed to convert previewUrl to Blob:", e);
+        }
+      }
+    }
+
     const formData = new FormData();
-    formData.append("file", targetFile);
+    formData.append("file", sendBlob, targetFile.name || "floorplan.jpg");
     formData.append("case_type", "commercial");
     formData.append("paper_size", paperSize);
     formData.append("scale_ratio", scaleRatio === '自訂' ? `1:${customScaleVal}` : scaleRatio);
