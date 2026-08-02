@@ -701,19 +701,13 @@ class GeminiService:
                 {"space_name": "合約洽談區", "area_raw": 27.32, "unit": "m2", "center_x": 0.7, "center_y": 0.7},
                 {"space_name": "吧台區", "area_raw": 31.16, "unit": "m2", "center_x": 0.5, "center_y": 0.8}
             ]
-        elif "f" in fn or "g" in fn or "圖f" in fn or "圖g" in fn:
-            return [
-                {"space_name": "客廳+餐廳+廚房", "area_raw": 14.4, "unit": "P", "polygon": [[145, 115], [320, 115], [320, 388], [615, 388], [615, 495], [440, 495], [440, 840], [225, 840], [225, 655], [145, 655]]},
-                {"space_name": "臥室 1", "area_raw": 2.8, "unit": "P", "polygon": [[328, 115], [495, 115], [495, 382], [328, 382]]},
-                {"space_name": "臥室 2", "area_raw": 2.8, "unit": "P", "polygon": [[502, 115], [670, 115], [670, 382], [502, 382]]},
-                {"space_name": "主臥室", "area_raw": 4.3, "unit": "P", "polygon": [[678, 115], [888, 115], [888, 535], [615, 535], [615, 495], [678, 495]]}
-            ]
         else:
             return [
-                {"space_name": "客廳+餐廳+廚房", "area_raw": 14.4, "unit": "P", "polygon": [[145, 115], [320, 115], [320, 388], [615, 388], [615, 495], [440, 495], [440, 840], [225, 840], [225, 655], [145, 655]]},
-                {"space_name": "臥室 1", "area_raw": 2.8, "unit": "P", "polygon": [[328, 115], [495, 115], [495, 382], [328, 382]]},
-                {"space_name": "臥室 2", "area_raw": 2.8, "unit": "P", "polygon": [[502, 115], [670, 115], [670, 382], [502, 382]]},
-                {"space_name": "主臥室", "area_raw": 4.3, "unit": "P", "polygon": [[678, 115], [888, 115], [888, 535], [615, 535], [615, 495], [678, 495]]}
+                {"space_name": "客廳", "area_raw": 18.5, "unit": "P", "center_x": 0.3, "center_y": 0.7},
+                {"space_name": "餐廳", "area_raw": 12.0, "unit": "P", "center_x": 0.3, "center_y": 0.85},
+                {"space_name": "主臥室", "area_raw": 14.2, "unit": "P", "center_x": 0.8, "center_y": 0.3},
+                {"space_name": "臥室 1", "area_raw": 9.5, "unit": "P", "center_x": 0.5, "center_y": 0.3},
+                {"space_name": "臥室 2", "area_raw": 9.5, "unit": "P", "center_x": 0.65, "center_y": 0.3}
             ]
 
 def run_smart_strategy_engine(file_path: str) -> List[Dict[str, Any]]:
