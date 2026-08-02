@@ -464,11 +464,7 @@ function App() {
         if (data.quota_exceeded || data.error === "429") {
           toast.error("⚠️ 警告 [HTTP 429]：Gemini API Key 額度已用盡 (Quota Exceeded)！請更新 GEMINI_API_KEY 後再試。", { autoClose: 10000 });
         }
-        if (data.is_blank_plan) {
-          setShowColoredMasks(true);
-        } else {
-          setShowColoredMasks(false);
-        }
+        setShowColoredMasks(true);
         const spacesList = Array.isArray(data) ? data : (data.spaces || data.data || []);
         if (spacesList.length > 0) {
           const normalizedData = spacesList.map(item => {
