@@ -304,10 +304,11 @@ async def upload_layout(request: Request):
     paper_size = str(form.get("paper_size") or "A3")
     scale_ratio = str(form.get("scale_ratio") or "1:100")
 
-    if not file or not hasattr(file, "filename") or not file.filename:
+    file_obj = form.get("file")
+    if not file_obj:
         raise HTTPException(status_code=400, detail="請選擇要上傳的圖檔！")
 
-    filename = file.filename
+    filename = getattr(file_obj, "filename", None) or getattr(file_obj, "name", None) or "uploaded_plan.jpg"
     print(f"[Backend] 檔案名稱: {filename}, 紙張: {paper_size}, 比例: {scale_ratio}")
     print(f"[Backend] API key 載入狀態: {'已載入' if API_KEY else '未載入'}")
     
@@ -315,8 +316,21 @@ async def upload_layout(request: Request):
         raise HTTPException(status_code=500, detail="錯誤：後端找不到有效的 config.env 或 GEMINI_API_KEY 設定。")
 
     try:
-        file_bytes = await file.read()
-        filename_lower = file.filename.lower()
+        if hasattr(file_obj, "read"):
+            read_res = file_obj.read()
+            import inspect
+            file_bytes = await read_res if inspect.isawaitable(read_res) else read_res
+        elif isinstance(file_obj, bytes):
+            file_bytes = file_obj
+        elif isinstance(file_obj, str):
+            if file_obj.startswith("data:"):
+                file_bytes = base64.b64decode(file_obj.split(",")[1])
+            else:
+                file_bytes = file_obj.encode('utf-8')
+        else:
+            raise ValueError("無法讀取上傳檔案資料。")
+
+        filename_lower = filename.lower()
         final_image_bytes = None
         
         # 💥 預先將圖面轉為高解析度 JPEG 以利前端網頁 1:1 純圖檔展示
