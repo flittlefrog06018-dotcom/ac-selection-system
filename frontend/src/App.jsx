@@ -717,7 +717,7 @@ function App() {
 
     const autoFramedSpaces = [
       {
-        space_name: "客廳+餐廳",
+        space_name: "公領域 (LDKE: 客廳+餐廳+廚房+玄關)",
         area_m2: 54.55,
         area_ping: 16.5,
         system_type: "VRV",
@@ -729,7 +729,7 @@ function App() {
         cap_kw: 11.2,
         selected: true,
         box_color: "#EAB308",
-        polygon: [[80, 80], [320, 80], [320, 800], [80, 800]]
+        polygon: [[135, 120], [360, 120], [360, 390], [655, 390], [655, 475], [455, 475], [455, 630], [280, 630], [280, 890], [135, 890]]
       },
       {
         space_name: "臥室 1",
@@ -743,8 +743,8 @@ function App() {
         unit_count: 1,
         cap_kw: 2.2,
         selected: true,
-        box_color: "#EC4899",
-        polygon: [[330, 80], [500, 80], [500, 480], [330, 480]]
+        box_color: "#3B82F6",
+        polygon: [[368, 120], [532, 120], [532, 385], [368, 385]]
       },
       {
         space_name: "臥室 2",
@@ -759,7 +759,7 @@ function App() {
         cap_kw: 2.2,
         selected: true,
         box_color: "#22C55E",
-        polygon: [[520, 80], [690, 80], [690, 480], [520, 480]]
+        polygon: [[540, 120], [700, 120], [700, 385], [540, 385]]
       },
       {
         space_name: "主臥室",
@@ -773,8 +773,8 @@ function App() {
         unit_count: 1,
         cap_kw: 2.8,
         selected: true,
-        box_color: "#3B82F6",
-        polygon: [[700, 80], [930, 80], [930, 480], [700, 480]]
+        box_color: "#EC4899",
+        polygon: [[708, 120], [895, 120], [895, 630], [735, 630], [735, 475], [665, 475], [665, 390], [708, 390]]
       }
     ];
 
