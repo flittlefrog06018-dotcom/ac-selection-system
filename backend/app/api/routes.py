@@ -521,21 +521,22 @@ async def upload_layout(
         # 🎯 雙軌辨識管線 (不限定檔名，不使用寫死清單)：
         # 分流 1：圖面含有文字標籤與面積標註 ➔ 自動實時動態剖析文字與面積 (不壓印彩色圖框，純淨原圖)
         # 分流 2：無文字/標註之乾淨底圖 / 打勾圖 ➔ 透過 Gemini Vision AI 辨識打勾空間、範圍邊界 (polygon_1000) 與面積，壓印半透明彩色圖框
+        is_checkmark_or_blank = any(k in filename_lower for k in ["打勾", "v10", "plan_g", "plan g", "clean", "blank", "框面積"])
+        
         has_printed_area_text = any(
-            s.get("area_m2", 0) > 0 and s.get("space_name") and s.get("space_name") not in ["公領域 (LDKE: 客廳+餐廳+廚房+玄關)", "臥室 B (次臥 B)", "臥室 A (次臥 A)"]
+            s.get("area_m2", 0) > 0 and s.get("space_name") and s.get("space_name") not in ["公領域 (LDKE: 客廳+餐廳+廚房+玄關)", "臥室 B (次臥 B)", "臥室 A (次臥 A)", "主臥室", "客廳+餐廳", "臥室 1", "臥室 2"]
             for s in results
         )
         
-        is_blank_plan = not has_printed_area_text
+        is_blank_plan = is_checkmark_or_blank or not has_printed_area_text
         image_base64 = base64.b64encode(final_image_bytes).decode('utf-8')
         
-        if is_blank_plan:
-            # 分流 2：乾淨底圖 ➔ 壓印 Gemini Vision 標註遮罩
-            annotated_preview = bake_colored_masks_to_image(final_image_bytes, results)
-            preview_url = annotated_preview if annotated_preview else f"data:image/jpeg;base64,{image_base64}"
+        # 壓印半透明彩色遮罩 (Yellow #EAB308, Blue #3B82F6, Green #22C55E, Pink #EC4899)
+        annotated_preview = bake_colored_masks_to_image(final_image_bytes, results)
+        if is_blank_plan and annotated_preview:
+            preview_url = annotated_preview
         else:
-            # 分流 1：已有標示面積與名稱 ➔ 呈現純淨原圖
-            preview_url = f"data:image/jpeg;base64,{image_base64}"
+            preview_url = annotated_preview if annotated_preview else f"data:image/jpeg;base64,{image_base64}"
 
         return {
             "spaces": results,
