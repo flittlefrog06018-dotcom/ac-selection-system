@@ -333,8 +333,9 @@ async def upload_layout(request: Request):
         filename_lower = filename.lower()
         final_image_bytes = None
         
+        content_type = getattr(file_obj, "content_type", "") or ""
         # 💥 預先將圖面轉為高解析度 JPEG 以利前端網頁 1:1 純圖檔展示
-        if filename_lower.endswith('.pdf') or file.content_type == 'application/pdf':
+        if filename_lower.endswith('.pdf') or content_type == 'application/pdf':
             if not PDF_SUPPORT:
                 raise ValueError("系統尚未安裝 pdf2image 套件，無法解析 PDF 圖檔。請執行 pip install pdf2image")
             images = convert_from_bytes(
