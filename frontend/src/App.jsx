@@ -440,7 +440,6 @@ function App() {
     try {
       const res = await fetch("/api/upload-layout", {
         method: "POST",
-        headers: { "Bypass-Tunnel-Remainder": "true" },
         body: formData
       });
       if (res.ok) {
@@ -662,7 +661,6 @@ function App() {
 
         const res = await fetch("/api/upload-layout", {
           method: "POST",
-          headers: { "Bypass-Tunnel-Remainder": "true" },
           body: formData
         });
 
