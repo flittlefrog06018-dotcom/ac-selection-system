@@ -262,7 +262,7 @@ class GeminiService:
     @classmethod
     def _call_gemini_structured(cls, client: Any, image: Image.Image, prompt: str, max_retries: int = 3) -> List[Dict[str, Any]]:
         """
-        Calls Gemini 2.5 Flash using structured output schema.
+        Calls Gemini Flash using structured JSON response.
         """
         model_names = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp']
         for model_name in model_names:
@@ -274,7 +274,6 @@ class GeminiService:
                         contents=[image, prompt],
                         config=types.GenerateContentConfig(
                             response_mime_type="application/json", 
-                            response_schema=AirConditionReport, 
                             temperature=0.0
                         ),
                     )
