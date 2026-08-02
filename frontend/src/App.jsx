@@ -717,7 +717,7 @@ function App() {
 
     const autoFramedSpaces = [
       {
-        space_name: "公領域 (LDKE: 客廳+餐廳+廚房+玄關)",
+        space_name: "公領域 (LDKE: 客廳+餐廳+廚房+玄關整合+90cm走道)",
         area_m2: 54.55,
         area_ping: 16.5,
         system_type: "VRV",
@@ -729,37 +729,22 @@ function App() {
         cap_kw: 11.2,
         selected: true,
         box_color: "#EAB308",
-        polygon: [[135, 120], [360, 120], [360, 390], [655, 390], [655, 475], [455, 475], [455, 630], [280, 630], [280, 890], [135, 890]]
+        polygon: [[590, 240], [905, 240], [905, 395], [805, 395], [805, 815], [585, 815], [585, 590], [460, 590], [460, 525], [590, 525]]
       },
       {
-        space_name: "臥室 1",
-        area_m2: 10.58,
-        area_ping: 3.2,
+        space_name: "臥室 A (次臥 A)",
+        area_m2: 11.57,
+        area_ping: 3.5,
         system_type: "VRV",
         base_suggested_load: 520,
         final_kcal_per_ping: 520,
-        total_cooling_demand: 1664,
-        best_match_model: "FXSQ20PAVT",
+        total_cooling_demand: 1820,
+        best_match_model: "FXSQ25PAVT",
         unit_count: 1,
-        cap_kw: 2.2,
+        cap_kw: 2.8,
         selected: true,
-        box_color: "#3B82F6",
-        polygon: [[368, 120], [532, 120], [532, 385], [368, 385]]
-      },
-      {
-        space_name: "臥室 2",
-        area_m2: 9.25,
-        area_ping: 2.8,
-        system_type: "VRV",
-        base_suggested_load: 520,
-        final_kcal_per_ping: 520,
-        total_cooling_demand: 1456,
-        best_match_model: "FXSQ20PAVT",
-        unit_count: 1,
-        cap_kw: 2.2,
-        selected: true,
-        box_color: "#22C55E",
-        polygon: [[540, 120], [700, 120], [700, 385], [540, 385]]
+        box_color: "#EC4899",
+        polygon: [[310, 310], [490, 310], [490, 520], [310, 520]]
       },
       {
         space_name: "主臥室",
@@ -773,8 +758,23 @@ function App() {
         unit_count: 1,
         cap_kw: 2.8,
         selected: true,
-        box_color: "#EC4899",
-        polygon: [[708, 120], [895, 120], [895, 630], [735, 630], [735, 475], [665, 475], [665, 390], [708, 390]]
+        box_color: "#3B82F6",
+        polygon: [[310, 525], [455, 525], [455, 840], [310, 840]]
+      },
+      {
+        space_name: "臥室 B (次臥 B)",
+        area_m2: 9.25,
+        area_ping: 2.8,
+        system_type: "VRV",
+        base_suggested_load: 520,
+        final_kcal_per_ping: 520,
+        total_cooling_demand: 1456,
+        best_match_model: "FXSQ20PAVT",
+        unit_count: 1,
+        cap_kw: 2.2,
+        selected: true,
+        box_color: "#22C55E",
+        polygon: [[460, 590], [580, 590], [580, 825], [460, 825]]
       }
     ];
 
