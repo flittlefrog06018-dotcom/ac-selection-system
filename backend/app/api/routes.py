@@ -255,16 +255,16 @@ def bake_colored_masks_to_image(image_bytes: bytes, spaces: list) -> str:
 
         # 🎯 智慧幾何邊界偵測：自動識別照片內部真實圖面範圍 (自動剔除周圍白邊與紙張空白區)
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        _, thresh = cv2.threshold(gray, 235, 255, cv2.THRESH_BINARY_INV)
-        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        edges = cv2.Canny(gray, 30, 120)
+        contours, _ = cv2.findContours(edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         
         box_x, box_y, box_w, box_h = 0, 0, w, h
         if contours:
-            large_contours = [c for c in contours if cv2.contourArea(c) > (w * h * 0.05)]
-            if large_contours:
-                c_max = max(large_contours, key=cv2.contourArea)
-                x, y, bw, bh = cv2.boundingRect(c_max)
-                if bw > w * 0.25 and bh > h * 0.25:
+            large_pts = [c for c in contours if cv2.contourArea(c) > 20]
+            if large_pts:
+                all_pts = np.vstack(large_pts)
+                x, y, bw, bh = cv2.boundingRect(all_pts)
+                if bw > w * 0.3 and bh > h * 0.3:
                     box_x, box_y, box_w, box_h = x, y, bw, bh
 
         COLOR_HEX_MAP = {
@@ -281,7 +281,7 @@ def bake_colored_masks_to_image(image_bytes: bytes, spaces: list) -> str:
             bgr = COLOR_HEX_MAP.get(hex_color, (0, 136, 255))
             if poly and isinstance(poly, list) and len(poly) >= 3:
                 # 精確貼合圖面結構中心與範圍
-                pts = np.array([[(pt[0] / 1000.0) * w, (pt[1] / 1000.0) * h] for pt in poly], dtype=np.int32)
+                pts = np.array([[(pt[0] / 1000.0) * box_w + box_x, (pt[1] / 1000.0) * box_h + box_y] for pt in poly], dtype=np.int32)
                 cv2.fillPoly(overlay, [pts], bgr)
                 cv2.polylines(img, [pts], isClosed=True, color=bgr, thickness=max(2, int(w / 350)))
 
