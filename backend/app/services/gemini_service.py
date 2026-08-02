@@ -366,7 +366,7 @@ class GeminiService:
                                 matched_poly = poly_fallback
                                 break
                         
-                        final_poly = scaled_poly if (scaled_poly and len(scaled_poly) >= 5) else (matched_poly or scaled_poly or poly_raw)
+                        area_raw = float(s.get("area_raw") or s.get("area_m2") or s.get("area") or s.get("area_ping") or 0.0)
 
                         result.append({
                             "space_id": s.get("space_id") or f"S-{idx:02d}",
