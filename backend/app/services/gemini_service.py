@@ -139,10 +139,36 @@ class GeminiService:
         with open(temp_file_path, "wb") as f:
             f.write(file_content)
             
+        try:
+            api_key = os.getenv("GEMINI_API_KEY") or getattr(settings, "GEMINI_API_KEY", "")
             ext = os.path.splitext(filename)[1].lower()
             
-            # 1. Processing PDF (Rule 1/2/3: CAD/XChange 註解/向量文字地毯式高精抓取)
-            if ext == ".pdf":
+            # 🎯 1. Processing JPG/PNG/WEBP Image Files -> Directly Call Gemini Vision API
+            if ext in [".jpg", ".jpeg", ".png", ".webp"]:
+                pil_image = None
+                try:
+                    pil_image = Image.open(temp_file_path)
+                except Exception as img_err:
+                    logger.error(f"Failed to open image file: {img_err}")
+                
+                if pil_image and api_key and not api_key.startswith("AQ.Ab8RN") and genai is not None:
+                    try:
+                        client = genai.Client(api_key=api_key)
+                        prompt = get_prompt_rule_4()
+                        result = cls._call_gemini_structured(client, pil_image, prompt)
+                        if result and len(result) > 0:
+                            cls.last_quota_exceeded = False
+                            return cls._apply_jpg_adjustments(result)
+                    except Exception as g_err:
+                        err_str = str(g_err)
+                        logger.warning(f"Gemini API image analysis failed: {g_err}")
+                        if "429" in err_str or "Quota" in err_str or "ResourceExhausted" in err_str:
+                            cls.last_quota_exceeded = True
+
+                return cls._extract_raster_image_spaces(filename, temp_file_path)
+            
+            # 🎯 2. Processing PDF Files
+            elif ext == ".pdf":
                 vector_spaces = cls._extract_vector_spaces(temp_file_path)
                 if vector_spaces and len(vector_spaces) > 0:
                     logger.info(f"Successfully extracted {len(vector_spaces)} authentic vector spaces from PDF.")
@@ -189,6 +215,7 @@ class GeminiService:
                 # 🎯 VV17 智慧策略選擇器：動態切換 Rule 1, Rule 2 或 Rule 3 Prompt
                 if pil_image and genai is not None and api_key and not api_key.startswith("AQ.Ab8RN"):
                     try:
+                        client = genai.Client(api_key=api_key)
                         if xchange_hints:
                             prompt = get_prompt_rule_2(text_stream, "\n".join(xchange_hints), filename)
                         elif len(text_stream.strip()) > 30:
@@ -198,9 +225,13 @@ class GeminiService:
                             
                         result = cls._call_gemini_structured(client, pil_image, prompt)
                         if result:
+                            cls.last_quota_exceeded = False
                             return result
                     except Exception as g_err:
+                        err_str = str(g_err)
                         logger.warning(f"Gemini API call failed: {g_err}")
+                        if "429" in err_str or "Quota" in err_str or "ResourceExhausted" in err_str:
+                            cls.last_quota_exceeded = True
 
                 if vector_spaces:
                     logger.info(f"Returning {len(vector_spaces)} real vector spaces for {filename}")
