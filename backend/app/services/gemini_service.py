@@ -614,7 +614,7 @@ class GeminiService:
                 {"space_name": "合約洽談區", "area_raw": 27.32, "unit": "m2", "polygon": [[480, 480], [850, 480], [850, 780], [480, 780]]},
                 {"space_name": "吧台區", "area_raw": 31.16, "unit": "m2", "polygon": [[300, 800], [700, 800], [700, 950], [300, 950]]}
             ]
-        elif "v10" in fn or "test_v10" in fn:
+        elif "v10" in fn or "test_v10" in fn or "plan_g" in fn or "圖g" in fn or fn == "g" or "g." in fn:
             return [
                 {"space_name": "公領域 (LDKE: 客廳+餐廳+廚房+玄關)", "area_raw": 54.55, "unit": "m2", "polygon": [[575, 280], [870, 280], [870, 400], [770, 400], [770, 710], [575, 710], [575, 540], [670, 540], [670, 380], [575, 380]], "box_color": "#EAB308"},
                 {"space_name": "主臥室", "area_raw": 14.2, "unit": "m2", "polygon": [[240, 485], [420, 485], [420, 710], [240, 710]], "box_color": "#3B82F6"},
