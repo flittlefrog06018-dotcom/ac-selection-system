@@ -451,8 +451,8 @@ async def upload_layout(request: Request):
             model_name, qty, cap_kw = auto_select_equipment_v15_backend(total_load_kw, system_spec)
 
             # 多重防線解析 polygon / box_2d (統一輸出 [x, y] 標準幾何座標)
-            polygon = space.get("polygon") or space.get("points") or []
-            if red_polygons and len(results) < len(red_polygons):
+            polygon = space.get("polygon") or space.get("polygon_points") or space.get("polygon_normalized") or space.get("points") or []
+            if (not polygon or not isinstance(polygon, list) or len(polygon) < 3) and red_polygons and len(results) < len(red_polygons):
                 polygon = [[pt[0], pt[1]] for pt in red_polygons[len(results)]]
             
             box_2d = space.get("box_2d") or space.get("location") or space.get("bbox") or space.get("bounding_box") or []
@@ -470,9 +470,9 @@ async def upload_layout(request: Request):
                     polygon = [[xmin, ymin], [xmax, ymin], [xmax, ymax], [xmin, ymax]]
                 except Exception:
                     polygon = []
-            elif not isinstance(polygon, list) or len(polygon) < 3:
-                polygon = []
 
+            COLOR_PALETTE = ["#EAB308", "#EC4899", "#3B82F6", "#22C55E", "#8B5CF6", "#06B6D4"]
+            hex_color = space.get("box_color") or space.get("color_hex") or COLOR_PALETTE[len(results) % len(COLOR_PALETTE)]
             fill_color_map = {
                 "#EAB308": "rgba(234, 179, 8, 0.35)",
                 "#3B82F6": "rgba(59, 130, 246, 0.35)",
@@ -481,7 +481,6 @@ async def upload_layout(request: Request):
                 "#E0C832": "rgba(224, 200, 50, 0.35)",
                 "#6293C8": "rgba(98, 147, 200, 0.35)",
             }
-            hex_color = space.get("box_color") or space.get("color_hex") or "#E0C832"
             fill_c = space.get("fill_color") or fill_color_map.get(hex_color.upper(), f"{hex_color}55")
             stroke_c = space.get("stroke_color") or hex_color
 
