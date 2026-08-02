@@ -2,7 +2,7 @@ import base64
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import io
 import os
 import re
@@ -297,13 +297,19 @@ def bake_colored_masks_to_image(image_bytes: bytes, spaces: list) -> str:
 # 🎯 圖面解析路由 (完全對齊 VV17 雙軌智慧策略引擎 + 官方 Excel 負荷表與大金配機)
 @router.post("/upload-layout")
 async def upload_layout(
-    file: UploadFile = File(...),
-    case_type: str = Form(default="1"),
-    paper_size: str = Form(default="A3"),
-    scale_ratio: str = Form(default="1:100")
+    file: Optional[UploadFile] = File(None),
+    case_type: Optional[str] = Form(None),
+    paper_size: Optional[str] = Form(None),
+    scale_ratio: Optional[str] = Form(None)
 ):
     print("\n[Backend] Received upload request...")
-    print(f"[Backend] Filename: {file.filename}, Paper Size: {paper_size}, Scale: {scale_ratio}")
+    if file is None or not getattr(file, "filename", None):
+        raise HTTPException(status_code=400, detail="請選擇要上傳的圖檔！")
+
+    filename = file.filename
+    paper_size_val = paper_size or "A3"
+    scale_ratio_val = scale_ratio or "1:100"
+    print(f"[Backend] Filename: {filename}, Paper Size: {paper_size_val}, Scale: {scale_ratio_val}")
     print(f"[Backend] API key loaded: {'Yes' if API_KEY else 'No'}")
     
     if not API_KEY:
