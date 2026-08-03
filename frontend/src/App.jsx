@@ -135,6 +135,19 @@ const calculateShoelaceArea = (pts) => {
   return Math.abs(area) / 2.0;
 };
 
+// 🎯 消除長寬比 (Aspect Ratio) 變形之精準面積算式
+const calculateRealAreaFromPolygon = (polygon, ratio, imgW = 1600, imgH = 1200) => {
+  if (!polygon || polygon.length < 3) return 0;
+  const rawPoly = polygon.map(pt => [
+    (pt[0] / 1000.0) * imgW,
+    (pt[1] / 1000.0) * imgH
+  ]);
+  const rawPxArea = calculateShoelaceArea(rawPoly);
+  const r = ratio || 0.0065;
+  const m2 = rawPxArea * (r * r);
+  return parseFloat(m2.toFixed(2));
+};
+
 // 🎯 測試存取保護密碼 (預設為 daikin2026，可改為任意密碼或改為 "" 取消密碼)
 const SYSTEM_ACCESS_PASSWORD = "daikin2026";
 
@@ -356,11 +369,9 @@ function App() {
 
       const polygonPts = extractPolygonFromMask(visited, w, h, minPxX, maxPxX, minPxY, maxPxY);
 
-      // 🎯 統一座標系面積換算：Shoelace 面積 (viewBox 0-1000) 乘以 ratio²
-      const pxArea = calculateShoelaceArea(polygonPts);
-      const viewBoxArea = pxArea > 0 ? pxArea : (filledPixels * (1000.0 / w) * (1000.0 / h));
-      const ratio = pixelToMeterRatio || 0.0358; // 預設 A3 1:100 基準
-      const realAreaM2 = Math.round(viewBoxArea * (ratio * ratio) * 100) / 100;
+      // 🎯 長寬比矯正面積換算：完美消除非正方形圖檔之縱橫比變形誤差
+      const ratio = pixelToMeterRatio || 0.0065;
+      const realAreaM2 = calculateRealAreaFromPolygon(polygonPts, ratio, w, h);
       const realAreaPing = Math.round(realAreaM2 * 0.3025 * 100) / 100;
 
       // 🎯 純手動/漆桶劃框階段：統一使用簡潔「空間 1」、「空間 2」、「空間 3」...
@@ -1218,14 +1229,11 @@ function App() {
       toast.warning("⚠️ 多邊形至少需要 3 個頂點才能閉合計算！");
       return;
     }
-    const pxArea = calculateShoelaceArea(pts);
-    let ratio = pixelToMeterRatio;
-    if (!ratio) {
-      ratio = 0.016; // 預設 1 unit = 0.016m (1000px = 16m)
-      toast.info("💡 尚未標定門寬比例，已自動套用標準工程比例 (1000px = 16m)。");
-    }
-
-    const realAreaM2 = parseFloat((pxArea * ratio * ratio).toFixed(2));
+    const imgEl = modalImgRef.current || imgRef.current;
+    const imgW = imgEl ? (imgEl.naturalWidth || imgEl.width || 1600) : 1600;
+    const imgH = imgEl ? (imgEl.naturalHeight || imgEl.height || 1200) : 1200;
+    const ratio = pixelToMeterRatio || 0.0065;
+    const realAreaM2 = calculateRealAreaFromPolygon(pts, ratio, imgW, imgH);
     const realAreaPing = parseFloat((realAreaM2 * 0.3025).toFixed(2));
     setRows(prev => {
       const validPolygonRows = prev.filter(r => r.polygon && Array.isArray(r.polygon) && r.polygon.length >= 3);
@@ -2364,22 +2372,28 @@ function App() {
                   setRectCurrent(null);
 
                   if (drawToolMode === 'scale') {
-                    const distPx = Math.sqrt((p2[0] - p1[0])**2 + (p2[1] - p1[1])**2);
-                    if (distPx > 5) {
+                    const imgEl = modalImgRef.current || imgRef.current;
+                    const imgW = imgEl ? (imgEl.naturalWidth || imgEl.width || 1600) : 1600;
+                    const imgH = imgEl ? (imgEl.naturalHeight || imgEl.height || 1200) : 1200;
+
+                    const dxRaw = ((p2[0] - p1[0]) / 1000.0) * imgW;
+                    const dyRaw = ((p2[1] - p1[1]) / 1000.0) * imgH;
+                    const distPxRaw = Math.sqrt(dxRaw * dxRaw + dyRaw * dyRaw);
+
+                    if (distPxRaw > 5) {
                       const userCm = prompt("請輸入這條拉出的參考線實際長度 (單位: 公分 cm):", "100");
                       const refCm = parseFloat(userCm) || 100;
-                      const ratio = (refCm / 100.0) / distPx;
+                      const ratio = (refCm / 100.0) / distPxRaw;
                       setPixelToMeterRatio(ratio);
                       setDoorGapSettings(prev => ({
                         ...prev,
-                        pickedLine: { p1, p2, distPx: Math.round(distPx), doorCm: refCm }
+                        pickedLine: { p1, p2, distPx: Math.round(distPxRaw), doorCm: refCm }
                       }));
 
-                      // 🎯 即時重算並連動更新現有所有空間之精準面積與大金選機
+                      // 🎯 即時重算並連動更新現有所有空間之精準面積與大金選機 (消除縱橫比變形)
                       setRows(prevRows => prevRows.map(row => {
                         if (!row.polygon || row.polygon.length < 3) return row;
-                        const pxArea = calculateShoelaceArea(row.polygon);
-                        const realAreaM2 = parseFloat((pxArea * ratio * ratio).toFixed(2));
+                        const realAreaM2 = calculateRealAreaFromPolygon(row.polygon, ratio, imgW, imgH);
                         const realAreaPing = parseFloat((realAreaM2 * 0.3025).toFixed(2));
                         const baseKcal = row.calc_basis || 520;
                         const initialDemand = Math.round(realAreaPing * baseKcal);
@@ -2396,7 +2410,7 @@ function App() {
                       }));
 
                       setDrawToolMode('view');
-                      toast.success(`📏 參考尺寸標定成功！已知長度: ${refCm}cm (${Math.round(distPx)}px)，已全面重算連動全圖空間！`);
+                      toast.success(`📏 參考尺寸標定成功！已知長度: ${refCm}cm (${Math.round(distPxRaw)}px)，已消除長寬比變形並重算全圖空間！`);
                     }
                     return;
                   }
