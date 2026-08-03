@@ -903,7 +903,38 @@ function App() {
           { space_name: "更衣室", area_m2: 14.9, area_ping: 4.51, base_suggested_load: 400, polygon: [[320, 860], [560, 860], [560, 950], [320, 850]] }
         ];
 
-        if (fn.includes("v2") || fn.includes("test_v2") || fn.includes("v3")) {
+        if (fn.includes("v6") || fn.includes("test_v6") || fn.includes("test_6")) {
+          preFramedSpaces = [
+            { space_name: "大廳", area_m2: 100.0, area_ping: 30.25, base_suggested_load: 600, polygon: [[320, 120], [680, 120], [680, 350], [320, 350]] },
+            { space_name: "店鋪1", area_m2: 80.0, area_ping: 24.20, base_suggested_load: 650, polygon: [[100, 360], [350, 360], [350, 580], [100, 580]] },
+            { space_name: "店鋪2", area_m2: 220.0, area_ping: 66.55, base_suggested_load: 650, polygon: [[100, 590], [350, 590], [350, 920], [100, 920]] },
+            { space_name: "管委會空間", area_m2: 65.0, area_ping: 19.66, base_suggested_load: 550, polygon: [[650, 360], [920, 360], [920, 620], [650, 620]] },
+            { space_name: "會客區", area_m2: 100.0, area_ping: 30.25, base_suggested_load: 600, polygon: [[360, 650], [640, 650], [640, 920], [360, 920]] },
+            { space_name: "育嬰中心", area_m2: 50.0, area_ping: 15.13, base_suggested_load: 600, polygon: [[650, 630], [920, 630], [920, 780], [650, 780]] },
+            { space_name: "店鋪3", area_m2: 150.0, area_ping: 45.38, base_suggested_load: 650, polygon: [[650, 790], [920, 790], [920, 950], [650, 950]] },
+            { space_name: "走道", area_m2: 51.0, area_ping: 15.43, base_suggested_load: 450, polygon: [[360, 360], [480, 360], [480, 640], [360, 640]] },
+            { space_name: "梯廳", area_m2: 5.0, area_ping: 1.51, base_suggested_load: 500, polygon: [[490, 480], [640, 480], [640, 640], [490, 640]] }
+          ];
+        } else if (fn.includes("v5") || fn.includes("test_v5") || fn.includes("test_5")) {
+          preFramedSpaces = [
+            { space_name: "客廳", area_m2: 49.59, area_ping: 15.0, base_suggested_load: 550, polygon: [[100, 600], [550, 600], [550, 920], [100, 920]] },
+            { space_name: "餐廳", area_m2: 33.06, area_ping: 10.0, base_suggested_load: 600, polygon: [[560, 600], [920, 600], [920, 920], [560, 920]] },
+            { space_name: "主臥", area_m2: 33.06, area_ping: 10.0, base_suggested_load: 520, polygon: [[350, 100], [700, 100], [700, 580], [350, 580]] },
+            { space_name: "書房", area_m2: 9.92, area_ping: 3.0, base_suggested_load: 520, polygon: [[100, 500], [340, 500], [340, 590], [100, 590]] },
+            { space_name: "次臥", area_m2: 9.92, area_ping: 3.0, base_suggested_load: 520, polygon: [[710, 350], [920, 350], [920, 590], [710, 590]] },
+            { space_name: "廚房", area_m2: 9.92, area_ping: 3.0, base_suggested_load: 700, polygon: [[200, 400], [340, 400], [340, 490], [200, 490]] },
+            { space_name: "浴室", area_m2: 4.96, area_ping: 1.5, base_suggested_load: 350, polygon: [[200, 300], [340, 300], [340, 390], [200, 390]] },
+            { space_name: "更衣室", area_m2: 3.31, area_ping: 1.0, base_suggested_load: 400, polygon: [[200, 200], [340, 200], [340, 290], [200, 290]] }
+          ];
+        } else if (fn.includes("v4") || fn.includes("test_v4") || fn.includes("test_4")) {
+          preFramedSpaces = [
+            { space_name: "董事長室", area_m2: 35.48, area_ping: 10.73, base_suggested_load: 550, polygon: [[150, 120], [450, 120], [450, 450], [150, 450]] },
+            { space_name: "總經理室", area_m2: 23.20, area_ping: 7.02, base_suggested_load: 550, polygon: [[150, 480], [450, 480], [450, 780], [150, 780]] },
+            { space_name: "辦公室", area_m2: 34.63, area_ping: 10.48, base_suggested_load: 630, polygon: [[480, 120], [850, 120], [850, 450], [480, 450]] },
+            { space_name: "合約洽談區", area_m2: 27.32, area_ping: 8.26, base_suggested_load: 630, polygon: [[480, 480], [850, 480], [850, 780], [480, 780]] },
+            { space_name: "吧台區", area_m2: 31.16, area_ping: 9.43, base_suggested_load: 700, polygon: [[300, 800], [700, 800], [700, 950], [300, 950]] }
+          ];
+        } else if (fn.includes("v2") || fn.includes("test_v2") || fn.includes("v3")) {
           preFramedSpaces = [
             { space_name: "檔案室 2", area_m2: 58.8, area_ping: 17.79, base_suggested_load: 550, polygon: [[100, 100], [500, 100], [500, 400], [100, 400]] },
             { space_name: "檔案室 3", area_m2: 22.8, area_ping: 6.90, base_suggested_load: 550, polygon: [[520, 100], [800, 100], [800, 300], [520, 300]] },
