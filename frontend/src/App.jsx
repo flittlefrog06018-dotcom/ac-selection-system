@@ -1399,7 +1399,7 @@ function App() {
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <span style={styles.logoBox}>DAIKIN</span>
           <div>
-            <h1 style={{ margin: 0, fontSize: '18px', color: '#ffffff' }}>空調選機自動化系統</h1>
+            <h1 style={{ margin: 0, fontSize: '18px', color: '#ffffff' }}>【重要】空調選機自動化系統</h1>
             <p style={{ margin: 0, fontSize: '11px', color: '#94a3b8' }}>高精準商用版 (VV17 核心引擎)</p>
           </div>
         </div>
