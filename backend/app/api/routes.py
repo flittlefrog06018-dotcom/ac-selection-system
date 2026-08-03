@@ -91,6 +91,40 @@ class ExportRequest(BaseModel):
     filename: str = ""
     data: List[ExportRowModel]
 
+class OCRSpaceNameRequest(BaseModel):
+    image_base64: str
+
+# 🎯 局部裁切圖片繁體中文房間名稱 OCR 視覺辨識 API
+@router.post("/recognize-room-name")
+async def recognize_room_name(payload: OCRSpaceNameRequest):
+    try:
+        img_str = payload.image_base64
+        if img_str.startswith("data:"):
+            img_str = img_str.split(",")[1]
+        img_bytes = base64.b64decode(img_str)
+        
+        client = genai.Client(api_key=API_KEY)
+        image_part = types.Part.from_bytes(data=img_bytes, mime_type="image/jpeg")
+        
+        prompt = (
+            "這是一張建築平面圖局部房間區域的裁切圖片。"
+            "請辨識圖片中印有的繁體中文房間名稱標籤 (例如：主臥室、客廳、臥室、次臥、餐廳、廚房、浴室、書房、陽台、玄關、更衣室、會議室、董事長室)。"
+            "只輸出該房間名稱 (例如：主臥室)，不要輸出任何其他文字、標點符號或說明。若無法辨識任何房間名稱標籤，請只輸出 EMPTY。"
+        )
+        
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[image_part, prompt]
+        )
+        text = response.text.strip()
+        text = re.sub(r'[^\w\u4e00-\u9fa5]', '', text)
+        if text and text != "EMPTY" and len(text) <= 10:
+            return {"status": "success", "space_name": text}
+        return {"status": "success", "space_name": ""}
+    except Exception as e:
+        print(f"[OCR Exception] {e}")
+        return {"status": "success", "space_name": ""}
+
 # v15/v17 智慧最少台數與平均負擔容量最佳化選機演算法
 def auto_select_equipment_v15_backend(total_load_kw: float, system_type: str):
     models_list = EQUIPMENT_DB.get(system_type, EQUIPMENT_DB.get("VRV", []))

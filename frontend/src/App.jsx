@@ -431,8 +431,14 @@ function App() {
         is_matched: true
       };
 
+      const newIdx = rows.length;
       setRows(prev => [...prev, newRow]);
       toast.success(`🪣 漆桶發散成功！已自動框選【${resolvedSpaceName}】(${realAreaM2}㎡ / ${realAreaPing}坪)！`);
+
+      // 🎯 即時啟動圖片局部 OCR 視覺辨識文字標籤 (如「主臥室」、「客廳」、「臥室」)
+      setTimeout(() => {
+        triggerOCRForSpace(newIdx, polygonPts);
+      }, 100);
     } catch (err) {
       console.warn("Bucket fill error:", err);
       toast.error("漆桶發散計算時發生異常！");
@@ -450,6 +456,96 @@ function App() {
   const imgRef = useRef(null);
   const modalImgRef = useRef(null);
   const modalSvgRef = useRef(null);
+
+  // 🎯 局部圖片裁切與 OCR 自動辨識房間名稱
+  const cropRoomImageBase64 = (polygonPts) => {
+    try {
+      const imgEl = modalImgRef.current || imgRef.current;
+      if (!imgEl) return null;
+      const w = imgEl.naturalWidth || imgEl.width || 1600;
+      const h = imgEl.naturalHeight || imgEl.height || 1200;
+
+      let minX = 1000, maxX = 0, minY = 1000, maxY = 0;
+      polygonPts.forEach(pt => {
+        if (pt[0] < minX) minX = pt[0];
+        if (pt[0] > maxX) maxX = pt[0];
+        if (pt[1] < minY) minY = pt[1];
+        if (pt[1] > maxY) maxY = pt[1];
+      });
+
+      const padX = 25;
+      const padY = 25;
+      minX = Math.max(0, minX - padX);
+      maxX = Math.min(1000, maxX + padX);
+      minY = Math.max(0, minY - padY);
+      maxY = Math.min(1000, maxY + padY);
+
+      const cropX = Math.round((minX / 1000.0) * w);
+      const cropY = Math.round((minY / 1000.0) * h);
+      const cropW = Math.max(10, Math.round(((maxX - minX) / 1000.0) * w));
+      const cropH = Math.max(10, Math.round(((maxY - minY) / 1000.0) * h));
+
+      const canvas = document.createElement('canvas');
+      canvas.width = cropW;
+      canvas.height = cropH;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(imgEl, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+      return canvas.toDataURL('image/jpeg', 0.85);
+    } catch (e) {
+      return null;
+    }
+  };
+
+  const triggerOCRForSpace = async (spaceIndex, pts) => {
+    try {
+      const cropBase64 = cropRoomImageBase64(pts);
+      if (!cropBase64) return;
+
+      const res = await fetch('/api/recognize-room-name', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image_base64: cropBase64 })
+      });
+      const data = await res.json();
+      if (data.status === 'success' && data.space_name) {
+        const recognizedName = data.space_name;
+        setRows(prevRows => {
+          if (spaceIndex < 0 || spaceIndex >= prevRows.length) return prevRows;
+
+          const otherNames = new Set(prevRows.filter((_, idx) => idx !== spaceIndex).map(r => r.space_name));
+          let finalName = recognizedName;
+          if (otherNames.has(finalName)) {
+            let num = 1;
+            finalName = `${recognizedName} ${num}`;
+            while (otherNames.has(finalName)) {
+              num++;
+              finalName = `${recognizedName} ${num}`;
+            }
+          }
+
+          const targetRow = prevRows[spaceIndex];
+          const baseKcal = getFuzzyBaseLoadByName(finalName);
+          const initialDemand = Math.round(targetRow.area_ping * baseKcal);
+          const autoMatch = clientSideSelectEquipment(initialDemand, targetRow.system_type || "VRV");
+
+          const newRows = [...prevRows];
+          newRows[spaceIndex] = {
+            ...targetRow,
+            space_name: finalName,
+            calc_basis: baseKcal,
+            total_cooling_demand: initialDemand,
+            best_match_model: autoMatch.model,
+            unit_count: autoMatch.qty,
+            cap_kw: autoMatch.cap
+          };
+          return newRows;
+        });
+        toast.success(`✨ OCR 自動辨識圖面標籤：【${recognizedName}】！`);
+      }
+    } catch (e) {
+      console.log("OCR failed:", e);
+    }
+  };
 
   // 🎯 新增互動繪圖與標定工具模式: 'view', 'scale', 'rect', 'pline'
   const [drawToolMode, setDrawToolMode] = useState('view');
@@ -1285,7 +1381,11 @@ function App() {
         is_custom_drawn: true
       };
 
-      return [...validPolygonRows, newSpaceRow];
+      const newRows = [...validPolygonRows, newSpaceRow];
+      setTimeout(() => {
+        triggerOCRForSpace(validPolygonRows.length, pts);
+      }, 100);
+      return newRows;
     });
     setPlinePoints([]);
     toast.success(`✅ 已成功劃定【空間】 (${realAreaM2}㎡ / ${realAreaPing}坪)！`);
