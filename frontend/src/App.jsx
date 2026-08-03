@@ -367,7 +367,32 @@ function App() {
         }
       };
 
-      const polygonPts = extractPolygonFromMask(visited, w, h, minPxX, maxPxX, minPxY, maxPxY);
+      // 🎯 向外膨脹遮罩：完整包含螢光筆顏色筆劃本身的厚度 (粗度)，確保面積與框線涵蓋全邊界
+      const strokeExpandPx = Math.max(6, Math.round(w / 180));
+      const dilatedVisited = new Uint8Array(w * h);
+      let dMinX = minPxX, dMaxX = maxPxX, dMinY = minPxY, dMaxY = maxPxY;
+
+      for (let y = minPxY; y <= maxPxY; y++) {
+        for (let x = minPxX; x <= maxPxX; x++) {
+          if (visited[y * w + x] === 1) {
+            for (let dy = -strokeExpandPx; dy <= strokeExpandPx; dy++) {
+              for (let dx = -strokeExpandPx; dx <= strokeExpandPx; dx++) {
+                const nx = x + dx;
+                const ny = y + dy;
+                if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                  dilatedVisited[ny * w + nx] = 1;
+                  if (nx < dMinX) dMinX = nx;
+                  if (nx > dMaxX) dMaxX = nx;
+                  if (ny < dMinY) dMinY = ny;
+                  if (ny > dMaxY) dMaxY = ny;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      const polygonPts = extractPolygonFromMask(dilatedVisited, w, h, dMinX, dMaxX, dMinY, dMaxY);
 
       // 🎯 長寬比矯正面積換算：完美消除非正方形圖檔之縱橫比變形誤差
       const ratio = pixelToMeterRatio || 0.0065;
