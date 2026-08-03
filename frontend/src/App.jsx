@@ -745,12 +745,7 @@ function App() {
       setDoorGapSettings(prev => ({ ...prev, pickedLine: null, p1: null, isPickingDoorPoints: false }));
       setDrawToolMode('view');
 
-      toast.success(`📄 已成功載入圖檔：${selectedFile.name}！已自動啟動圖面智慧解析。`);
-
-      // 🎯 繞過標記尺寸與框選步驟：一載入圖檔直接自動執行圖面解析！
-      setTimeout(() => {
-        handleAnalyze(selectedFile);
-      }, 200);
+      toast.success(`📄 已成功載入圖檔：${selectedFile.name}！請點選 [🚀 執行圖面自動解析] 或手動劃框。`);
     }
   };
 
@@ -879,102 +874,15 @@ function App() {
     }
 
     setTimeout(() => {
-      // 🎯 若已有手動標註之空間，解析時維持真實標定之面積與多邊形
+      // 🎯 若已有手動劃定之空間，解析時維持真實標定之面積與多邊形，並匹配負載與選機
       if (rows && rows.length > 0) {
         setLoading(false);
-        toast.success(`✨ 圖面自動解析完成！已為 ${rows.length} 個標定空間匹配最佳空調負載。`);
-        return;
-      }
-
-      // 🎯 雙軌第一軌：原圖已有紅框/圖框/文字標籤之底圖 (自動解析帶入全套空間與紅框多邊形)
-      const fn = (targetFile ? targetFile.name || "" : "").toLowerCase();
-      if (fn.includes("v1") || fn.includes("v2") || fn.includes("v3") || fn.includes("v4") || fn.includes("v5") || fn.includes("v6") || fn.includes("v13") || fn.includes("plan") || fn.includes("圖") || fn.includes("cad") || fn.includes("jpg") || fn.includes("png") || fn.includes("pdf")) {
-        let preFramedSpaces = [
-          { space_name: "客廳", area_m2: 20.1, area_ping: 6.08, base_suggested_load: 550, polygon: [[430, 80], [920, 80], [920, 360], [430, 360]] },
-          { space_name: "臥室二", area_m2: 17.5, area_ping: 5.29, base_suggested_load: 520, polygon: [[570, 240], [890, 240], [890, 480], [570, 480]] },
-          { space_name: "臥室三", area_m2: 12.0, area_ping: 3.63, base_suggested_load: 520, polygon: [[570, 490], [890, 490], [890, 710], [570, 710]] },
-          { space_name: "廚房", area_m2: 9.0, area_ping: 2.72, base_suggested_load: 700, polygon: [[100, 380], [420, 380], [420, 620], [100, 620]] },
-          { space_name: "浴室", area_m2: 14.8, area_ping: 4.48, base_suggested_load: 350, polygon: [[320, 400], [560, 400], [560, 680], [320, 680]] },
-          { space_name: "餐廳", area_m2: 38.0, area_ping: 11.49, base_suggested_load: 600, polygon: [[100, 80], [420, 80], [420, 370], [100, 370]] },
-          { space_name: "玄關+走道", area_m2: 17.8, area_ping: 5.38, base_suggested_load: 450, polygon: [[330, 200], [560, 200], [560, 400], [330, 400]] },
-          { space_name: "傭人房", area_m2: 5.3, area_ping: 1.60, base_suggested_load: 500, polygon: [[100, 630], [310, 630], [310, 800], [100, 800]] },
-          { space_name: "主臥浴室", area_m2: 14.1, area_ping: 4.27, base_suggested_load: 350, polygon: [[320, 690], [560, 690], [560, 850], [320, 850]] },
-          { space_name: "主臥室", area_m2: 43.4, area_ping: 13.13, base_suggested_load: 520, polygon: [[570, 720], [920, 720], [920, 940], [570, 940]] },
-          { space_name: "更衣室", area_m2: 14.9, area_ping: 4.51, base_suggested_load: 400, polygon: [[320, 860], [560, 860], [560, 950], [320, 850]] }
-        ];
-
-        if (fn.includes("v6") || fn.includes("test_v6") || fn.includes("test_6")) {
-          preFramedSpaces = [
-            { space_name: "大廳", area_m2: 100.0, area_ping: 30.25, base_suggested_load: 600, polygon: [[320, 120], [680, 120], [680, 350], [320, 350]] },
-            { space_name: "店鋪1", area_m2: 80.0, area_ping: 24.20, base_suggested_load: 650, polygon: [[100, 360], [350, 360], [350, 580], [100, 580]] },
-            { space_name: "店鋪2", area_m2: 220.0, area_ping: 66.55, base_suggested_load: 650, polygon: [[100, 590], [350, 590], [350, 920], [100, 920]] },
-            { space_name: "管委會空間", area_m2: 65.0, area_ping: 19.66, base_suggested_load: 550, polygon: [[650, 360], [920, 360], [920, 620], [650, 620]] },
-            { space_name: "會客區", area_m2: 100.0, area_ping: 30.25, base_suggested_load: 600, polygon: [[360, 650], [640, 650], [640, 920], [360, 920]] },
-            { space_name: "育嬰中心", area_m2: 50.0, area_ping: 15.13, base_suggested_load: 600, polygon: [[650, 630], [920, 630], [920, 780], [650, 780]] },
-            { space_name: "店鋪3", area_m2: 150.0, area_ping: 45.38, base_suggested_load: 650, polygon: [[650, 790], [920, 790], [920, 950], [650, 950]] },
-            { space_name: "走道", area_m2: 51.0, area_ping: 15.43, base_suggested_load: 450, polygon: [[360, 360], [480, 360], [480, 640], [360, 640]] },
-            { space_name: "梯廳", area_m2: 5.0, area_ping: 1.51, base_suggested_load: 500, polygon: [[490, 480], [640, 480], [640, 640], [490, 640]] }
-          ];
-        } else if (fn.includes("v5") || fn.includes("test_v5") || fn.includes("test_5")) {
-          preFramedSpaces = [
-            { space_name: "客廳", area_m2: 49.59, area_ping: 15.0, base_suggested_load: 550, polygon: [[100, 600], [550, 600], [550, 920], [100, 920]] },
-            { space_name: "餐廳", area_m2: 33.06, area_ping: 10.0, base_suggested_load: 600, polygon: [[560, 600], [920, 600], [920, 920], [560, 920]] },
-            { space_name: "主臥", area_m2: 33.06, area_ping: 10.0, base_suggested_load: 520, polygon: [[350, 100], [700, 100], [700, 580], [350, 580]] },
-            { space_name: "書房", area_m2: 9.92, area_ping: 3.0, base_suggested_load: 520, polygon: [[100, 500], [340, 500], [340, 590], [100, 590]] },
-            { space_name: "次臥", area_m2: 9.92, area_ping: 3.0, base_suggested_load: 520, polygon: [[710, 350], [920, 350], [920, 590], [710, 590]] },
-            { space_name: "廚房", area_m2: 9.92, area_ping: 3.0, base_suggested_load: 700, polygon: [[200, 400], [340, 400], [340, 490], [200, 490]] },
-            { space_name: "浴室", area_m2: 4.96, area_ping: 1.5, base_suggested_load: 350, polygon: [[200, 300], [340, 300], [340, 390], [200, 390]] },
-            { space_name: "更衣室", area_m2: 3.31, area_ping: 1.0, base_suggested_load: 400, polygon: [[200, 200], [340, 200], [340, 290], [200, 290]] }
-          ];
-        } else if (fn.includes("v4") || fn.includes("test_v4") || fn.includes("test_4")) {
-          preFramedSpaces = [
-            { space_name: "董事長室", area_m2: 35.48, area_ping: 10.73, base_suggested_load: 550, polygon: [[150, 120], [450, 120], [450, 450], [150, 450]] },
-            { space_name: "總經理室", area_m2: 23.20, area_ping: 7.02, base_suggested_load: 550, polygon: [[150, 480], [450, 480], [450, 780], [150, 780]] },
-            { space_name: "辦公室", area_m2: 34.63, area_ping: 10.48, base_suggested_load: 630, polygon: [[480, 120], [850, 120], [850, 450], [480, 450]] },
-            { space_name: "合約洽談區", area_m2: 27.32, area_ping: 8.26, base_suggested_load: 630, polygon: [[480, 480], [850, 480], [850, 780], [480, 780]] },
-            { space_name: "吧台區", area_m2: 31.16, area_ping: 9.43, base_suggested_load: 700, polygon: [[300, 800], [700, 800], [700, 950], [300, 950]] }
-          ];
-        } else if (fn.includes("v2") || fn.includes("test_v2") || fn.includes("v3")) {
-          preFramedSpaces = [
-            { space_name: "檔案室 2", area_m2: 58.8, area_ping: 17.79, base_suggested_load: 550, polygon: [[100, 100], [500, 100], [500, 400], [100, 400]] },
-            { space_name: "檔案室 3", area_m2: 22.8, area_ping: 6.90, base_suggested_load: 550, polygon: [[520, 100], [800, 100], [800, 300], [520, 300]] },
-            { space_name: "機房", area_m2: 8.6, area_ping: 2.60, base_suggested_load: 650, polygon: [[820, 100], [950, 100], [950, 250], [820, 250]] },
-            { space_name: "視訊室兼餐廳", area_m2: 21.9, area_ping: 6.62, base_suggested_load: 600, polygon: [[520, 320], [800, 320], [800, 500], [520, 500]] },
-            { space_name: "衣帽間", area_m2: 7.5, area_ping: 2.27, base_suggested_load: 520, polygon: [[820, 270], [950, 270], [950, 400], [820, 400]] },
-            { space_name: "檔案室 1", area_m2: 5.1, area_ping: 1.54, base_suggested_load: 550, polygon: [[100, 420], [300, 420], [300, 550], [100, 550]] },
-            { space_name: "洽談室", area_m2: 8.3, area_ping: 2.51, base_suggested_load: 600, polygon: [[320, 420], [500, 420], [500, 550], [320, 550]] },
-            { space_name: "前台作業區", area_m2: 45.2, area_ping: 13.67, base_suggested_load: 630, polygon: [[100, 570], [600, 570], [600, 800], [100, 800]] },
-            { space_name: "經理室", area_m2: 25.4, area_ping: 7.68, base_suggested_load: 550, polygon: [[620, 520], [950, 520], [950, 800], [620, 800]] }
-          ];
-        }
-
-        const normalizedData = preFramedSpaces.map(item => {
-          const baseKcal = item.base_suggested_load || 520;
-          const ping = parseFloat(item.area_ping) || 0;
-          const initialDemand = Math.round(ping * baseKcal);
-          const autoMatch = clientSideSelectEquipment(initialDemand, "VRV");
-          return {
-            ...item,
-            selected: true,
-            system_type: "VRV",
-            calc_basis: baseKcal,
-            total_cooling_demand: initialDemand,
-            best_match_model: autoMatch.model,
-            unit_count: autoMatch.qty,
-            cap_kw: autoMatch.cap,
-            special_kw: 0,
-            modifiers: { 全內周: false, 二面牆: false, 西曬: false, 挑高: false, 頂曬: false },
-            is_matched: true
-          };
-        });
-        setRows(normalizedData);
-        setLoading(false);
-        toast.success(`✨ 自動辨識成功！已由圖面帶入全套 ${normalizedData.length} 大空間數據與大金選機！`);
+        toast.success(`✨ 圖面解析完成！已為 ${rows.length} 個空間動態匹配最佳空調負載。`);
         return;
       }
 
       setLoading(false);
-      toast.info("💡 請使用 [🪣 漆桶發散] 或 [🟩 矩形拉框] 標定圖面空間！");
+      toast.info("💡 圖面上未自動偵測到向量空間，請使用 [🪣 漆桶發散] 或 [🟩 矩形拉框] 點選標定！");
     }, 350);
   };
 
