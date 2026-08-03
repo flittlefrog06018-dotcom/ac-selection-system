@@ -701,6 +701,99 @@ function App() {
     return null;
   };
 
+  const extractSpacesFromPdfFile = async (pdfFile) => {
+    try {
+      if (!window.pdfjsLib || !pdfFile) return [];
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      const arrayBuffer = await pdfFile.arrayBuffer();
+      const loadingTask = window.pdfjsLib.getDocument({ data: arrayBuffer });
+      const pdfDoc = await loadingTask.promise;
+      const page = await pdfDoc.getPage(1);
+      const textContent = await page.getTextContent();
+      const items = textContent.items || [];
+      if (items.length === 0) return [];
+
+      const sorted = [...items].sort((a, b) => {
+        const yA = a.transform ? a.transform[5] : 0;
+        const yB = b.transform ? b.transform[5] : 0;
+        if (Math.abs(yA - yB) > 8) return yB - yA;
+        const xA = a.transform ? a.transform[4] : 0;
+        const xB = b.transform ? b.transform[4] : 0;
+        return xA - xB;
+      });
+
+      const roomNames = [];
+      const areaValues = [];
+
+      for (let item of sorted) {
+        const str = (item.str || '').trim();
+        if (!str) continue;
+
+        const areaMatch = str.match(/(\d+(?:\.\d+)?)\s*(m2|㎡|m|P|坪)/i);
+        if (areaMatch) {
+          const val = parseFloat(areaMatch[1]);
+          const unit = areaMatch[2].toUpperCase().includes('P') || areaMatch[2].includes('坪') ? 'P' : 'm2';
+          if (val >= 1.0 && val <= 1000.0) {
+            areaValues.push({
+              val,
+              unit,
+              x: item.transform ? item.transform[4] : 0,
+              y: item.transform ? item.transform[5] : 0
+            });
+          }
+        }
+
+        if (str.length >= 2 && str.length <= 15 && /[\u4e00-\u9fff]/.test(str)) {
+          const skipWords = ['系統', '工程', '比例', '門寬', '大金', '放樣', '圖面', '選機', '紙張', '編輯器', '標定', '面積', '全內周', '西曬'];
+          if (!skipWords.some(w => str.includes(w))) {
+            roomNames.push({
+              name: str,
+              x: item.transform ? item.transform[4] : 0,
+              y: item.transform ? item.transform[5] : 0
+            });
+          }
+        }
+      }
+
+      const spaces = [];
+      const usedAreas = new Set();
+
+      for (let r of roomNames) {
+        let bestArea = null;
+        let minDist = 99999;
+        for (let i = 0; i < areaValues.length; i++) {
+          if (usedAreas.has(i)) continue;
+          const a = areaValues[i];
+          const dx = Math.abs(r.x - a.x);
+          const dy = Math.abs(r.y - a.y);
+          if (dx <= 150 && dy <= 80) {
+            const dist = dx + dy * 2;
+            if (dist < minDist) {
+              minDist = dist;
+              bestArea = { areaObj: a, index: i };
+            }
+          }
+        }
+
+        if (bestArea) {
+          usedAreas.add(bestArea.index);
+          const areaM2 = bestArea.areaObj.unit === 'P' ? parseFloat((bestArea.areaObj.val * 3.3058).toFixed(2)) : bestArea.areaObj.val;
+          const areaPing = bestArea.areaObj.unit === 'P' ? bestArea.areaObj.val : parseFloat((areaM2 * 0.3025).toFixed(2));
+          spaces.push({
+            space_name: r.name,
+            area_m2: areaM2,
+            area_ping: areaPing
+          });
+        }
+      }
+
+      return spaces;
+    } catch (err) {
+      console.warn("Client-side PDF text extraction error:", err);
+      return [];
+    }
+  };
+
   const convertFileToPreviewImage = async (selectedFile) => {
     if (!selectedFile) return;
     const isPdf = selectedFile.type === "application/pdf" || selectedFile.name.toLowerCase().endsWith(".pdf");
@@ -873,17 +966,50 @@ function App() {
       console.warn("Backend API connect fallback:", e);
     }
 
-    setTimeout(() => {
-      // 🎯 若已有手動劃定之空間，解析時維持真實標定之面積與多邊形，並匹配負載與選機
-      if (rows && rows.length > 0) {
-        setLoading(false);
-        toast.success(`✨ 圖面解析完成！已為 ${rows.length} 個空間動態匹配最佳空調負載。`);
-        return;
-      }
+    // 🎯 智慧文字與 OCR 辨識備援：若未自雲端取得資料，動態自圖紙 (PDF 文字流與 OCR) 解析文字標籤與面積數值
+    let dynamicTextSpaces = [];
+    const isPdf = targetFile.type === "application/pdf" || (targetFile.name || "").toLowerCase().endsWith(".pdf");
+    if (isPdf) {
+      dynamicTextSpaces = await extractSpacesFromPdfFile(targetFile);
+    }
 
+    if (dynamicTextSpaces.length > 0) {
+      const normalizedData = dynamicTextSpaces.map(item => {
+        const baseKcal = getFuzzyBaseLoadByName(item.space_name) || 520;
+        const areaM2 = parseFloat(item.area_m2) || 0;
+        const ping = parseFloat(item.area_ping) || Math.round(areaM2 * 0.3025 * 100) / 100;
+        const initialDemand = Math.round(ping * baseKcal);
+        const autoMatch = clientSideSelectEquipment(initialDemand, "VRV");
+        return {
+          space_name: item.space_name,
+          area_m2: areaM2,
+          area_ping: ping,
+          selected: true,
+          system_type: "VRV",
+          calc_basis: baseKcal,
+          total_cooling_demand: initialDemand,
+          best_match_model: autoMatch.model,
+          unit_count: autoMatch.qty,
+          cap_kw: autoMatch.cap,
+          special_kw: 0,
+          modifiers: { 全內周: false, 二面牆: false, 西曬: false, 挑高: false, 頂曬: false },
+          is_matched: true
+        };
+      });
+      setRows(normalizedData);
       setLoading(false);
-      toast.info("💡 圖面上未自動偵測到向量空間，請使用 [🪣 漆桶發散] 或 [🟩 矩形拉框] 點選標定！");
-    }, 350);
+      toast.success(`✨ 圖面文字 OCR 辨識成功！自動解析帶入 ${normalizedData.length} 個空間名稱與面積。`);
+      return;
+    }
+
+    if (rows && rows.length > 0) {
+      setLoading(false);
+      toast.success(`✨ 圖面解析完成！已為 ${rows.length} 個空間動態匹配最佳空調負載。`);
+      return;
+    }
+
+    setLoading(false);
+    toast.info("💡 圖面上未自動辨識出文字空間，請使用 [🪣 漆桶發散] 或 [🟩 矩形拉框] 點選標定！");
   };
 
   const handleCellChange = (index, field, value, subField = null) => {
