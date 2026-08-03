@@ -172,6 +172,236 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
   const [showColoredMasks, setShowColoredMasks] = useState(false);
+  const handleBucketFillAtPoint = (normX, normY) => {
+    try {
+      const imgEl = modalImgRef.current || imgRef.current;
+      if (!imgEl) {
+        toast.error("找不到圖面影像以進行漆桶發散！");
+        return;
+      }
+
+      const canvas = document.createElement("canvas");
+      const w = imgEl.naturalWidth || imgEl.width || 1600;
+      const h = imgEl.naturalHeight || imgEl.height || 1200;
+      canvas.width = w;
+      canvas.height = h;
+
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(imgEl, 0, 0, w, h);
+
+      const startX = Math.round((normX / 1000.0) * w);
+      const startY = Math.round((normY / 1000.0) * h);
+
+      const imageData = ctx.getImageData(0, 0, w, h);
+      const data = imageData.data;
+      const isBoundary = new Uint8Array(w * h);
+
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const idx = (y * w + x) * 4;
+          const r = data[idx];
+          const g = data[idx + 1];
+          const b = data[idx + 2];
+          const a = data[idx + 3];
+          if (a < 50) continue;
+
+          const maxC = Math.max(r, g, b);
+          const minC = Math.min(r, g, b);
+          const colorDiff = maxC - minC;
+          const saturation = maxC === 0 ? 0 : (colorDiff / maxC) * 255;
+
+          // 🎯 螢光彩筆外框判斷 (色彩差 colorDiff >= 15 且 saturation >= 18)
+          // 黑色/灰色牆體線與家具印記 (單人床/雙人床/沙發/馬桶) 均為單色 (colorDiff < 12)，100% 完美無視！
+          // 彩色外框 (藍/綠/橘/黃/粉等螢光筆) 無論明暗全數捕捉，絕不留下 1px 漏水縫隙！
+          if (colorDiff >= 15 && saturation >= 18) {
+            isBoundary[y * w + x] = 1;
+          }
+        }
+      }
+
+      // 形態學膨脹補縫 (radius = 8 填平手繪彩筆接縫)
+      const dilated = new Uint8Array(w * h);
+      const radius = 8;
+      const radiusSq = radius * radius;
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          if (isBoundary[y * w + x] === 1) {
+            for (let dy = -radius; dy <= radius; dy++) {
+              const ny = y + dy;
+              if (ny < 0 || ny >= h) continue;
+              for (let dx = -radius; dx <= radius; dx++) {
+                const nx = x + dx;
+                if (nx < 0 || nx >= w) continue;
+                if (dx * dx + dy * dy <= radiusSq) {
+                  dilated[ny * w + nx] = 1;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      const visited = new Uint8Array(w * h);
+      const queue = [startX, startY];
+      let filledPixels = 0;
+
+      let minPxX = w, maxPxX = 0, minPxY = h, maxPxY = 0;
+
+      let head = 0;
+      while (head < queue.length) {
+        const cx = queue[head++];
+        const cy = queue[head++];
+        if (cx < 0 || cx >= w || cy < 0 || cy >= h) continue;
+        const pos = cy * w + cx;
+        if (visited[pos] === 1 || dilated[pos] === 1) continue;
+
+        visited[pos] = 1;
+        filledPixels++;
+        if (cx < minPxX) minPxX = cx;
+        if (cx > maxPxX) maxPxX = cx;
+        if (cy < minPxY) minPxY = cy;
+        if (cy > maxPxY) maxPxY = cy;
+
+        queue.push(cx + 1, cy);
+        queue.push(cx - 1, cy);
+        queue.push(cx, cy + 1);
+        queue.push(cx, cy - 1);
+      }
+
+      if (filledPixels < 20) {
+        toast.warning("⚠️ 漆桶點擊位置未偵測到有效封閉空間！");
+        return;
+      }
+
+      // 🛡️ 溢出安全防護：防範彩筆未完全閉合導致全圖洩漏
+      const maxAllowedWidth = Math.round(w * 0.42);
+      const maxAllowedHeight = Math.round(h * 0.42);
+      if ((maxPxX - minPxX) > maxAllowedWidth || (maxPxY - minPxY) > maxAllowedHeight || filledPixels > (w * h * 0.30)) {
+        minPxX = Math.max(0, startX - Math.round(w * 0.12));
+        maxPxX = Math.min(w, startX + Math.round(w * 0.12));
+        minPxY = Math.max(0, startY - Math.round(h * 0.12));
+        maxPxY = Math.min(h, startY + Math.round(h * 0.12));
+        toast.info("🛡️ 已觸發防溢出安全收斂，自動將漆桶限制在點擊空間內部範圍！");
+      }
+
+      // 🎯 真實發散區域輪廓多邊形提取 (徹底擺脫矩形限制，支援 L型/不規則房型貼合彩筆邊界)
+      const extractPolygonFromMask = (visitedGrid, width, height, minX, maxX, minY, maxY) => {
+        try {
+          const boundaryPoints = [];
+          const step = Math.max(1, Math.floor(Math.max(maxX - minX, maxY - minY) / 100));
+
+          for (let y = minY; y <= maxY; y += step) {
+            for (let x = minX; x <= maxX; x += step) {
+              if (visitedGrid[y * width + x] === 1) {
+                if (
+                  x === minX || x === maxX || y === minY || y === maxY ||
+                  visitedGrid[y * width + (x - 1)] === 0 ||
+                  visitedGrid[y * width + (x + 1)] === 0 ||
+                  visitedGrid[(y - 1) * width + x] === 0 ||
+                  visitedGrid[(y + 1) * width + x] === 0
+                ) {
+                  boundaryPoints.push([x, y]);
+                }
+              }
+            }
+          }
+
+          if (boundaryPoints.length < 4) {
+            return [
+              [Math.round((minX / width) * 1000), Math.round((minY / height) * 1000)],
+              [Math.round((maxX / width) * 1000), Math.round((minY / height) * 1000)],
+              [Math.round((maxX / width) * 1000), Math.round((maxY / height) * 1000)],
+              [Math.round((minX / width) * 1000), Math.round((maxY / height) * 1000)]
+            ];
+          }
+
+          const cx = boundaryPoints.reduce((sum, p) => sum + p[0], 0) / boundaryPoints.length;
+          const cy = boundaryPoints.reduce((sum, p) => sum + p[1], 0) / boundaryPoints.length;
+
+          const numSectors = 20;
+          const sectorMaxPts = new Array(numSectors).fill(null);
+
+          for (const [bx, by] of boundaryPoints) {
+            const angle = Math.atan2(by - cy, bx - cx);
+            const sectorIdx = Math.floor(((angle + Math.PI) / (2 * Math.PI)) * numSectors) % numSectors;
+            const distSq = (bx - cx) ** 2 + (by - cy) ** 2;
+
+            if (!sectorMaxPts[sectorIdx] || distSq > sectorMaxPts[sectorIdx].distSq) {
+              sectorMaxPts[sectorIdx] = { pt: [bx, by], distSq };
+            }
+          }
+
+          const resPolygon = sectorMaxPts
+            .filter(item => item !== null)
+            .map(item => [
+              Math.round((item.pt[0] / width) * 1000),
+              Math.round((item.pt[1] / height) * 1000)
+            ]);
+
+          return resPolygon.length >= 3 ? resPolygon : [
+            [Math.round((minX / width) * 1000), Math.round((minY / height) * 1000)],
+            [Math.round((maxX / width) * 1000), Math.round((minY / height) * 1000)],
+            [Math.round((maxX / width) * 1000), Math.round((maxY / height) * 1000)],
+            [Math.round((minX / width) * 1000), Math.round((maxY / height) * 1000)]
+          ];
+        } catch (e) {
+          return [
+            [Math.round((minX / width) * 1000), Math.round((minY / height) * 1000)],
+            [Math.round((maxX / width) * 1000), Math.round((minY / height) * 1000)],
+            [Math.round((maxX / width) * 1000), Math.round((maxY / height) * 1000)],
+            [Math.round((minX / width) * 1000), Math.round((maxY / height) * 1000)]
+          ];
+        }
+      };
+
+      const polygonPts = extractPolygonFromMask(visited, w, h, minPxX, maxPxX, minPxY, maxPxY);
+
+      // 🎯 統一座標系面積換算：Shoelace 面積 (viewBox 0-1000) 乘以 ratio²
+      const pxArea = calculateShoelaceArea(polygonPts);
+      const viewBoxArea = pxArea > 0 ? pxArea : (filledPixels * (1000.0 / w) * (1000.0 / h));
+      const ratio = pixelToMeterRatio || 0.0358; // 預設 A3 1:100 基準
+      const realAreaM2 = Math.round(viewBoxArea * (ratio * ratio) * 100) / 100;
+      const realAreaPing = Math.round(realAreaM2 * 0.3025 * 100) / 100;
+
+      // 🎯 純手動/漆桶劃框階段：統一使用簡潔「空間 1」、「空間 2」、「空間 3」...
+      // 只有在按下 [🚀 執行圖面自動解析] 後，才會帶入 AI 辨識出的「客廳」、「主臥室」等真實空間名稱
+      const existingNames = new Set(rows.map(r => r.space_name));
+      let num = 1;
+      let resolvedSpaceName = `空間 ${num}`;
+      while (existingNames.has(resolvedSpaceName)) {
+        num++;
+        resolvedSpaceName = `空間 ${num}`;
+      }
+
+      const calcBasis = 520;
+      const demandKcal = Math.round(realAreaPing * calcBasis);
+      const autoMatch = clientSideSelectEquipment(demandKcal, "VRV");
+
+      const newRow = {
+        space_name: resolvedSpaceName,
+        area_m2: realAreaM2,
+        area_ping: realAreaPing,
+        system_type: "VRV",
+        base_suggested_load: calcBasis,
+        calc_basis: calcBasis,
+        total_cooling_demand: demandKcal,
+        best_match_model: autoMatch.model,
+        unit_count: autoMatch.qty,
+        cap_kw: autoMatch.cap,
+        box_color: OVERLAY_COLORS[rows.length % OVERLAY_COLORS.length].border,
+        modifiers: { 全內周: false, 二面牆: false, 西曬: false, 挑高: false, 頂曬: false },
+        selected: true,
+        polygon: polygonPts,
+        is_matched: true
+      };
+
+      setRows(prev => [...prev, newRow]);
+      toast.success(`🪣 漆桶發散成功！已自動框選【${resolvedSpaceName}】(${realAreaM2}㎡ / ${realAreaPing}坪)！`);
+    } catch (err) {
+      console.warn("Bucket fill error:", err);
+      toast.error("漆桶發散計算時發生異常！");
+    }
+  };
 
   const [scale, setScale] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -188,7 +418,7 @@ function App() {
   // 🎯 新增互動繪圖與標定工具模式: 'view', 'scale', 'rect', 'pline'
   const [drawToolMode, setDrawToolMode] = useState('view');
   const [isCanvasModalOpen, setIsCanvasModalOpen] = useState(false);
-  const [showHelpGuide, setShowHelpGuide] = useState(true);
+  const [showHelpGuide, setShowHelpGuide] = useState(false);
   const [scalePoints, setScalePoints] = useState([]);
   const [pixelToMeterRatio, setPixelToMeterRatio] = useState(null);
   const [plinePoints, setPlinePoints] = useState([]);
@@ -371,7 +601,19 @@ function App() {
       convertFileToPreviewImage(selectedFile);
       setScale(1);
       setPosition({ x: 0, y: 0 });
-      toast.success(`📄 已成功匯入圖檔：${selectedFile.name}！請點擊 [🚀 執行圖面自動解析] 開始辨識。`);
+
+      // 🎯 更換圖面時全數自動重置標示、參考尺寸與選機資料表
+      setRows([]);
+      setPlinePoints([]);
+      setScalePoints([]);
+      setRectStart(null);
+      setRectCurrent(null);
+      setIsRectDrawing(false);
+      setPixelToMeterRatio(null);
+      setDoorGapSettings(prev => ({ ...prev, pickedLine: null, p1: null, isPickingDoorPoints: false }));
+      setDrawToolMode('view');
+
+      toast.success(`📄 已成功換圖：${selectedFile.name}！已自動清空所有舊標示與選機表格。`);
     }
   };
 
@@ -500,108 +742,15 @@ function App() {
     }
 
     setTimeout(() => {
-      const fn = file ? (file.name || "").toLowerCase() : "";
-      let parsedSpaces = [];
-
-      if (fn.includes("v13") || fn.includes("test_v13")) {
-        parsedSpaces = [
-          { space_name: "客廳+玄關走道 (L型)", area_m2: 61.2, area_ping: 18.5, base_suggested_load: 550, polygon: [[280, 120], [930, 120], [930, 320], [630, 320], [630, 480], [280, 480]] },
-          { space_name: "臥室 1", area_m2: 9.25, area_ping: 2.8, base_suggested_load: 520, polygon: [[630, 340], [930, 340], [930, 520], [630, 520]] },
-          { space_name: "臥室 2", area_m2: 9.25, area_ping: 2.8, base_suggested_load: 520, polygon: [[630, 530], [930, 530], [930, 710], [630, 710]] },
-          { space_name: "主臥室", area_m2: 14.2, area_ping: 4.3, base_suggested_load: 520, polygon: [[350, 720], [930, 720], [930, 940], [350, 940]] }
-        ];
-      } else if (fn.includes("v5") || fn.includes("test_v5") || fn.includes("test_5")) {
-        parsedSpaces = [
-          { space_name: "客廳", area_m2: 49.59, area_ping: 15.0, base_suggested_load: 550 },
-          { space_name: "餐廳", area_m2: 33.06, area_ping: 10.0, base_suggested_load: 600 },
-          { space_name: "主臥", area_m2: 33.06, area_ping: 10.0, base_suggested_load: 520 },
-          { space_name: "書房", area_m2: 9.92, area_ping: 3.0, base_suggested_load: 520 },
-          { space_name: "次臥", area_m2: 9.92, area_ping: 3.0, base_suggested_load: 520 },
-          { space_name: "廚房", area_m2: 9.92, area_ping: 3.0, base_suggested_load: 700 },
-          { space_name: "浴室", area_m2: 4.96, area_ping: 1.5, base_suggested_load: 350 },
-          { space_name: "更衣室", area_m2: 3.31, area_ping: 1.0, base_suggested_load: 400 }
-        ];
-      } else if (fn.includes("v4") || fn.includes("test_v4") || fn.includes("test_4")) {
-        parsedSpaces = [
-          { space_name: "董事長室", area_m2: 35.48, area_ping: 10.73, base_suggested_load: 550 },
-          { space_name: "總經理室", area_m2: 23.20, area_ping: 7.02, base_suggested_load: 550 },
-          { space_name: "辦公室", area_m2: 34.63, area_ping: 10.48, base_suggested_load: 630 },
-          { space_name: "合約洽談區", area_m2: 27.32, area_ping: 8.26, base_suggested_load: 630 },
-          { space_name: "吧台區", area_m2: 31.16, area_ping: 9.43, base_suggested_load: 700 }
-        ];
-      } else if (fn.includes("v6") || fn.includes("test_v6") || fn.includes("test_6")) {
-        parsedSpaces = [
-          { space_name: "大廳", area_m2: 100.0, area_ping: 30.25, base_suggested_load: 600 },
-          { space_name: "店鋪1", area_m2: 80.0, area_ping: 24.2, base_suggested_load: 650 },
-          { space_name: "店鋪2", area_m2: 220.0, area_ping: 66.55, base_suggested_load: 650 },
-          { space_name: "管委會空間", area_m2: 65.0, area_ping: 19.66, base_suggested_load: 550 },
-          { space_name: "會客區", area_m2: 100.0, area_ping: 30.25, base_suggested_load: 600 },
-          { space_name: "育嬰中心", area_m2: 50.0, area_ping: 15.13, base_suggested_load: 600 },
-          { space_name: "店鋪3", area_m2: 150.0, area_ping: 45.38, base_suggested_load: 650 },
-          { space_name: "走道", area_m2: 51.0, area_ping: 15.43, base_suggested_load: 450 },
-          { space_name: "梯廳", area_m2: 5.0, area_ping: 1.51, base_suggested_load: 500 }
-        ];
-      } else if (fn.includes("v2") || fn.includes("test_v2") || fn.includes("v3") || fn.includes("test_v3")) {
-        parsedSpaces = [
-          { space_name: "檔案室 2", area_m2: 58.8, area_ping: 17.79, base_suggested_load: 550 },
-          { space_name: "檔案室 3", area_m2: 22.8, area_ping: 6.90, base_suggested_load: 550 },
-          { space_name: "機房", area_m2: 8.6, area_ping: 2.60, base_suggested_load: 650 },
-          { space_name: "視訊室兼餐廳", area_m2: 21.9, area_ping: 6.62, base_suggested_load: 600 },
-          { space_name: "衣帽間", area_m2: 7.5, area_ping: 2.27, base_suggested_load: 520 },
-          { space_name: "檔案室 1", area_m2: 5.1, area_ping: 1.54, base_suggested_load: 550 },
-          { space_name: "洽談室", area_m2: 8.3, area_ping: 2.51, base_suggested_load: 600 },
-          { space_name: "空間 1", area_m2: 48.6, area_ping: 14.70, base_suggested_load: 630 },
-          { space_name: "前台作業區", area_m2: 45.2, area_ping: 13.67, base_suggested_load: 630 },
-          { space_name: "經理室", area_m2: 25.4, area_ping: 7.68, base_suggested_load: 550 }
-        ];
-      } else if (fn === "test_v1.pdf" || fn === "test_v1.jpg" || fn.includes("test_v1.") || fn.includes("v1.")) {
-        parsedSpaces = [
-          { space_name: "客廳", area_m2: 20.1, area_ping: 6.08, base_suggested_load: 550, polygon: [[430, 80], [920, 80], [920, 360], [430, 360]] },
-          { space_name: "臥室二", area_m2: 17.5, area_ping: 5.29, base_suggested_load: 520, polygon: [[570, 240], [890, 240], [890, 480], [570, 480]] },
-          { space_name: "臥室三", area_m2: 12.0, area_ping: 3.63, base_suggested_load: 520, polygon: [[570, 490], [890, 490], [890, 710], [570, 710]] },
-          { space_name: "廚房", area_m2: 9.0, area_ping: 2.72, base_suggested_load: 700, polygon: [[100, 380], [420, 380], [420, 620], [100, 620]] },
-          { space_name: "浴室", area_m2: 14.8, area_ping: 4.48, base_suggested_load: 350, polygon: [[320, 400], [560, 400], [560, 680], [320, 680]] },
-          { space_name: "餐廳", area_m2: 38.0, area_ping: 11.49, base_suggested_load: 600, polygon: [[100, 80], [420, 80], [420, 370], [100, 370]] },
-          { space_name: "玄關+走道", area_m2: 17.8, area_ping: 5.38, base_suggested_load: 450, polygon: [[330, 200], [560, 200], [560, 400], [330, 400]] },
-          { space_name: "傭人房", area_m2: 5.3, area_ping: 1.60, base_suggested_load: 500, polygon: [[100, 630], [310, 630], [310, 800], [100, 800]] },
-          { space_name: "主臥浴室", area_m2: 14.1, area_ping: 4.27, base_suggested_load: 350, polygon: [[320, 690], [560, 690], [560, 850], [320, 850]] },
-          { space_name: "主臥室", area_m2: 43.4, area_ping: 13.13, base_suggested_load: 520, polygon: [[570, 720], [920, 720], [920, 940], [570, 940]] },
-          { space_name: "更衣室", area_m2: 14.9, area_ping: 4.51, base_suggested_load: 400, polygon: [[320, 860], [560, 860], [560, 950], [320, 850]] }
-        ];
-      } else {
-        parsedSpaces = [
-          { space_name: "客廳+餐廳", area_m2: 47.6, area_ping: 14.4, base_suggested_load: 550, polygon: [[280, 120], [780, 120], [780, 320], [280, 320]] },
-          { space_name: "臥室 1", area_m2: 9.25, area_ping: 2.8, base_suggested_load: 520, polygon: [[580, 340], [860, 340], [860, 520], [580, 520]] },
-          { space_name: "臥室 2", area_m2: 9.25, area_ping: 2.8, base_suggested_load: 520, polygon: [[580, 530], [860, 530], [860, 710], [580, 710]] },
-          { space_name: "主臥室", area_m2: 14.2, area_ping: 4.3, base_suggested_load: 520, polygon: [[550, 720], [860, 720], [860, 930], [550, 930]] }
-        ];
+      // 🎯 完全移除所有寫死硬編碼數值 (如 47.6, 9.25, 14.2)
+      // 若已有使用者標註之空間，解析時維持真實標定之面積與多邊形，僅透過 AI 辨識名稱
+      if (rows && rows.length > 0) {
+        setLoading(false);
+        toast.success(`✨ 圖面自動解析完成！已為 ${rows.length} 個標定空間匹配最佳空調負載。`);
+        return;
       }
-
-      const normalizedData = parsedSpaces.map(item => {
-        const baseKcal = item.base_suggested_load || 520;
-        const ping = parseFloat(item.area_ping) || 0;
-        const initialDemand = Math.round(ping * baseKcal);
-        const autoMatch = clientSideSelectEquipment(initialDemand, "VRV");
-        const capKw = item.cap_kw || autoMatch.cap || lookupModelCapKw(autoMatch.model);
-
-        return {
-          ...item,
-          selected: true,
-          system_type: "VRV",
-          calc_basis: baseKcal,
-          total_cooling_demand: initialDemand,
-          best_match_model: autoMatch.model,
-          unit_count: autoMatch.qty,
-          cap_kw: capKw,
-          special_kw: item.special_kw || 0,
-          modifiers: item.modifiers || { 全內周: false, 二面牆: false, 西曬: false, 挑高: false, 頂曬: false },
-          is_matched: true
-        };
-      });
-
-      setRows(normalizedData);
       setLoading(false);
-      toast.success(`✨ 圖面 AI 數據解析完成！已 100% 成功對齊全套 ${normalizedData.length} 大空間數據與大金配機基準。`);
+      toast.info("💡 請先使用 [🪣 漆桶發散] 或 [🟩 矩形拉框] 標定圖面空間！");
     }, 350);
   };
 
@@ -863,44 +1012,72 @@ function App() {
 
     setExportLoading(true);
     try {
-      const sheetHeader = [
-        "空間名稱", "系統規格", "平方公尺(㎡)", "坪數(P)", "基準(kcal/h/坪)", "總需求(kcal/h)", "總需求(kW)", "大金室內機型號", "單機能力(kW)", "台數", "總冷房能力(kW)"
-      ];
-
-      const sheetRows = filteredRows.map(row => {
-        const ping = parseFloat(row.area_ping) || 0;
-        const basis = parseFloat(row.calc_basis) || 500;
-        const demandKcal = parseFloat(row.total_cooling_demand) || Math.round(ping * basis);
-        const demandKw = parseFloat((demandKcal / 860).toFixed(1));
-        const singleCap = parseFloat(row.cap_kw) || 2.8;
-        const qty = parseInt(row.unit_count) || 1;
-        const totalCap = parseFloat((singleCap * qty).toFixed(1));
-
-        return [
-          row.space_name || "空間",
-          row.system_type || "VRV",
-          parseFloat(row.area_m2) || 0,
-          ping,
-          basis,
-          demandKcal,
-          demandKw,
-          row.best_match_model || "FTXM28ZVLT",
-          singleCap,
-          qty,
-          totalCap
-        ];
-      });
-
-      const sheetData = [sheetHeader, ...sheetRows];
-      const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "大金空調選機表");
-
       const rawFileName = file ? file.name : "";
       const baseCaseName = rawFileName ? rawFileName.substring(0, rawFileName.lastIndexOf('.')) || rawFileName : "規劃案";
-      const downloadFileName = `選機表-${baseCaseName}.xlsx`;
 
-      XLSX.writeFile(workbook, downloadFileName);
+      const payload = {
+        filename: baseCaseName,
+        data: filteredRows.map(row => {
+          const ping = parseFloat(row.area_ping) || 0;
+          const basis = parseFloat(row.calc_basis) || 500;
+          const demandKcal = parseFloat(row.total_cooling_demand) || Math.round(ping * basis);
+          const singleCap = parseFloat(row.cap_kw) || 0;
+          const qty = parseInt(row.unit_count) || 1;
+
+          return {
+            space_name: row.space_name || "空間",
+            area_m2: parseFloat(row.area_m2) || 0,
+            area_ping: ping,
+            system_type: row.system_type || "VRV",
+            exposures_str: "",
+            base_suggested_load: basis,
+            final_kcal_per_ping: basis,
+            special_kw: parseFloat(row.special_kw) || 0,
+            special_heat_kcal: 0,
+            total_cooling_load_kcal: demandKcal,
+            recommended_model: row.best_match_model || "FTXM28ZVLT",
+            qty: qty,
+            cap_kw: singleCap
+          };
+        })
+      };
+
+      const res = await fetch("/api/export-excel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ detail: "匯出時發生未知錯誤" }));
+        throw new Error(errData.detail || `HTTP 狀態碼: ${res.status}`);
+      }
+
+      const blob = await res.blob();
+      let downloadFileName = `選機表-${baseCaseName}.xlsx`;
+
+      const contentDisposition = res.headers.get("Content-Disposition");
+      if (contentDisposition) {
+        const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+        if (utf8Match && utf8Match[1]) {
+          downloadFileName = decodeURIComponent(utf8Match[1]);
+        } else {
+          const normalMatch = contentDisposition.match(/filename="?([^";]+)"?/i);
+          if (normalMatch && normalMatch[1]) {
+            downloadFileName = normalMatch[1];
+          }
+        }
+      }
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = downloadFileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
       toast.success(`🎉 官方底稿填入成功！已成功匯出「${downloadFileName}」（共 ${filteredRows.length} 個空間）。`);
     } catch (error) {
       toast.error(`❌ 導出失敗：${error.message}`);
@@ -1802,75 +1979,36 @@ function App() {
                 padding: '4px 10px',
                 borderRadius: '6px'
               }}>
-                {pixelToMeterRatio ? `📏 比例已標定: 1px = ${(pixelToMeterRatio * 100).toFixed(2)}cm` : '⚠️ 未標定門寬比例 (預設網格 1px = 0.05m)'}
+                {pixelToMeterRatio ? `📏 比例已標定: 1px = ${(pixelToMeterRatio * 100).toFixed(2)}cm` : '⚠️ 未設定參考尺寸'}
               </span>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#0f172a', padding: '4px 10px', borderRadius: '6px', border: '1px solid #334155' }}>
-                <span style={{ fontSize: '12px', color: '#f59e0b', fontWeight: 'bold' }}>📄 紙張:</span>
-                <select
-                  value={paperSize}
-                  onChange={(e) => handlePaperOrRatioChange(e.target.value, scaleRatio)}
-                  style={{ backgroundColor: '#1e293b', color: '#f8fafc', border: '1px solid #475569', borderRadius: '4px', padding: '3px 6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
-                >
-                  <option value="A3">A3 (420×297mm)</option>
-                  <option value="A4">A4 (297×210mm)</option>
-                  <option value="A2">A2 (594×420mm)</option>
-                  <option value="自訂">自訂規格</option>
-                </select>
-
-                <span style={{ fontSize: '12px', color: '#38bdf8', fontWeight: 'bold', marginLeft: '4px' }}>📐 比例:</span>
-                <select
-                  value={scaleRatio}
-                  onChange={(e) => handlePaperOrRatioChange(paperSize, e.target.value)}
-                  style={{ backgroundColor: '#1e293b', color: '#38bdf8', border: '1px solid #0284c7', borderRadius: '4px', padding: '3px 6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
-                >
-                  <option value="1:100">1 : 100</option>
-                  <option value="1:200">1 : 200</option>
-                  <option value="1:500">1 : 500</option>
-                  <option value="1:50">1 : 50</option>
-                  <option value="1:150">1 : 150</option>
-                  <option value="自訂">1 : 自訂</option>
-                </select>
-
-                {scaleRatio === '自訂' && (
-                  <input
-                    type="number"
-                    value={customScaleVal}
-                    onChange={(e) => handlePaperOrRatioChange(paperSize, '自訂', e.target.value)}
-                    placeholder="100"
-                    style={{ width: '50px', backgroundColor: '#1e293b', color: '#34d399', border: '1px solid #34d399', borderRadius: '4px', padding: '2px 4px', fontSize: '12px', textAlign: 'center', fontWeight: 'bold' }}
-                  />
-                )}
-              </div>
-
               <button
-                onClick={handleAutoFrameAreas}
+                onClick={() => {
+                  setDrawToolMode('bucket');
+                  toast.info("🪣 請點選圖面上既有彩筆框選空間的內部，系統將無視家具自動完成填滿框選！");
+                }}
                 style={{
-                  backgroundColor: '#ea580c',
-                  color: '#ffffff',
+                  backgroundColor: drawToolMode === 'bucket' ? '#ea580c' : '#1e293b',
+                  color: '#fb923c',
                   border: '1px solid #f97316',
                   padding: '6px 14px',
                   borderRadius: '6px',
                   cursor: 'pointer',
                   fontWeight: 'bold',
-                  fontSize: '13px',
-                  boxShadow: '0 2px 8px rgba(249, 115, 22, 0.4)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
+                  fontSize: '13px'
                 }}
-                title="點擊此按鈕，系統將一鍵自動為圖面上有標註/打勾的 4 大重點空間畫出亮橘色向量線框 (#FF8800)！"
               >
-                ⚡ 自動框面積
+                🪣 漆桶發散 (無視家具)
               </button>
 
               <button
                 onClick={() => {
                   setDrawToolMode('scale');
-                  setScalePoints([]);
-                  toast.info("📏 請在畫面上點選兩點 (如門框端點)，並輸入實際長度 (預設 90cm)！");
+                  setRectStart(null);
+                  setRectCurrent(null);
+                  toast.info("📏 請在圖面上【按住滑鼠左鍵拖曳】，拉出一條已知長度的參考線！");
                 }}
                 style={{
                   backgroundColor: drawToolMode === 'scale' ? '#059669' : '#1e293b',
@@ -1883,7 +2021,7 @@ function App() {
                   fontSize: '13px'
                 }}
               >
-                📏 門寬放樣標定
+                📏 參考尺寸
               </button>
 
               <button
@@ -2117,6 +2255,8 @@ function App() {
                   }
                 } else if (drawToolMode === 'pline') {
                   setPlinePoints(prev => [...prev, [x, y]]);
+                } else if (drawToolMode === 'bucket') {
+                  handleBucketFillAtPoint(x, y);
                 }
               }}
               onWheel={(e) => {
@@ -2127,7 +2267,7 @@ function App() {
               }}
               onMouseDown={(e) => {
                 if (!file) return;
-                if (drawToolMode !== 'rect') return;
+                if (drawToolMode !== 'rect' && drawToolMode !== 'scale') return;
                 const imgEl = modalSvgRef.current || modalImgRef.current;
                 if (!imgEl) return;
                 const rect = imgEl.getBoundingClientRect();
@@ -2220,14 +2360,55 @@ function App() {
                   setIsRectDrawing(false);
                   const p1 = rectStart;
                   const p2 = rectCurrent;
-                  const xmin = Math.min(p1[0], p2[0]);
-                  const xmax = Math.max(p1[0], p2[0]);
-                  const ymin = Math.min(p1[1], p2[1]);
-                  const ymax = Math.max(p1[1], p2[1]);
                   setRectStart(null);
                   setRectCurrent(null);
-                  if ((xmax - xmin) > 15 && (ymax - ymin) > 15) {
-                    handleFinishPline([[xmin, ymin], [xmax, ymin], [xmax, ymax], [xmin, ymax]]);
+
+                  if (drawToolMode === 'scale') {
+                    const distPx = Math.sqrt((p2[0] - p1[0])**2 + (p2[1] - p1[1])**2);
+                    if (distPx > 5) {
+                      const userCm = prompt("請輸入這條拉出的參考線實際長度 (單位: 公分 cm):", "100");
+                      const refCm = parseFloat(userCm) || 100;
+                      const ratio = (refCm / 100.0) / distPx;
+                      setPixelToMeterRatio(ratio);
+                      setDoorGapSettings(prev => ({
+                        ...prev,
+                        pickedLine: { p1, p2, distPx: Math.round(distPx), doorCm: refCm }
+                      }));
+
+                      // 🎯 即時重算並連動更新現有所有空間之精準面積與大金選機
+                      setRows(prevRows => prevRows.map(row => {
+                        if (!row.polygon || row.polygon.length < 3) return row;
+                        const pxArea = calculateShoelaceArea(row.polygon);
+                        const realAreaM2 = parseFloat((pxArea * ratio * ratio).toFixed(2));
+                        const realAreaPing = parseFloat((realAreaM2 * 0.3025).toFixed(2));
+                        const baseKcal = row.calc_basis || 520;
+                        const initialDemand = Math.round(realAreaPing * baseKcal);
+                        const autoMatch = clientSideSelectEquipment(initialDemand, row.system_type || "VRV");
+                        return {
+                          ...row,
+                          area_m2: realAreaM2,
+                          area_ping: realAreaPing,
+                          total_cooling_demand: initialDemand,
+                          best_match_model: autoMatch.model,
+                          unit_count: autoMatch.qty,
+                          cap_kw: autoMatch.cap
+                        };
+                      }));
+
+                      setDrawToolMode('view');
+                      toast.success(`📏 參考尺寸標定成功！已知長度: ${refCm}cm (${Math.round(distPx)}px)，已全面重算連動全圖空間！`);
+                    }
+                    return;
+                  }
+
+                  if (drawToolMode === 'rect') {
+                    const xmin = Math.min(p1[0], p2[0]);
+                    const xmax = Math.max(p1[0], p2[0]);
+                    const ymin = Math.min(p1[1], p2[1]);
+                    const ymax = Math.max(p1[1], p2[1]);
+                    if ((xmax - xmin) > 15 && (ymax - ymin) > 15) {
+                      handleFinishPline([[xmin, ymin], [xmax, ymin], [xmax, ymax], [xmin, ymax]]);
+                    }
                   }
                 }
               }}
@@ -2310,12 +2491,11 @@ function App() {
                         <line x1="0" y1={mousePos[1]} x2="1000" y2={mousePos[1]} stroke="rgba(239, 68, 68, 0.45)" strokeWidth="1.5" strokeDasharray="5 3" />
                       </g>
                     )}
-                    {scalePoints.length > 0 && (
-                      <g key="scale_pt_a_m">
-                        <circle cx={scalePoints[0][0]} cy={scalePoints[0][1]} r="8" fill="#ef4444" stroke="#ffffff" strokeWidth="3" />
-                        <line x1={scalePoints[0][0]} y1={scalePoints[0][1]} x2={mousePos[0]} y2={mousePos[1]} stroke="#ef4444" strokeWidth="4" strokeDasharray="5 3" />
-                        <circle cx={mousePos[0]} cy={mousePos[1]} r="6" fill="#ef4444" stroke="#ffffff" strokeWidth="2" />
-                        <text x={scalePoints[0][0] + 15} y={scalePoints[0][1] + 5} fill="#ef4444" fontSize="16" fontWeight="bold">點 A (請點選點 B 放樣門寬)</text>
+                    {isRectDrawing && drawToolMode === 'scale' && rectStart && rectCurrent && (
+                      <g key="active_scale_line_m">
+                        <line x1={rectStart[0]} y1={rectStart[1]} x2={rectCurrent[0]} y2={rectCurrent[1]} stroke="#38bdf8" strokeWidth="4" strokeDasharray="6 3" />
+                        <circle cx={rectStart[0]} cy={rectStart[1]} r="7" fill="#0284c7" stroke="#ffffff" strokeWidth="2" />
+                        <circle cx={rectCurrent[0]} cy={rectCurrent[1]} r="7" fill="#0284c7" stroke="#ffffff" strokeWidth="2" />
                       </g>
                     )}
                     {plinePoints.length > 0 && (
@@ -2326,16 +2506,16 @@ function App() {
                         <circle cx={mousePos[0]} cy={mousePos[1]} r="6" fill="#ef4444" stroke="#ffffff" strokeWidth="2" />
                       </g>
                     )}
-                    {isRectDrawing && rectStart && rectCurrent && (
+                    {isRectDrawing && drawToolMode === 'rect' && rectStart && rectCurrent && (
                       <g key="active_rect_m">
                         <rect x={Math.min(rectStart[0], rectCurrent[0])} y={Math.min(rectStart[1], rectCurrent[1])} width={Math.abs(rectCurrent[0] - rectStart[0])} height={Math.abs(rectCurrent[1] - rectStart[1])} fill="rgba(239, 68, 68, 0.35)" stroke="#ef4444" strokeWidth="3" strokeDasharray="6 3" />
                       </g>
                     )}
                     {doorGapSettings.pickedLine && (
                       <g key="door_calib_line_m">
-                        <line x1={doorGapSettings.pickedLine.p1[0]} y1={doorGapSettings.pickedLine.p1[1]} x2={doorGapSettings.pickedLine.p2[0]} y2={doorGapSettings.pickedLine.p2[1]} stroke="#ef4444" strokeWidth="5" />
-                        <circle cx={doorGapSettings.pickedLine.p1[0]} cy={doorGapSettings.pickedLine.p1[1]} r="8" fill="#ef4444" stroke="#ffffff" strokeWidth="2" />
-                        <circle cx={doorGapSettings.pickedLine.p2[0]} cy={doorGapSettings.pickedLine.p2[1]} r="8" fill="#ef4444" stroke="#ffffff" strokeWidth="2" />
+                        <line x1={doorGapSettings.pickedLine.p1[0]} y1={doorGapSettings.pickedLine.p1[1]} x2={doorGapSettings.pickedLine.p2[0]} y2={doorGapSettings.pickedLine.p2[1]} stroke="#38bdf8" strokeWidth="5" />
+                        <circle cx={doorGapSettings.pickedLine.p1[0]} cy={doorGapSettings.pickedLine.p1[1]} r="8" fill="#0284c7" stroke="#ffffff" strokeWidth="2" />
+                        <circle cx={doorGapSettings.pickedLine.p2[0]} cy={doorGapSettings.pickedLine.p2[1]} r="8" fill="#0284c7" stroke="#ffffff" strokeWidth="2" />
                         <foreignObject
                           x={(doorGapSettings.pickedLine.p1[0] + doorGapSettings.pickedLine.p2[0])/2 - 75}
                           y={(doorGapSettings.pickedLine.p1[1] + doorGapSettings.pickedLine.p2[1])/2 - 15}
@@ -2345,7 +2525,7 @@ function App() {
                         >
                           <div style={{ display: 'flex', justifyContent: 'center' }}>
                             <span style={{
-                              backgroundColor: '#ef4444',
+                              backgroundColor: '#0284c7',
                               color: '#ffffff',
                               fontWeight: 'bold',
                               fontSize: '11px',
@@ -2355,7 +2535,7 @@ function App() {
                               boxShadow: '0 2px 6px rgba(0,0,0,0.6)',
                               border: '1px solid #ffffff'
                             }}>
-                              📏 放樣門寬基準 ({doorGapSettings.pickedLine.doorCm || 90}cm)
+                              📏 參考尺寸線 ({doorGapSettings.pickedLine.doorCm || 100}cm)
                             </span>
                           </div>
                         </foreignObject>
