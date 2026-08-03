@@ -1316,28 +1316,6 @@ function App() {
             <span>🖼️ 實時圖面比對核對視窗</span>
             <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
               <button
-                onClick={() => {
-                  const nextState = !showColoredMasks;
-                  setShowColoredMasks(nextState);
-                  if (nextState && rows.length === 0 && file) {
-                    handleAutoFrameAreas();
-                  }
-                }}
-                style={{
-                  backgroundColor: showColoredMasks ? '#0284c7' : '#334155',
-                  color: '#fff',
-                  border: '1px solid #475569',
-                  padding: '4px 10px',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  cursor: 'pointer',
-                  fontWeight: 'bold'
-                }}
-                title="點擊切換顯示/隱藏圖面彩色面積遮罩"
-              >
-                🎨 {showColoredMasks ? "隱藏彩色遮罩" : "顯示框線遮罩"}
-              </button>
-              <button
                 onClick={triggerFileSelect}
                 style={{
                   backgroundColor: '#334155',
