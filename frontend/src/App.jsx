@@ -1359,6 +1359,49 @@ function App() {
     }
   };
 
+  const exportExcelClientSideFallback = (baseCaseName, filteredRows) => {
+    try {
+      const headers = [
+        "空間名稱", "系統規格", "平方公尺(㎡)", "坪數(P)", "基準(kcal/h/坪)", 
+        "特殊熱源(kW)", "總需求(kcal/h)", "總需求(kW)", "大金室內機型號", 
+        "單機能力(kW)", "台數", "總冷房能力(kW)"
+      ];
+
+      const dataRows = filteredRows.map(row => {
+        const ping = parseFloat(row.area_ping) || 0;
+        const basis = parseFloat(row.calc_basis) || 500;
+        const demandKcal = parseFloat(row.total_cooling_demand) || Math.round(ping * basis);
+        const singleCap = parseFloat(row.cap_kw) || 0;
+        const qty = parseInt(row.unit_count) || 1;
+        const totalCap = parseFloat((singleCap * qty).toFixed(1));
+
+        return [
+          row.space_name || "空間",
+          row.system_type || "VRV",
+          row.area_m2 || 0,
+          ping,
+          basis,
+          parseFloat(row.special_kw) || 0,
+          demandKcal,
+          parseFloat((demandKcal / 860).toFixed(1)),
+          row.best_match_model || "",
+          singleCap,
+          qty,
+          totalCap
+        ];
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet([headers, ...dataRows]);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "大金空調選機表");
+      XLSX.writeFile(wb, `選機表-${baseCaseName}.xlsx`);
+      toast.success(`🎉 官方選機表匯出成功！已成功下載「選機表-${baseCaseName}.xlsx」（共 ${filteredRows.length} 個空間）。`);
+    } catch (e) {
+      console.error("Client side excel export error:", e);
+      toast.error(`❌ 匯出失敗：${e.message}`);
+    }
+  };
+
   const handleExportExcel = async () => {
     const filteredRows = rows.filter(row => row.selected);
 
@@ -1368,10 +1411,10 @@ function App() {
     }
 
     setExportLoading(true);
-    try {
-      const rawFileName = file ? file.name : "";
-      const baseCaseName = rawFileName ? rawFileName.substring(0, rawFileName.lastIndexOf('.')) || rawFileName : "規劃案";
+    const rawFileName = file ? file.name : "";
+    const baseCaseName = rawFileName ? rawFileName.substring(0, rawFileName.lastIndexOf('.')) || rawFileName : "規劃案";
 
+    try {
       const payload = {
         filename: baseCaseName,
         data: filteredRows.map(row => {
@@ -1406,8 +1449,7 @@ function App() {
       });
 
       if (!res.ok) {
-        const errData = await res.json().catch(() => ({ detail: "匯出時發生未知錯誤" }));
-        throw new Error(errData.detail || `HTTP 狀態碼: ${res.status}`);
+        throw new Error(`HTTP 狀態碼: ${res.status}`);
       }
 
       const blob = await res.blob();
@@ -1437,7 +1479,8 @@ function App() {
 
       toast.success(`🎉 官方底稿填入成功！已成功匯出「${downloadFileName}」（共 ${filteredRows.length} 個空間）。`);
     } catch (error) {
-      toast.error(`❌ 導出失敗：${error.message}`);
+      console.warn("Backend excel export connect error, falling back to client-side SheetJS:", error);
+      exportExcelClientSideFallback(baseCaseName, filteredRows);
     } finally {
       setExportLoading(false);
     }
