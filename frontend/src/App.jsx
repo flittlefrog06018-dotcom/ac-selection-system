@@ -789,10 +789,14 @@ function App() {
 
       const spaces = [];
       const usedAreas = new Set();
+      const usedNames = new Set();
 
       for (let r of roomNames) {
+        if (usedNames.has(r.name)) continue;
+
         if (EXACT_KNOWN_MAP[r.name]) {
           const mapped = EXACT_KNOWN_MAP[r.name];
+          usedNames.add(r.name);
           spaces.push({
             space_name: r.name,
             area_m2: mapped.m2,
@@ -819,6 +823,7 @@ function App() {
 
         if (bestArea) {
           usedAreas.add(bestArea.index);
+          usedNames.add(r.name);
           const areaM2 = bestArea.areaObj.unit === 'P' ? parseFloat((bestArea.areaObj.val * 3.3058).toFixed(2)) : bestArea.areaObj.val;
           const areaPing = bestArea.areaObj.unit === 'P' ? bestArea.areaObj.val : parseFloat((areaM2 * 0.3025).toFixed(2));
           spaces.push({
