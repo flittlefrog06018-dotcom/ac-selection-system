@@ -755,44 +755,48 @@ function App() {
         }
       }
 
-      const spaces = [];
-      const usedAreas = new Set();
-      const usedNames = new Set();
-
-      for (let r of roomNames) {
-        let bestArea = null;
-        let minDist = 99999;
-        for (let i = 0; i < areaValues.length; i++) {
-          if (usedAreas.has(i)) continue;
-          const a = areaValues[i];
-          const dx = Math.abs(r.x - a.x);
-          const dy = Math.abs(r.y - a.y);
-          if (dx <= 200 && dy <= 120) {
-            const dist = dx + dy * 2;
-            if (dist < minDist) {
-              minDist = dist;
-              bestArea = { areaObj: a, index: i };
-            }
+      // 🎯 全域最小二維歐氏距離一對一比對演算法 (Global Minimum 2D Distance Pairing)
+      const candidatePairs = [];
+      for (let rIdx = 0; rIdx < roomNames.length; rIdx++) {
+        const r = roomNames[rIdx];
+        for (let aIdx = 0; aIdx < areaValues.length; aIdx++) {
+          const a = areaValues[aIdx];
+          const dx = r.x - a.x;
+          const dy = r.y - a.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist <= 300) {
+            candidatePairs.push({ rIdx, aIdx, dist, room: r, area: a });
           }
         }
+      }
 
-        let displayName = r.name;
+      candidatePairs.sort((a, b) => a.dist - b.dist);
+
+      const spaces = [];
+      const usedRoomIndices = new Set();
+      const usedAreaIndices = new Set();
+      const usedNames = new Set();
+
+      for (let p of candidatePairs) {
+        if (usedRoomIndices.has(p.rIdx) || usedAreaIndices.has(p.aIdx)) continue;
+
+        let displayName = p.room.name;
         if (displayName === "浴室" || displayName === "客浴室") displayName = "客廁";
 
         if (usedNames.has(displayName)) continue;
 
-        if (bestArea) {
-          usedAreas.add(bestArea.index);
-          usedNames.add(displayName);
-          usedNames.add(r.name);
-          const areaM2 = bestArea.areaObj.unit === 'P' ? parseFloat((bestArea.areaObj.val * 3.3058).toFixed(2)) : bestArea.areaObj.val;
-          const areaPing = bestArea.areaObj.unit === 'P' ? bestArea.areaObj.val : parseFloat((areaM2 * 0.3025).toFixed(2));
-          spaces.push({
-            space_name: displayName,
-            area_m2: areaM2,
-            area_ping: areaPing
-          });
-        }
+        usedRoomIndices.add(p.rIdx);
+        usedAreaIndices.add(p.aIdx);
+        usedNames.add(displayName);
+        usedNames.add(p.room.name);
+
+        const areaM2 = p.area.unit === 'P' ? parseFloat((p.area.val * 3.3058).toFixed(2)) : p.area.val;
+        const areaPing = p.area.unit === 'P' ? p.area.val : parseFloat((areaM2 * 0.3025).toFixed(2));
+        spaces.push({
+          space_name: displayName,
+          area_m2: areaM2,
+          area_ping: areaPing
+        });
       }
 
       return spaces;
