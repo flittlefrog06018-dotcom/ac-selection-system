@@ -1,23 +1,16 @@
-# Floorplan Space Recognition & Red Frame Rules
+# Track A Floorplan Recognition General Principles (軌道 A 圖面辨識通用原則)
 
-## 1. Dual-Track Recognition (紅框劃定與文字辨識連動)
-- **Text & Red Outlined Frame Pairings**:
-  - The recognition engine parses room names via text stream / OCR and pairs them directly with the area enclosed by the red outlined frames (紅框劃定區域與標記面積).
-  - Every space row in the table corresponds 1-to-1 with a red framed room boundary on the floorplan.
+## 1. Dynamic Text & OCR Extraction (動態文字流與光學 OCR 解析)
+- **Zero Hardcoding Policy (嚴禁死背或硬編碼)**:
+  - All room names, geometric areas, and HVAC load values MUST be dynamically parsed algorithmically from the drawing's text stream or OCR image pixels.
+  - Never use static memorized arrays or filename-based hardcoded mock lists.
 
-## 2. Space Naming & Deduplication Rules
-- **Deduplicate Entrance Labels**: Merge standalone "玄關" into "玄關+走道". Do NOT display separate duplicate "玄關" rows.
-- **Bathroom Naming**: Standardize guest bathroom / bathroom to "客廁" (14.8 m²) and master bathroom to "主臥浴室" (14.1 m²).
-- **Exclude Non-AC Service Areas**: Exclude non-AC service balconies and CAD annotation artifacts (e.g. "工作間", "小玄關", "工作平台", "廊道", "工作站", "儲藏室", "儲物室").
-- **Target Space Inventory**:
-  1. 客廳 (20.1 m² / 6.08 坪)
-  2. 餐廳 (38.0 m² / 11.49 坪)
-  3. 主臥室 (43.4 m² / 13.13 坪)
-  4. 臥室二 (17.5 m² / 5.29 坪)
-  5. 臥室三 (12.0 m² / 3.63 坪)
-  6. 廚房 (9.0 m² / 2.72 坪)
-  7. 傭人房 (5.3 m² / 1.60 坪)
-  8. 玄關+走道 (17.8 m² / 5.38 坪)
-  9. 更衣室 (14.9 m² / 4.51 坪)
-  10. 客廁 (14.8 m² / 4.48 坪)
-  11. 主臥浴室 (14.1 m² / 4.27 坪)
+## 2. Spatial Proximity & Red Outlined Polyline Pairing (空間鄰近性與紅框區域匹配)
+- **Bounding Box Proximity Matching**:
+  - The recognition algorithm extracts room text tokens `[\u4e00-\u9fff]` and area value tokens (`m²`, `㎡`, `P`, `坪`).
+  - Each room name is paired with its geometrically nearest area number or red outlined polyline boundary using spatial coordinate distance calculation $(x, y, w, h)$.
+
+## 3. Algorithmic Deduplication & Standardization (演算法動態去重與正名)
+- **Entrance Label Consolidation**: If a drawing contains partial entrance text tokens, merge standalone "玄關" into "玄關+走道" to prevent duplicate row creation.
+- **Bathroom Label Standardization**: Map guest bathroom / bathroom labels ("浴室", "客浴室") to "客廁", and master bathroom labels to "主臥浴室".
+- **HVAC Non-Target Noise Filtering**: Filter out non-AC service balconies and CAD annotation artifacts (e.g. "工作間", "小玄關", "工作平台", "廊道", "工作站", "儲藏室", "儲物室").
