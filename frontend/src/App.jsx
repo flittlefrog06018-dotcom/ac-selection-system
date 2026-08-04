@@ -1077,24 +1077,10 @@ function App() {
                   (activeFile && activeFile.name && activeFile.name.toLowerCase().endsWith(".pdf"));
     if (isPdf) {
       dynamicTextSpaces = await extractSpacesFromPdfFile(activeFile);
-    } else {
-      dynamicTextSpaces = await extractSpacesFromImageFile(activeFile);
     }
-
+    
     if (!dynamicTextSpaces || dynamicTextSpaces.length === 0) {
-      dynamicTextSpaces = [
-        { space_name: "客廳", area_m2: 20.1, area_ping: 6.08 },
-        { space_name: "臥室二", area_m2: 17.5, area_ping: 5.29 },
-        { space_name: "臥室三", area_m2: 12.0, area_ping: 3.63 },
-        { space_name: "廚房", area_m2: 9.0, area_ping: 2.72 },
-        { space_name: "浴室", area_m2: 14.8, area_ping: 4.48 },
-        { space_name: "餐廳", area_m2: 38.0, area_ping: 11.49 },
-        { space_name: "玄關+走道", area_m2: 17.8, area_ping: 5.38 },
-        { space_name: "傭人房", area_m2: 5.3, area_ping: 1.60 },
-        { space_name: "主臥浴室", area_m2: 14.1, area_ping: 4.27 },
-        { space_name: "主臥室", area_m2: 43.4, area_ping: 13.13 },
-        { space_name: "更衣室", area_m2: 14.9, area_ping: 4.51 }
-      ];
+      dynamicTextSpaces = await extractSpacesFromImageFile(activeFile);
     }
 
     const normalizedData = dynamicTextSpaces.map(item => {
