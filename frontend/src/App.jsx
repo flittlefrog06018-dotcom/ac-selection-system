@@ -744,7 +744,7 @@ function App() {
         }
 
         if (str.length >= 2 && str.length <= 15 && /[\u4e00-\u9fff]/.test(str)) {
-          const skipWords = ['系統', '工程', '比例', '門寬', '大金', '放樣', '圖面', '選機', '紙張', '編輯器', '標定', '面積', '全內周', '西曬'];
+          const skipWords = ['系統', '工程', '比例', '門寬', '大金', '放樣', '圖面', '選機', '紙張', '編輯器', '標定', '面積', '全內周', '西曬', '小玄關', '儲藏室', '儲物室', '客浴室', '工作平台', '廊道', '工作站'];
           if (!skipWords.some(w => str.includes(w))) {
             roomNames.push({
               name: str,
