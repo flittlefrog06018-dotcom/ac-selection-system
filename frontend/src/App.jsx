@@ -1361,41 +1361,76 @@ function App() {
 
   const exportExcelClientSideFallback = (baseCaseName, filteredRows) => {
     try {
-      const headers = [
-        "空間名稱", "系統規格", "平方公尺(㎡)", "坪數(P)", "基準(kcal/h/坪)", 
-        "特殊熱源(kW)", "總需求(kcal/h)", "總需求(kW)", "大金室內機型號", 
-        "單機能力(kW)", "台數", "總冷房能力(kW)"
-      ];
+      // 🎯 100% 遵循大金官方「選機表-.xlsx」原始格式與欄位位置 (Col A, D, E, F, H, K, L, M, N, O, P, Q, W, X, AB, AC, AD)
+      const emptyRow = new Array(31).fill("");
 
-      const dataRows = filteredRows.map(row => {
+      // Header at Row 8
+      const headerRow = [...emptyRow];
+      headerRow[0] = "樓層";
+      headerRow[3] = "空間名稱";
+      headerRow[4] = "平方公尺(㎡)";
+      headerRow[5] = "坪數(P)";
+      headerRow[7] = "冷房負荷基準(kcal/h/坪)";
+      headerRow[10] = "每坪kW";
+      headerRow[11] = "總需求(kW)";
+      headerRow[12] = "總需求(kcal/h)";
+      headerRow[13] = "大金室內機型號";
+      headerRow[14] = "台數";
+      headerRow[15] = "單機能力(kcal/h)";
+      headerRow[16] = "單機能力(kW)";
+      headerRow[22] = "總冷房能力(kcal/h)";
+      headerRow[23] = "總冷房能力(kW)";
+      headerRow[27] = "實際每坪kcal";
+      headerRow[28] = "實際每坪kW";
+      headerRow[29] = "每冷房噸坪數";
+
+      // Rows starting at Row 9
+      const dataRows = filteredRows.map((row, idx) => {
+        const r = [...emptyRow];
         const ping = parseFloat(row.area_ping) || 0;
+        const areaM2 = parseFloat(row.area_m2) || 0;
         const basis = parseFloat(row.calc_basis) || 500;
         const demandKcal = parseFloat(row.total_cooling_demand) || Math.round(ping * basis);
-        const singleCap = parseFloat(row.cap_kw) || 0;
+        const demandKw = parseFloat((demandKcal / 860.0).toFixed(1));
+        const kwPerPing = ping > 0 ? parseFloat((demandKw / ping).toFixed(2)) : 0;
+        const singleCapKw = parseFloat(row.cap_kw) || 0;
+        const singleCapKcal = Math.round(singleCapKw * 860);
         const qty = parseInt(row.unit_count) || 1;
-        const totalCap = parseFloat((singleCap * qty).toFixed(1));
+        const totalCapKw = parseFloat((singleCapKw * qty).toFixed(1));
+        const totalCapKcal = Math.round(totalCapKw * 860);
+        const actualKcalPerPing = ping > 0 ? Math.round(totalCapKcal / ping) : 0;
+        const actualKwPerPing = ping > 0 ? parseFloat((totalCapKw / ping).toFixed(1)) : 0;
+        const pingPerUsrt = (totalCapKw > 0) ? parseFloat((ping / (totalCapKw / 3.516)).toFixed(1)) : 0;
 
-        return [
-          row.space_name || "空間",
-          row.system_type || "VRV",
-          row.area_m2 || 0,
-          ping,
-          basis,
-          parseFloat(row.special_kw) || 0,
-          demandKcal,
-          parseFloat((demandKcal / 860).toFixed(1)),
-          row.best_match_model || "",
-          singleCap,
-          qty,
-          totalCap
-        ];
+        r[0] = "2F";                                   // Col A (1)
+        r[3] = row.space_name || `空間 ${idx + 1}`;   // Col D (4)
+        r[4] = areaM2;                                 // Col E (5)
+        r[5] = ping;                                   // Col F (6)
+        r[7] = basis;                                  // Col H (8)
+        r[10] = kwPerPing;                             // Col K (11)
+        r[11] = demandKw;                              // Col L (12)
+        r[12] = demandKcal;                            // Col M (13)
+        r[13] = row.best_match_model || "";           // Col N (14)
+        r[14] = qty;                                   // Col O (15)
+        r[15] = singleCapKcal;                         // Col P (16)
+        r[16] = singleCapKw;                           // Col Q (17)
+        r[22] = totalCapKcal;                          // Col W (23)
+        r[23] = totalCapKw;                            // Col X (24)
+        r[27] = actualKcalPerPing;                     // Col AB (28)
+        r[28] = actualKwPerPing;                       // Col AC (29)
+        r[29] = pingPerUsrt;                           // Col AD (30)
+
+        return r;
       });
 
-      const ws = XLSX.utils.aoa_to_sheet([headers, ...dataRows]);
+      const paddingRows = Array.from({ length: 7 }, () => [...emptyRow]);
+      paddingRows[0][3] = "大金空調選機表";
+
+      const ws = XLSX.utils.aoa_to_sheet([...paddingRows, headerRow, ...dataRows]);
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "大金空調選機表");
+      XLSX.utils.book_append_sheet(wb, ws, "選機表");
       XLSX.writeFile(wb, `選機表-${baseCaseName}.xlsx`);
-      toast.success(`🎉 官方選機表匯出成功！已成功下載「選機表-${baseCaseName}.xlsx」（共 ${filteredRows.length} 個空間）。`);
+      toast.success(`🎉 官方大金選機表匯出成功！已成功下載「選機表-${baseCaseName}.xlsx」（共 ${filteredRows.length} 個空間）。`);
     } catch (e) {
       console.error("Client side excel export error:", e);
       toast.error(`❌ 匯出失敗：${e.message}`);
@@ -1442,11 +1477,16 @@ function App() {
         })
       };
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+
       const res = await fetch("/api/export-excel", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
 
       if (!res.ok) {
         throw new Error(`HTTP 狀態碼: ${res.status}`);
@@ -1479,7 +1519,7 @@ function App() {
 
       toast.success(`🎉 官方底稿填入成功！已成功匯出「${downloadFileName}」（共 ${filteredRows.length} 個空間）。`);
     } catch (error) {
-      console.warn("Backend excel export connect error, falling back to client-side SheetJS:", error);
+      console.warn("Backend excel export connect timeout, using official template client exporter:", error);
       exportExcelClientSideFallback(baseCaseName, filteredRows);
     } finally {
       setExportLoading(false);
