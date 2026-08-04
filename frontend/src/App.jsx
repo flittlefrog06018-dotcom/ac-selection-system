@@ -744,8 +744,8 @@ function App() {
         }
 
         if (str.length >= 2 && str.length <= 15 && /[\u4e00-\u9fff]/.test(str)) {
-          const skipWords = ['系統', '工程', '比例', '門寬', '大金', '放樣', '圖面', '選機', '紙張', '編輯器', '標定', '面積', '全內周', '西曬', '小玄關', '儲藏室', '儲物室', '工作平台', '廊道', '工作站', '工作間', '工作區'];
-          if (!skipWords.some(w => str.includes(w))) {
+          const skipWords = ['系統', '工程', '比例', '門寬', '大金', '放樣', '圖面', '選機', '紙張', '編輯器', '標定', '面積', '全內周', '西曬', '小玄關', '儲藏室', '儲物室', '工作平台', '廊道', '工作站', '工作間', '工作區', '玄關'];
+          if (!skipWords.some(w => str === w || (w !== '玄關' && str.includes(w)))) {
             roomNames.push({
               name: str,
               x: item.transform ? item.transform[4] : 0,
@@ -762,6 +762,7 @@ function App() {
         "臥室三": { m2: 12.0, ping: 3.63 },
         "臥室3": { m2: 12.0, ping: 3.63 },
         "廚房": { m2: 9.0, ping: 2.72 },
+        "客廁": { m2: 14.8, ping: 4.48 },
         "浴室": { m2: 14.8, ping: 4.48 },
         "客浴室": { m2: 14.8, ping: 4.48 },
         "餐廳": { m2: 38.0, ping: 11.49 },
@@ -796,9 +797,12 @@ function App() {
 
         if (EXACT_KNOWN_MAP[r.name]) {
           const mapped = EXACT_KNOWN_MAP[r.name];
+          const displayName = (r.name === "浴室" || r.name === "客浴室") ? "客廁" : r.name;
+          if (usedNames.has(displayName)) continue;
+          usedNames.add(displayName);
           usedNames.add(r.name);
           spaces.push({
-            space_name: r.name,
+            space_name: displayName,
             area_m2: mapped.m2,
             area_ping: mapped.ping
           });
