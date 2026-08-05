@@ -11,11 +11,21 @@ logger = logging.getLogger(__name__)
 class ExportService:
     @classmethod
     def get_template_path(cls) -> str:
-        return os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-            "product_database",
-            settings.TEMPLATE_NAME
-        )
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        root_dir = os.path.dirname(base_dir)
+        candidates = [
+            os.path.join(base_dir, "product_database", settings.TEMPLATE_NAME),
+            os.path.join(base_dir, settings.TEMPLATE_NAME),
+            os.path.join(root_dir, settings.TEMPLATE_NAME),
+            os.path.join(root_dir, "backend", "product_database", settings.TEMPLATE_NAME),
+            os.path.abspath("backend/product_database/選機表-.xlsx"),
+            os.path.abspath("product_database/選機表-.xlsx"),
+            os.path.abspath("選機表-.xlsx")
+        ]
+        for c in candidates:
+            if os.path.exists(c):
+                return c
+        return candidates[0]
 
     @classmethod
     def generate_excel_report(cls, rooms_data: List[Dict[str, Any]]) -> io.BytesIO:
