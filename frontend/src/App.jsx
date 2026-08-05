@@ -286,40 +286,62 @@ function App() {
         return;
       }
 
-      // 🛡️ 溢出安全防護：防範彩筆未完全閉合導致全圖洩漏
-      const maxAllowedWidth = Math.round(w * 0.42);
-      const maxAllowedHeight = Math.round(h * 0.42);
-      if ((maxPxX - minPxX) > maxAllowedWidth || (maxPxY - minPxY) > maxAllowedHeight || filledPixels > (w * h * 0.30)) {
-        minPxX = Math.max(0, startX - Math.round(w * 0.12));
-        maxPxX = Math.min(w, startX + Math.round(w * 0.12));
-        minPxY = Math.max(0, startY - Math.round(h * 0.12));
-        maxPxY = Math.min(h, startY + Math.round(h * 0.12));
-        toast.info("🛡️ 已觸發防溢出安全收斂，自動將漆桶限制在點擊空間內部範圍！");
+      // 🛡️ 溢出安全防護：僅在發生『圖面畫布邊界外洩』時進行收斂，避免誤殺大中型開放空間 (如客餐廳/大型辦公室)
+      const touchesCanvasBorder = (minPxX <= 2 || minPxY <= 2 || maxPxX >= w - 3 || maxPxY >= h - 3);
+      if (touchesCanvasBorder && filledPixels > (w * h * 0.70)) {
+        minPxX = Math.max(0, startX - Math.round(w * 0.20));
+        maxPxX = Math.min(w, startX + Math.round(w * 0.20));
+        minPxY = Math.max(0, startY - Math.round(h * 0.20));
+        maxPxY = Math.min(h, startY + Math.round(h * 0.20));
+        toast.info("🛡️ 漆桶觸及圖面最外圍邊界，已自動收斂於點擊區域內部！");
       }
 
-      // 🎯 真實發散區域輪廓多邊形提取 (徹底擺脫矩形限制，支援 L型/不規則房型貼合彩筆邊界)
+      // 🎯 1. Ramer-Douglas-Peucker (RDP) 輪廓折線精簡演算法
+      const rdpSimplifyPoints = (pts, epsilon) => {
+        if (!pts || pts.length <= 2) return pts;
+        let dmax = 0;
+        let index = 0;
+        const end = pts.length - 1;
+        const [x1, y1] = pts[0];
+        const [x2, y2] = pts[end];
+
+        for (let i = 1; i < end; i++) {
+          const [x, y] = pts[i];
+          const num = Math.abs((y2 - y1) * x - (x2 - x1) * y + x2 * y1 - y2 * x1);
+          const den = Math.sqrt((y2 - y1) ** 2 + (x2 - x1) ** 2);
+          const d = den === 0 ? 0 : num / den;
+          if (d > dmax) {
+            index = i;
+            dmax = d;
+          }
+        }
+
+        if (dmax > epsilon) {
+          const res1 = rdpSimplifyPoints(pts.slice(0, index + 1), epsilon);
+          const res2 = rdpSimplifyPoints(pts.slice(index), epsilon);
+          return [...res1.slice(0, -1), ...res2];
+        } else {
+          return [pts[0], pts[end]];
+        }
+      };
+
+      // 🎯 2. Moore-Neighbor 2D 邊界追蹤 + RDP 多邊形擬合 (完美貼合 L型/凹角/凸角，100% 無切邊失真)
       const extractPolygonFromMask = (visitedGrid, width, height, minX, maxX, minY, maxY) => {
         try {
-          const boundaryPoints = [];
-          const step = Math.max(1, Math.floor(Math.max(maxX - minX, maxY - minY) / 100));
-
-          for (let y = minY; y <= maxY; y += step) {
-            for (let x = minX; x <= maxX; x += step) {
+          // 找出最上方左側起點
+          let startX = -1, startY = -1;
+          outerLoop:
+          for (let y = minY; y <= maxY; y++) {
+            for (let x = minX; x <= maxX; x++) {
               if (visitedGrid[y * width + x] === 1) {
-                if (
-                  x === minX || x === maxX || y === minY || y === maxY ||
-                  visitedGrid[y * width + (x - 1)] === 0 ||
-                  visitedGrid[y * width + (x + 1)] === 0 ||
-                  visitedGrid[(y - 1) * width + x] === 0 ||
-                  visitedGrid[(y + 1) * width + x] === 0
-                ) {
-                  boundaryPoints.push([x, y]);
-                }
+                startX = x;
+                startY = y;
+                break outerLoop;
               }
             }
           }
 
-          if (boundaryPoints.length < 4) {
+          if (startX === -1 || startY === -1) {
             return [
               [Math.round((minX / width) * 1000), Math.round((minY / height) * 1000)],
               [Math.round((maxX / width) * 1000), Math.round((minY / height) * 1000)],
@@ -328,28 +350,61 @@ function App() {
             ];
           }
 
-          const cx = boundaryPoints.reduce((sum, p) => sum + p[0], 0) / boundaryPoints.length;
-          const cy = boundaryPoints.reduce((sum, p) => sum + p[1], 0) / boundaryPoints.length;
+          // 8-方向連通周界追蹤
+          const dirs = [
+            [0, -1], [1, -1], [1, 0], [1, 1],
+            [0, 1], [-1, 1], [-1, 0], [-1, -1]
+          ];
 
-          const numSectors = 20;
-          const sectorMaxPts = new Array(numSectors).fill(null);
+          const contour = [];
+          let currX = startX;
+          let currY = startY;
+          let dir = 0;
+          let maxSteps = (maxX - minX + maxY - minY) * 10;
+          let steps = 0;
 
-          for (const [bx, by] of boundaryPoints) {
-            const angle = Math.atan2(by - cy, bx - cx);
-            const sectorIdx = Math.floor(((angle + Math.PI) / (2 * Math.PI)) * numSectors) % numSectors;
-            const distSq = (bx - cx) ** 2 + (by - cy) ** 2;
+          do {
+            contour.push([currX, currY]);
+            let foundNext = false;
+            const startDir = (dir + 6) % 8; // 逆時針方向搜尋下一個邊界點
 
-            if (!sectorMaxPts[sectorIdx] || distSq > sectorMaxPts[sectorIdx].distSq) {
-              sectorMaxPts[sectorIdx] = { pt: [bx, by], distSq };
+            for (let i = 0; i < 8; i++) {
+              const checkDir = (startDir + i) % 8;
+              const nx = currX + dirs[checkDir][0];
+              const ny = currY + dirs[checkDir][1];
+
+              if (nx >= minX && nx <= maxX && ny >= minY && ny <= maxY) {
+                if (visitedGrid[ny * width + nx] === 1) {
+                  currX = nx;
+                  currY = ny;
+                  dir = checkDir;
+                  foundNext = true;
+                  break;
+                }
+              }
             }
+
+            if (!foundNext) break;
+            steps++;
+          } while ((currX !== startX || currY !== startY) && steps < maxSteps);
+
+          if (contour.length < 6) {
+            return [
+              [Math.round((minX / width) * 1000), Math.round((minY / height) * 1000)],
+              [Math.round((maxX / width) * 1000), Math.round((minY / height) * 1000)],
+              [Math.round((maxX / width) * 1000), Math.round((maxY / height) * 1000)],
+              [Math.round((minX / width) * 1000), Math.round((maxY / height) * 1000)]
+            ];
           }
 
-          const resPolygon = sectorMaxPts
-            .filter(item => item !== null)
-            .map(item => [
-              Math.round((item.pt[0] / width) * 1000),
-              Math.round((item.pt[1] / height) * 1000)
-            ]);
+          // 使用 RDP 演算法精簡輪廓折線 (動態容許度)
+          const epsilon = Math.max(3, Math.round(Math.max(maxX - minX, maxY - minY) * 0.015));
+          const simplified = rdpSimplifyPoints(contour, epsilon);
+
+          const resPolygon = simplified.map(pt => [
+            Math.round((pt[0] / width) * 1000),
+            Math.round((pt[1] / height) * 1000)
+          ]);
 
           return resPolygon.length >= 3 ? resPolygon : [
             [Math.round((minX / width) * 1000), Math.round((minY / height) * 1000)],
