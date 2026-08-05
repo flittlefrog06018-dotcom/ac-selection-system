@@ -1497,10 +1497,10 @@ function App() {
         excelRow.getCell(11).value = kwPerPing;                               // Col K: (kW/坪)
         excelRow.getCell(12).value = demandKw;                                // Col L: 總熱負荷 (kW)
         excelRow.getCell(13).value = demandKcal;                              // Col M: 總熱負荷 (kcal/hr)
-        excelRow.getCell(15).value = modelStr;                                // Col O: 大金室內機型號
-        excelRow.getCell(16).value = qty;                                     // Col P: 室內機台數
-        excelRow.getCell(17).value = singleCapKcal;                           // Col Q: 冷房能力 (kcal/hr)
-        excelRow.getCell(18).value = singleCapKw;                             // Col R: 冷房能力 (kW)
+        excelRow.getCell(14).value = modelStr;                                // Col N: 大金室內機型號
+        excelRow.getCell(15).value = qty;                                     // Col O: 室內機台數
+        excelRow.getCell(16).value = singleCapKcal;                           // Col P: 冷房能力 (kcal/hr)
+        excelRow.getCell(17).value = singleCapKw;                             // Col Q: 冷房能力標稱 (kW)
         excelRow.getCell(23).value = totalCapKcal;                           // Col W: 室內冷房總能力 (kcal/hr)
         excelRow.getCell(24).value = totalCapKw;                             // Col X: 室內冷房總能力 (kW)
         excelRow.getCell(28).value = actualKcalPerPing;                       // Col AB
