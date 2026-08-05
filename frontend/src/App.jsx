@@ -1057,113 +1057,138 @@ function App() {
     setLoading(true);
     toast.info("已啟動高精準雙軌辨識，正在解析圖面中，請稍候...");
 
-    let sendBlob = targetFile;
-    if (!(targetFile instanceof Blob)) {
-      if (previewUrl && previewUrl.startsWith("data:")) {
-        try {
-          const fetchRes = await fetch(previewUrl);
-          sendBlob = await fetchRes.blob();
-        } catch (e) {
-          console.warn("Failed to convert previewUrl to Blob:", e);
+    try {
+      let sendBlob = targetFile;
+      if (!(targetFile instanceof Blob)) {
+        if (previewUrl && previewUrl.startsWith("data:")) {
+          try {
+            const fetchRes = await fetch(previewUrl);
+            sendBlob = await fetchRes.blob();
+          } catch (e) {
+            console.warn("Failed to convert previewUrl to Blob:", e);
+          }
         }
       }
-    }
 
-    const formData = new FormData();
-    formData.append("file", sendBlob, targetFile.name || "floorplan.jpg");
-    formData.append("case_type", "commercial");
-    formData.append("paper_size", paperSize);
-    formData.append("scale_ratio", scaleRatio === '自訂' ? `1:${customScaleVal}` : scaleRatio);
+      const formData = new FormData();
+      formData.append("file", sendBlob, targetFile.name || "floorplan.jpg");
+      formData.append("case_type", "commercial");
+      formData.append("paper_size", paperSize);
+      formData.append("scale_ratio", scaleRatio === '自訂' ? `1:${customScaleVal}` : scaleRatio);
 
-    try {
-      const res = await fetch("/api/upload-layout", {
-        method: "POST",
-        body: formData
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.image_preview) {
-          setPreviewImage(data.image_preview);
-          setPreviewUrl(data.image_preview);
-          setIsSnapshotBaked(true);
+      let isBackendSuccess = false;
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+        const res = await fetch("/api/upload-layout", {
+          method: "POST",
+          body: formData,
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.image_preview) {
+            setPreviewImage(data.image_preview);
+            setPreviewUrl(data.image_preview);
+            setIsSnapshotBaked(true);
+          }
+          if (data.quota_exceeded || data.error === "429") {
+            toast.error("⚠️ 警告 [HTTP 429]：Gemini API Key 額度已用盡 (Quota Exceeded)！請更新 GEMINI_API_KEY 後再試。", { autoClose: 10000 });
+          }
+          setShowColoredMasks(true);
+          const spacesList = Array.isArray(data) ? data : (data.spaces || data.data || []);
+          if (spacesList.length > 0) {
+            const normalizedData = spacesList.map(item => {
+              const baseKcal = item.base_suggested_load || getFuzzyBaseLoadByName(item.space_name) || 520;
+              const areaM2 = item.area_m2 !== undefined ? parseFloat(item.area_m2) : 0;
+              const ping = item.area_ping !== undefined ? parseFloat(item.area_ping) : Math.round(areaM2 * 0.3025 * 100) / 100;
+              const initialDemand = item.total_cooling_load_kcal || Math.round(ping * baseKcal);
+              const autoMatch = clientSideSelectEquipment(initialDemand, "VRV");
+              return {
+                ...item,
+                area_m2: areaM2,
+                area_ping: ping,
+                selected: true,
+                system_type: "VRV",
+                calc_basis: baseKcal,
+                total_cooling_demand: initialDemand,
+                best_match_model: item.recommended_model || autoMatch.model,
+                unit_count: item.qty || autoMatch.qty,
+                cap_kw: item.cap_kw || autoMatch.cap,
+                special_kw: 0,
+                modifiers: { 全內周: false, 二面牆: false, 西曬: false, 挑高: false, 頂曬: false },
+                is_matched: true
+              };
+            });
+            setRows(normalizedData);
+            isBackendSuccess = true;
+            toast.success(`✨ 已連線 Python 雲端 AI 引擎！精準解析出 ${normalizedData.length} 個動態空間。`);
+          }
         }
-        if (data.quota_exceeded || data.error === "429") {
-          toast.error("⚠️ 警告 [HTTP 429]：Gemini API Key 額度已用盡 (Quota Exceeded)！請更新 GEMINI_API_KEY 後再試。", { autoClose: 10000 });
+      } catch (err) {
+        console.warn("Backend API connect timeout, switching to frontend fast OCR/PDF parser:", err);
+      }
+
+      if (!isBackendSuccess) {
+        // 🎯 智慧文字與 OCR 辨識備援：動態自圖紙 (PDF 文字流與影像 OCR) 解析文字標籤與面積數值
+        let dynamicTextSpaces = [];
+        const activeFile = file || targetFile;
+        const isPdf = (activeFile && activeFile.type === "application/pdf") || 
+                      (activeFile && activeFile.name && activeFile.name.toLowerCase().endsWith(".pdf"));
+        if (isPdf) {
+          try {
+            dynamicTextSpaces = await extractSpacesFromPdfFile(activeFile);
+          } catch (pdfErr) {
+            console.warn("PDF extraction error:", pdfErr);
+          }
         }
-        setShowColoredMasks(true);
-        const spacesList = Array.isArray(data) ? data : (data.spaces || data.data || []);
-        if (spacesList.length > 0) {
-          const normalizedData = spacesList.map(item => {
-            const baseKcal = item.base_suggested_load || getFuzzyBaseLoadByName(item.space_name) || 520;
-            const areaM2 = item.area_m2 !== undefined ? parseFloat(item.area_m2) : 0;
-            const ping = item.area_ping !== undefined ? parseFloat(item.area_ping) : Math.round(areaM2 * 0.3025 * 100) / 100;
-            const initialDemand = item.total_cooling_load_kcal || Math.round(ping * baseKcal);
+        
+        if (!dynamicTextSpaces || dynamicTextSpaces.length === 0) {
+          try {
+            dynamicTextSpaces = await extractSpacesFromImageFile(activeFile);
+          } catch (imgErr) {
+            console.warn("Image OCR extraction error:", imgErr);
+          }
+        }
+
+        if (dynamicTextSpaces && dynamicTextSpaces.length > 0) {
+          const normalizedData = dynamicTextSpaces.map(item => {
+            const baseKcal = getFuzzyBaseLoadByName(item.space_name) || 520;
+            const areaM2 = parseFloat(item.area_m2) || 0;
+            const ping = parseFloat(item.area_ping) || Math.round(areaM2 * 0.3025 * 100) / 100;
+            const initialDemand = Math.round(ping * baseKcal);
             const autoMatch = clientSideSelectEquipment(initialDemand, "VRV");
             return {
-              ...item,
+              space_name: item.space_name,
               area_m2: areaM2,
               area_ping: ping,
               selected: true,
               system_type: "VRV",
               calc_basis: baseKcal,
               total_cooling_demand: initialDemand,
-              best_match_model: item.recommended_model || autoMatch.model,
-              unit_count: item.qty || autoMatch.qty,
-              cap_kw: item.cap_kw || autoMatch.cap,
+              best_match_model: autoMatch.model,
+              unit_count: autoMatch.qty,
+              cap_kw: autoMatch.cap,
               special_kw: 0,
               modifiers: { 全內周: false, 二面牆: false, 西曬: false, 挑高: false, 頂曬: false },
               is_matched: true
             };
           });
           setRows(normalizedData);
-          setLoading(false);
-          toast.success(`✨ 已連線 Python 雲端 AI 引擎！精準解析出 ${normalizedData.length} 個動態空間。`);
-          return;
+          toast.success(`✨ 圖面自動解析成功！已自動帶入 ${normalizedData.length} 個空間名稱、真實面積與大金選機數據！`);
+        } else {
+          toast.info("💡 圖面自動解析完成！請使用 [🪣 漆桶發散] 或 [🟩 矩形拉框] 點擊標定空間！");
         }
       }
     } catch (e) {
-      console.warn("Backend API connect fallback:", e);
+      console.error("Global analyze error:", e);
+      toast.error("圖面解析過程發生異常！");
+    } finally {
+      setLoading(false);
     }
-
-    // 🎯 智慧文字與 OCR 辨識備援：動態自圖紙 (PDF 文字流與影像 OCR) 解析文字標籤與面積數值
-    let dynamicTextSpaces = [];
-    const activeFile = file || targetFile;
-    const isPdf = (activeFile && activeFile.type === "application/pdf") || 
-                  (activeFile && activeFile.name && activeFile.name.toLowerCase().endsWith(".pdf"));
-    if (isPdf) {
-      dynamicTextSpaces = await extractSpacesFromPdfFile(activeFile);
-    }
-    
-    if (!dynamicTextSpaces || dynamicTextSpaces.length === 0) {
-      dynamicTextSpaces = await extractSpacesFromImageFile(activeFile);
-    }
-
-    const normalizedData = dynamicTextSpaces.map(item => {
-      const baseKcal = getFuzzyBaseLoadByName(item.space_name) || 520;
-      const areaM2 = parseFloat(item.area_m2) || 0;
-      const ping = parseFloat(item.area_ping) || Math.round(areaM2 * 0.3025 * 100) / 100;
-      const initialDemand = Math.round(ping * baseKcal);
-      const autoMatch = clientSideSelectEquipment(initialDemand, "VRV");
-      return {
-        space_name: item.space_name,
-        area_m2: areaM2,
-        area_ping: ping,
-        selected: true,
-        system_type: "VRV",
-        calc_basis: baseKcal,
-        total_cooling_demand: initialDemand,
-        best_match_model: autoMatch.model,
-        unit_count: autoMatch.qty,
-        cap_kw: autoMatch.cap,
-        special_kw: 0,
-        modifiers: { 全內周: false, 二面牆: false, 西曬: false, 挑高: false, 頂曬: false },
-        is_matched: true
-      };
-    });
-
-    setRows(normalizedData);
-    setLoading(false);
-    toast.success(`✨ 圖面自動解析成功！已自動帶入 ${normalizedData.length} 個空間名稱、真實面積與大金選機數據！`);
   };
 
   const handleCellChange = (index, field, value, subField = null) => {
