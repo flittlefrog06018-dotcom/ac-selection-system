@@ -1441,13 +1441,13 @@ function App() {
 
   const exportExcelClientSideFallback = async (baseCaseName, filteredRows) => {
     try {
-      // 🎯 1. 優先載入原廠『選機表-.xlsx』實體範本 (包含大金Logo、公式與原廠樣式)
+      // 🎯 1. 優先載入原廠『選機表-.xlsx』實體範本 (完整保留大金Logo、公式、數字格式與原廠XML樣式)
       let wb = null;
       try {
         const tplRes = await fetch("/template_excel.xlsx");
         if (tplRes.ok) {
           const ab = await tplRes.arrayBuffer();
-          wb = XLSX.read(ab, { type: "array" });
+          wb = XLSX.read(ab, { type: "array", cellStyles: true, cellFormulas: true, cellDates: true, cellNF: true, sheetStubs: true });
         }
       } catch (err) {
         console.warn("Could not fetch template_excel.xlsx, generating structured sheet:", err);
@@ -1486,7 +1486,14 @@ function App() {
 
         const setCell = (colStr, val) => {
           const cellRef = `${colStr}${rowIdx}`;
-          ws[cellRef] = { v: val, t: typeof val === 'number' ? 'n' : 's' };
+          const valType = typeof val === 'number' ? 'n' : 's';
+          if (!ws[cellRef]) {
+            ws[cellRef] = { v: val, t: valType };
+          } else {
+            ws[cellRef].v = val;
+            ws[cellRef].t = valType;
+            delete ws[cellRef].w;
+          }
         };
 
         // 🎯 嚴格對齊經理「選機表-.xlsx」實體截圖完全相同的欄位對應：
@@ -1526,13 +1533,13 @@ function App() {
         setCell('AD', pingPerUsrt);
       });
 
-      // 修正 WorkSheet 範圍範圍標記 !ref
+      // 修正 WorkSheet 範圍標記 !ref
       const range = XLSX.utils.decode_range(ws['!ref'] || "A1:AD30");
       range.e.r = Math.max(range.e.r, startRow + filteredRows.length - 1);
       range.e.c = Math.max(range.e.c, 30);
       ws['!ref'] = XLSX.utils.encode_range(range);
 
-      XLSX.writeFile(wb, `選機表-${baseCaseName}.xlsx`);
+      XLSX.writeFile(wb, `選機表-${baseCaseName}.xlsx`, { cellStyles: true });
       toast.success(`🎉 官方大金範本「選機表-${baseCaseName}.xlsx」匯出成功！已成功下載 (${filteredRows.length} 個空間)。`);
     } catch (e) {
       console.error("Client side excel export error:", e);
