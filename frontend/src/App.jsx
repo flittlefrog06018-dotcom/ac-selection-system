@@ -1414,34 +1414,36 @@ function App() {
     }
   };
 
-  const exportExcelClientSideFallback = (baseCaseName, filteredRows) => {
+  const exportExcelClientSideFallback = async (baseCaseName, filteredRows) => {
     try {
-      // 🎯 100% 遵循大金官方「選機表-.xlsx」原始格式與欄位位置 (Col A, D, E, F, H, K, L, M, N, O, P, Q, W, X, AB, AC, AD)
-      const emptyRow = new Array(31).fill("");
+      // 🎯 1. 優先載入原廠『選機表-.xlsx』實體範本 (包含大金Logo、公式與原廠樣式)
+      let wb = null;
+      try {
+        const tplRes = await fetch("/template_excel.xlsx");
+        if (tplRes.ok) {
+          const ab = await tplRes.arrayBuffer();
+          wb = XLSX.read(ab, { type: "array" });
+        }
+      } catch (err) {
+        console.warn("Could not fetch template_excel.xlsx, generating structured sheet:", err);
+      }
 
-      // Header at Row 8
-      const headerRow = [...emptyRow];
-      headerRow[0] = "樓層";
-      headerRow[3] = "空間名稱";
-      headerRow[4] = "平方公尺(㎡)";
-      headerRow[5] = "坪數(P)";
-      headerRow[7] = "冷房負荷基準(kcal/h/坪)";
-      headerRow[10] = "每坪kW";
-      headerRow[11] = "總需求(kW)";
-      headerRow[12] = "總需求(kcal/h)";
-      headerRow[13] = "大金室內機型號";
-      headerRow[14] = "台數";
-      headerRow[15] = "單機能力(kcal/h)";
-      headerRow[16] = "單機能力(kW)";
-      headerRow[22] = "總冷房能力(kcal/h)";
-      headerRow[23] = "總冷房能力(kW)";
-      headerRow[27] = "實際每坪kcal";
-      headerRow[28] = "實際每坪kW";
-      headerRow[29] = "每冷房噸坪數";
+      if (!wb) {
+        wb = XLSX.utils.book_new();
+      }
 
-      // Rows starting at Row 9
-      const dataRows = filteredRows.map((row, idx) => {
-        const r = [...emptyRow];
+      let wsName = wb.SheetNames[0] || "選機表";
+      let ws = wb.Sheets[wsName];
+
+      if (!ws) {
+        ws = XLSX.utils.aoa_to_sheet([]);
+        XLSX.utils.book_append_sheet(wb, ws, wsName);
+      }
+
+      const startRow = 9; // 第 9 列起帶入空間數據
+
+      filteredRows.forEach((row, i) => {
+        const rowIdx = startRow + i;
         const ping = parseFloat(row.area_ping) || 0;
         const areaM2 = parseFloat(row.area_m2) || 0;
         const basis = parseFloat(row.calc_basis) || 500;
@@ -1457,35 +1459,39 @@ function App() {
         const actualKwPerPing = ping > 0 ? parseFloat((totalCapKw / ping).toFixed(1)) : 0;
         const pingPerUsrt = (totalCapKw > 0) ? parseFloat((ping / (totalCapKw / 3.516)).toFixed(1)) : 0;
 
-        r[0] = "2F";                                   // Col A (1)
-        r[3] = row.space_name || `空間 ${idx + 1}`;   // Col D (4)
-        r[4] = areaM2;                                 // Col E (5)
-        r[5] = ping;                                   // Col F (6)
-        r[7] = basis;                                  // Col H (8)
-        r[10] = kwPerPing;                             // Col K (11)
-        r[11] = demandKw;                              // Col L (12)
-        r[12] = demandKcal;                            // Col M (13)
-        r[13] = row.best_match_model || "";           // Col N (14)
-        r[14] = qty;                                   // Col O (15)
-        r[15] = singleCapKcal;                         // Col P (16)
-        r[16] = singleCapKw;                           // Col Q (17)
-        r[22] = totalCapKcal;                          // Col W (23)
-        r[23] = totalCapKw;                            // Col X (24)
-        r[27] = actualKcalPerPing;                     // Col AB (28)
-        r[28] = actualKwPerPing;                       // Col AC (29)
-        r[29] = pingPerUsrt;                           // Col AD (30)
+        const setCell = (colStr, val) => {
+          const cellRef = `${colStr}${rowIdx}`;
+          ws[cellRef] = { v: val, t: typeof val === 'number' ? 'n' : 's' };
+        };
 
-        return r;
+        // 🎯 寫入大金原廠 17 個標準欄位 (Col A, D, E, F, H, K, L, M, N, O, P, Q, W, X, AB, AC, AD)
+        setCell('A', "2F");
+        setCell('D', row.space_name || `空間 ${i + 1}`);
+        setCell('E', areaM2);
+        setCell('F', ping);
+        setCell('H', basis);
+        setCell('K', kwPerPing);
+        setCell('L', demandKw);
+        setCell('M', demandKcal);
+        setCell('N', row.best_match_model || "");
+        setCell('O', qty);
+        setCell('P', singleCapKcal);
+        setCell('Q', singleCapKw);
+        setCell('W', totalCapKcal);
+        setCell('X', totalCapKw);
+        setCell('AB', actualKcalPerPing);
+        setCell('AC', actualKwPerPing);
+        setCell('AD', pingPerUsrt);
       });
 
-      const paddingRows = Array.from({ length: 7 }, () => [...emptyRow]);
-      paddingRows[0][3] = "大金空調選機表";
+      // 修正 WorkSheet 範圍範圍標記 !ref
+      const range = XLSX.utils.decode_range(ws['!ref'] || "A1:AD30");
+      range.e.r = Math.max(range.e.r, startRow + filteredRows.length - 1);
+      range.e.c = Math.max(range.e.c, 30);
+      ws['!ref'] = XLSX.utils.encode_range(range);
 
-      const ws = XLSX.utils.aoa_to_sheet([...paddingRows, headerRow, ...dataRows]);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "選機表");
       XLSX.writeFile(wb, `選機表-${baseCaseName}.xlsx`);
-      toast.success(`🎉 官方大金選機表匯出成功！已成功下載「選機表-${baseCaseName}.xlsx」（共 ${filteredRows.length} 個空間）。`);
+      toast.success(`🎉 官方大金範本「選機表-${baseCaseName}.xlsx」匯出成功！已成功下載 (${filteredRows.length} 個空間)。`);
     } catch (e) {
       console.error("Client side excel export error:", e);
       toast.error(`❌ 匯出失敗：${e.message}`);
@@ -1575,7 +1581,7 @@ function App() {
       toast.success(`🎉 官方底稿填入成功！已成功匯出「${downloadFileName}」（共 ${filteredRows.length} 個空間）。`);
     } catch (error) {
       console.warn("Backend excel export connect timeout, using official template client exporter:", error);
-      exportExcelClientSideFallback(baseCaseName, filteredRows);
+      await exportExcelClientSideFallback(baseCaseName, filteredRows);
     } finally {
       setExportLoading(false);
     }
