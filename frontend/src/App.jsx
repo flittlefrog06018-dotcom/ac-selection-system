@@ -1079,7 +1079,7 @@ function App() {
       let isBackendSuccess = false;
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 4000);
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
 
         const res = await fetch("/api/upload-layout", {
           method: "POST",
@@ -1581,7 +1581,7 @@ function App() {
       };
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
 
       const res = await fetch("/api/export-excel", {
         method: "POST",
