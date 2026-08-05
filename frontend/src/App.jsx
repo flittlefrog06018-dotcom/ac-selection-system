@@ -1489,19 +1489,36 @@ function App() {
           ws[cellRef] = { v: val, t: typeof val === 'number' ? 'n' : 's' };
         };
 
-        // 🎯 寫入大金原廠 17 個標準欄位 (Col A, D, E, F, H, K, L, M, N, O, P, Q, W, X, AB, AC, AD)
+        // 🎯 嚴格對齊經理「選機表-.xlsx」實體截圖完全相同的欄位對應：
+        // Col A (1): 樓層 "2F"
+        // Col E (5): 室名 (空間名稱)
+        // Col F (6): 面積 (㎡)
+        // Col G (7): 坪數 (P)
+        // Col I (9): 每坪建議負荷值 (kcal/hr/坪)
+        // Col L (12): 每坪建議負荷值 (kW/坪)
+        // Col M (13): 總熱負荷 (kW)
+        // Col N (14): 總熱負荷 (kcal/hr)
+        // Col O (15): 室內機型
+        // Col P (16): 室內機台數
+        // Col Q (17): 冷房能力 (kcal/hr)
+        // Col R (18): 冷房能力標稱 (kW)
+        // Col W (23): 室內冷房總能力 (kcal/hr)
+        // Col X (24): 室內冷房總能力 (kW)
+        // Col AB (28): 實際每坪kcal
+        // Col AC (29): 實際每坪kW
+        // Col AD (30): 每冷房噸坪數
         setCell('A', "2F");
-        setCell('D', row.space_name || `空間 ${i + 1}`);
-        setCell('E', areaM2);
-        setCell('F', ping);
-        setCell('H', basis);
-        setCell('K', kwPerPing);
-        setCell('L', demandKw);
-        setCell('M', demandKcal);
-        setCell('N', row.best_match_model || "");
-        setCell('O', qty);
-        setCell('P', singleCapKcal);
-        setCell('Q', singleCapKw);
+        setCell('E', row.space_name || `空間 ${i + 1}`);
+        setCell('F', areaM2);
+        setCell('G', ping);
+        setCell('I', basis);
+        setCell('L', kwPerPing);
+        setCell('M', demandKw);
+        setCell('N', demandKcal);
+        setCell('O', row.best_match_model || "");
+        setCell('P', qty);
+        setCell('Q', singleCapKcal);
+        setCell('R', singleCapKw);
         setCell('W', totalCapKcal);
         setCell('X', totalCapKw);
         setCell('AB', actualKcalPerPing);

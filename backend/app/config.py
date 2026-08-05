@@ -37,20 +37,20 @@ class Settings:
         "9": "銀行"
     }
     
-    # Excel Column Positioning Settings (from your script)
-    NAME_COL: int = 4              # D
-    AREA_COL: int = 5              # E
-    PING_COL: int = 6              # F
-    LOAD_H_COL: int = 8            # H
-    LOAD_K_COL: int = 11           # K
-    LOAD_L_COL: int = 12           # L
-    LOAD_M_COL: int = 13           # M
-    MODEL_N_COL: int = 14          # N
-    QTY_O_COL: int = 15            # O
-    CAP_KCAL_P_COL: int = 16       # P
-    CAP_KW_Q_COL: int = 17         # Q
-    TOTAL_KCAL_W_COL: int = 23     # W
-    TOTAL_KW_X_COL: int = 24       # X
+    # Excel Column Positioning Settings (Aligned with exact user template screenshot)
+    NAME_COL: int = 5              # E (室名)
+    AREA_COL: int = 6              # F (面積 ㎡)
+    PING_COL: int = 7              # G (坪數 P)
+    LOAD_I_COL: int = 9            # I (每坪建議負荷值 kcal/hr/坪)
+    LOAD_L_COL: int = 12           # L (kW/坪)
+    LOAD_M_COL: int = 13           # M (總熱負荷 kW)
+    LOAD_N_COL: int = 14           # N (總熱負荷 kcal/hr)
+    MODEL_O_COL: int = 15          # O (室內機型)
+    QTY_P_COL: int = 16            # P (室內機台數)
+    CAP_KCAL_Q_COL: int = 17       # Q (單台能力 kcal/hr)
+    CAP_KW_R_COL: int = 18         # R (單台能力標稱 kW)
+    TOTAL_KCAL_W_COL: int = 23     # W (室內冷房總能力 kcal/hr)
+    TOTAL_KW_X_COL: int = 24       # X (室內冷房總能力 kW)
     PER_PING_KCAL_AB_COL: int = 28 # AB
     PER_PING_KW_AC_COL: int = 29   # AC
     PING_PER_USRT_AD_COL: int = 30 # AD

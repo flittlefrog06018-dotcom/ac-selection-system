@@ -631,38 +631,38 @@ async def export_excel(payload: ExportRequest):
             if not calc_basis or calc_basis == 0:
                 calc_basis = 500.0
 
-            # 🎯 嚴格遵循 VV17 歷史大金官方選機表指定欄位對應規則填入：
+            # 🎯 嚴格遵循大金官方選機表實體截圖指定欄位對應規則填入：
             sheet.cell(row=current_row, column=1).value = "2F"                  # Column A: 樓層
-            sheet.cell(row=current_row, column=4).value = display_name           # Column D: 空間名稱
-            sheet.cell(row=current_row, column=5).value = area_m2                # Column E: 平方公尺 (㎡)
-            sheet.cell(row=current_row, column=6).value = area_ping              # Column F: 坪數 (P)
-            sheet.cell(row=current_row, column=8).value = calc_basis             # Column H: 冷房負荷基準 (kcal/h/坪)
+            sheet.cell(row=current_row, column=5).value = display_name           # Column E (5): 室名
+            sheet.cell(row=current_row, column=6).value = area_m2                # Column F (6): 面積 (㎡)
+            sheet.cell(row=current_row, column=7).value = area_ping              # Column G (7): 坪數 (P)
+            sheet.cell(row=current_row, column=9).value = calc_basis             # Column I (9): 每坪建議負荷值 (kcal/hr/坪)
 
-            # 🎯 Column K (11): kW/坪
+            # 🎯 Column L (12): kW/坪
             kw_per_ping = round(calc_basis / 860.0, 2)
-            cell_k = sheet.cell(row=current_row, column=11)
-            cell_k.value = kw_per_ping
-            cell_k.number_format = '0.00'
+            cell_l = sheet.cell(row=current_row, column=12)
+            cell_l.value = kw_per_ping
+            cell_l.number_format = '0.00'
 
-            # 🎯 Column L (12): 估算總需求 kW
+            # 🎯 Column M (13): 總熱負荷 kW
             total_load_kw = round(area_ping * kw_per_ping, 1)
-            sheet.cell(row=current_row, column=12).value = total_load_kw
+            sheet.cell(row=current_row, column=13).value = total_load_kw
 
-            # 🎯 Column M (13): 估算總需求 kcal
-            sheet.cell(row=current_row, column=13).value = row_data.total_cooling_load_kcal
+            # 🎯 Column N (14): 總熱負荷 kcal/hr
+            sheet.cell(row=current_row, column=14).value = row_data.total_cooling_load_kcal
 
-            # 🎯 Column N (14) & O (15): 型號與台數
-            sheet.cell(row=current_row, column=14).value = row_data.recommended_model
-            sheet.cell(row=current_row, column=15).value = row_data.qty
+            # 🎯 Column O (15) & P (16): 室內機型與台數
+            sheet.cell(row=current_row, column=15).value = row_data.recommended_model
+            sheet.cell(row=current_row, column=16).value = row_data.qty
 
-            # 🎯 單機能力 cap_kw & cap_kcal (Column P & Q)
+            # 🎯 單機能力 cap_kw & cap_kcal (Column Q & R)
             cap_kw = row_data.cap_kw if row_data.cap_kw > 0 else lookup_cap_kw(row_data.recommended_model)
             cap_kcal = round(cap_kw * 860.0, 1)
 
-            sheet.cell(row=current_row, column=16).value = cap_kcal              # Column P (16): 單機能力 (kcal/h)
-            sheet.cell(row=current_row, column=17).value = cap_kw                # Column Q (17): 單機能力 (kW)
+            sheet.cell(row=current_row, column=17).value = cap_kcal              # Column Q (17): 冷房能力 (kcal/hr)
+            sheet.cell(row=current_row, column=18).value = cap_kw                # Column R (18): 冷房能力標稱 (kW)
 
-            # 🎯 Column W (23) & X (24): 總冷房能力 kcal & kW
+            # 🎯 Column W (23) & X (24): 室內冷房總能力 kcal & kW
             qty = row_data.qty if row_data.qty > 0 else 1
             sheet.cell(row=current_row, column=23).value = float(qty * cap_kcal)  # Column W (23)
             sheet.cell(row=current_row, column=24).value = float(qty * cap_kw)    # Column X (24)
