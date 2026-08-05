@@ -633,25 +633,25 @@ async def export_excel(payload: ExportRequest):
 
             # 🎯 嚴格遵循大金官方選機表實體截圖指定欄位對應規則填入：
             sheet.cell(row=current_row, column=1).value = "2F"                  # Column A: 樓層
-            sheet.cell(row=current_row, column=5).value = display_name           # Column E (5): 室名
-            sheet.cell(row=current_row, column=6).value = area_m2                # Column F (6): 面積 (㎡)
-            sheet.cell(row=current_row, column=7).value = area_ping              # Column G (7): 坪數 (P)
-            sheet.cell(row=current_row, column=9).value = calc_basis             # Column I (9): 每坪建議負荷值 (kcal/hr/坪)
+            sheet.cell(row=current_row, column=4).value = display_name           # Column D (4): 室名 (空間名稱)
+            sheet.cell(row=current_row, column=5).value = area_m2                # Column E (5): 面積 (㎡)
+            sheet.cell(row=current_row, column=6).value = area_ping              # Column F (6): 坪數 (P)
+            sheet.cell(row=current_row, column=8).value = calc_basis             # Column H (8): 每坪建議負荷值 (kcal/hr/坪)
 
-            # 🎯 Column L (12): kW/坪
+            # 🎯 Column K (11): kW/坪
             kw_per_ping = round(calc_basis / 860.0, 2)
-            cell_l = sheet.cell(row=current_row, column=12)
-            cell_l.value = kw_per_ping
-            cell_l.number_format = '0.00'
+            cell_k = sheet.cell(row=current_row, column=11)
+            cell_k.value = kw_per_ping
+            cell_k.number_format = '0.00'
 
-            # 🎯 Column M (13): 總熱負荷 kW
+            # 🎯 Column L (12): 總熱負荷 kW
             total_load_kw = round(area_ping * kw_per_ping, 1)
-            sheet.cell(row=current_row, column=13).value = total_load_kw
+            sheet.cell(row=current_row, column=12).value = total_load_kw
 
-            # 🎯 Column N (14): 總熱負荷 kcal/hr
-            sheet.cell(row=current_row, column=14).value = row_data.total_cooling_load_kcal
+            # 🎯 Column M (13): 總熱負荷 kcal/hr
+            sheet.cell(row=current_row, column=13).value = row_data.total_cooling_load_kcal
 
-            # 🎯 Column O (15) & P (16): 室內機型與台數
+            # 🎯 Column O (15) & P (16): 大金室內機型號與台數
             sheet.cell(row=current_row, column=15).value = row_data.recommended_model
             sheet.cell(row=current_row, column=16).value = row_data.qty
 
