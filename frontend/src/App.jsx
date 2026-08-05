@@ -1460,31 +1460,44 @@ function App() {
 
       filteredRows.forEach((row, i) => {
         const rowIdx = startRow + i;
-        const ping = parseFloat(row.area_ping) || 0;
+
+        let displayName = row.space_name || `空間 ${i + 1}`;
+        if (displayName.includes("檔率")) {
+          displayName = displayName.replace(/檔率/g, "檔案室");
+        }
+
         const areaM2 = parseFloat(row.area_m2) || 0;
-        const basis = parseFloat(row.calc_basis) || 500;
+        const ping = parseFloat(row.area_ping) || Math.round(areaM2 * 0.3025 * 100) / 100;
+
+        let basis = parseFloat(row.calc_basis);
+        if (!basis || basis === 0) basis = 500;
+
+        const kwPerPing = parseFloat((basis / 860.0).toFixed(2));
+        const demandKw = parseFloat((ping * kwPerPing).toFixed(1));
         const demandKcal = parseFloat(row.total_cooling_demand) || Math.round(ping * basis);
-        const demandKw = parseFloat((demandKcal / 860.0).toFixed(1));
-        const kwPerPing = ping > 0 ? parseFloat((demandKw / ping).toFixed(2)) : 0;
+
+        const modelStr = row.best_match_model || "";
         const singleCapKw = parseFloat(row.cap_kw) || 0;
-        const singleCapKcal = Math.round(singleCapKw * 860);
+        const singleCapKcal = parseFloat((singleCapKw * 860.0).toFixed(1));
+
         const qty = parseInt(row.unit_count) || 1;
-        const totalCapKw = parseFloat((singleCapKw * qty).toFixed(1));
-        const totalCapKcal = Math.round(totalCapKw * 860);
-        const actualKcalPerPing = ping > 0 ? Math.round(totalCapKcal / ping) : 0;
-        const actualKwPerPing = ping > 0 ? parseFloat((totalCapKw / ping).toFixed(1)) : 0;
-        const pingPerUsrt = (totalCapKw > 0) ? parseFloat((ping / (totalCapKw / 3.516)).toFixed(1)) : 0;
+        const totalCapKw = parseFloat((qty * singleCapKw).toFixed(1));
+        const totalCapKcal = parseFloat((qty * singleCapKcal).toFixed(1));
+
+        const actualKcalPerPing = ping > 0 ? Math.round(singleCapKcal / ping) : 0;
+        const actualKwPerPing = ping > 0 ? parseFloat((singleCapKw / ping).toFixed(1)) : 0;
+        const pingPerUsrt = (qty * singleCapKw > 0) ? parseFloat((ping / ((qty * singleCapKw) / 3.516)).toFixed(1)) : 0;
 
         const excelRow = ws.getRow(rowIdx);
         excelRow.getCell(1).value = "2F";                                    // Col A: 樓層
-        excelRow.getCell(4).value = row.space_name || `空間 ${i + 1}`;          // Col D: 室名 (空間名稱)
+        excelRow.getCell(4).value = displayName;                             // Col D: 室名 (空間名稱)
         excelRow.getCell(5).value = areaM2;                                   // Col E: 面積 (㎡)
         excelRow.getCell(6).value = ping;                                     // Col F: 坪數 (P)
         excelRow.getCell(8).value = basis;                                    // Col H: 每坪建議負荷值 (kcal/hr/坪)
         excelRow.getCell(11).value = kwPerPing;                               // Col K: (kW/坪)
         excelRow.getCell(12).value = demandKw;                                // Col L: 總熱負荷 (kW)
         excelRow.getCell(13).value = demandKcal;                              // Col M: 總熱負荷 (kcal/hr)
-        excelRow.getCell(15).value = row.best_match_model || "";              // Col O: 大金室內機型號
+        excelRow.getCell(15).value = modelStr;                                // Col O: 大金室內機型號
         excelRow.getCell(16).value = qty;                                     // Col P: 室內機台數
         excelRow.getCell(17).value = singleCapKcal;                           // Col Q: 冷房能力 (kcal/hr)
         excelRow.getCell(18).value = singleCapKw;                             // Col R: 冷房能力 (kW)
