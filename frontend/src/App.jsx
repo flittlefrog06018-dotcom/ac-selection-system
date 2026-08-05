@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 
 // 🎯 同步黃經理 Python 原廠內建的大金規格資料庫
 const EQUIPMENT_DB = {
@@ -1441,31 +1442,21 @@ function App() {
 
   const exportExcelClientSideFallback = async (baseCaseName, filteredRows) => {
     try {
-      // 🎯 1. 優先載入原廠『選機表-.xlsx』實體範本 (完整保留大金Logo、公式、數字格式與原廠XML樣式)
-      let wb = null;
+      let wb = new ExcelJS.Workbook();
+      let isTemplateLoaded = false;
       try {
         const tplRes = await fetch("/template_excel.xlsx");
         if (tplRes.ok) {
-          const ab = await tplRes.arrayBuffer();
-          wb = XLSX.read(ab, { type: "array", cellStyles: true, cellFormulas: true, cellDates: true, cellNF: true, sheetStubs: true });
+          const buffer = await tplRes.arrayBuffer();
+          await wb.xlsx.load(buffer);
+          isTemplateLoaded = true;
         }
       } catch (err) {
-        console.warn("Could not fetch template_excel.xlsx, generating structured sheet:", err);
+        console.warn("Could not fetch template_excel.xlsx for ExcelJS:", err);
       }
 
-      if (!wb) {
-        wb = XLSX.utils.book_new();
-      }
-
-      let wsName = wb.SheetNames[0] || "選機表";
-      let ws = wb.Sheets[wsName];
-
-      if (!ws) {
-        ws = XLSX.utils.aoa_to_sheet([]);
-        XLSX.utils.book_append_sheet(wb, ws, wsName);
-      }
-
-      const startRow = 9; // 第 9 列起帶入空間數據
+      const ws = wb.getWorksheet("選機") || wb.worksheets[0] || wb.addWorksheet("選機表");
+      const startRow = 9;
 
       filteredRows.forEach((row, i) => {
         const rowIdx = startRow + i;
@@ -1484,65 +1475,43 @@ function App() {
         const actualKwPerPing = ping > 0 ? parseFloat((totalCapKw / ping).toFixed(1)) : 0;
         const pingPerUsrt = (totalCapKw > 0) ? parseFloat((ping / (totalCapKw / 3.516)).toFixed(1)) : 0;
 
-        const setCell = (colStr, val) => {
-          const cellRef = `${colStr}${rowIdx}`;
-          const valType = typeof val === 'number' ? 'n' : 's';
-          if (!ws[cellRef]) {
-            ws[cellRef] = { v: val, t: valType };
-          } else {
-            ws[cellRef].v = val;
-            ws[cellRef].t = valType;
-            delete ws[cellRef].w;
-          }
-        };
-
-        // 🎯 嚴格對齊經理「選機表-.xlsx」實體截圖完全相同的欄位對應：
-        // Col A (1): 樓層 "2F"
-        // Col E (5): 室名 (空間名稱)
-        // Col F (6): 面積 (㎡)
-        // Col G (7): 坪數 (P)
-        // Col I (9): 每坪建議負荷值 (kcal/hr/坪)
-        // Col L (12): 每坪建議負荷值 (kW/坪)
-        // Col M (13): 總熱負荷 (kW)
-        // Col N (14): 總熱負荷 (kcal/hr)
-        // Col O (15): 室內機型
-        // Col P (16): 室內機台數
-        // Col Q (17): 冷房能力 (kcal/hr)
-        // Col R (18): 冷房能力標稱 (kW)
-        // Col W (23): 室內冷房總能力 (kcal/hr)
-        // Col X (24): 室內冷房總能力 (kW)
-        // Col AB (28): 實際每坪kcal
-        // Col AC (29): 實際每坪kW
-        // Col AD (30): 每冷房噸坪數
-        setCell('A', "2F");
-        setCell('E', row.space_name || `空間 ${i + 1}`);
-        setCell('F', areaM2);
-        setCell('G', ping);
-        setCell('I', basis);
-        setCell('L', kwPerPing);
-        setCell('M', demandKw);
-        setCell('N', demandKcal);
-        setCell('O', row.best_match_model || "");
-        setCell('P', qty);
-        setCell('Q', singleCapKcal);
-        setCell('R', singleCapKw);
-        setCell('W', totalCapKcal);
-        setCell('X', totalCapKw);
-        setCell('AB', actualKcalPerPing);
-        setCell('AC', actualKwPerPing);
-        setCell('AD', pingPerUsrt);
+        const excelRow = ws.getRow(rowIdx);
+        excelRow.getCell(1).value = "2F";                                    // Col A: 樓層
+        excelRow.getCell(5).value = row.space_name || `空間 ${i + 1}`;          // Col E: 室名
+        excelRow.getCell(6).value = areaM2;                                   // Col F: 面積 ㎡
+        excelRow.getCell(7).value = ping;                                     // Col G: 坪數 P
+        excelRow.getCell(9).value = basis;                                    // Col I: 每坪建議負荷值
+        excelRow.getCell(12).value = kwPerPing;                               // Col L: kW/坪
+        excelRow.getCell(13).value = demandKw;                                // Col M: 總熱負荷 kW
+        excelRow.getCell(14).value = demandKcal;                              // Col N: 總熱負荷 kcal/hr
+        excelRow.getCell(15).value = row.best_match_model || "";              // Col O: 室內機型
+        excelRow.getCell(16).value = qty;                                     // Col P: 室內機台數
+        excelRow.getCell(17).value = singleCapKcal;                           // Col Q: 冷房能力 kcal/hr
+        excelRow.getCell(18).value = singleCapKw;                             // Col R: 冷房能力標稱 kW
+        excelRow.getCell(23).value = totalCapKcal;                           // Col W: 室內冷房總能力 kcal/hr
+        excelRow.getCell(24).value = totalCapKw;                             // Col X: 室內冷房總能力 kW
+        excelRow.getCell(28).value = actualKcalPerPing;                       // Col AB
+        excelRow.getCell(29).value = actualKwPerPing;                         // Col AC
+        excelRow.getCell(30).value = pingPerUsrt;                             // Col AD
+        excelRow.commit();
       });
 
-      // 修正 WorkSheet 範圍標記 !ref
-      const range = XLSX.utils.decode_range(ws['!ref'] || "A1:AD30");
-      range.e.r = Math.max(range.e.r, startRow + filteredRows.length - 1);
-      range.e.c = Math.max(range.e.c, 30);
-      ws['!ref'] = XLSX.utils.encode_range(range);
+      const outBuffer = await wb.xlsx.writeBuffer();
+      const blob = new Blob([outBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const downloadFileName = `選機表-${baseCaseName}.xlsx`;
 
-      XLSX.writeFile(wb, `選機表-${baseCaseName}.xlsx`, { cellStyles: true });
-      toast.success(`🎉 官方大金範本「選機表-${baseCaseName}.xlsx」匯出成功！已成功下載 (${filteredRows.length} 個空間)。`);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = downloadFileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+      toast.success(`🎉 官方大金選機表「${downloadFileName}」已完成匯出 (${filteredRows.length} 個空間)！`);
     } catch (e) {
-      console.error("Client side excel export error:", e);
+      console.error("ExcelJS export error:", e);
       toast.error(`❌ 匯出失敗：${e.message}`);
     }
   };
@@ -1588,7 +1557,7 @@ function App() {
       };
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
+      const timeoutId = setTimeout(() => controller.abort(), 1000);
 
       const res = await fetch("/api/export-excel", {
         method: "POST",
