@@ -651,16 +651,18 @@ async def export_excel(payload: ExportRequest):
             # 🎯 Column M (13): 總熱負荷 kcal/hr
             sheet.cell(row=current_row, column=13).value = row_data.total_cooling_load_kcal
 
-            # 🎯 Column O (15) & P (16): 大金室內機型號與台數
-            sheet.cell(row=current_row, column=15).value = row_data.recommended_model
-            sheet.cell(row=current_row, column=16).value = row_data.qty
-
-            # 🎯 單機能力 cap_kw & cap_kcal (Column Q & R)
+            # 🎯 依據新版設備資料庫對應填入 N, O, P, Q, R, S, T, V 欄位：
             cap_kw = row_data.cap_kw if row_data.cap_kw > 0 else lookup_cap_kw(row_data.recommended_model)
             cap_kcal = round(cap_kw * 860.0, 1)
 
-            sheet.cell(row=current_row, column=17).value = cap_kcal              # Column Q (17): 冷房能力 (kcal/hr)
-            sheet.cell(row=current_row, column=18).value = cap_kw                # Column R (18): 冷房能力標稱 (kW)
+            sheet.cell(row=current_row, column=14).value = row_data.recommended_model             # Column N (14): 室內機型號
+            sheet.cell(row=current_row, column=15).value = row_data.qty                           # Column O (15): 室內機台數
+            sheet.cell(row=current_row, column=16).value = cap_kcal                               # Column P (16): 冷房能力 (kcal/hr)
+            sheet.cell(row=current_row, column=17).value = cap_kw                                 # Column Q (17): 冷房能力 (kW)
+            sheet.cell(row=current_row, column=18).value = getattr(row_data, "nominal_cap", "-")  # Column R (18): 標稱能力
+            sheet.cell(row=current_row, column=19).value = getattr(row_data, "power_supply", "-") # Column S (19): 供應電源
+            sheet.cell(row=current_row, column=20).value = getattr(row_data, "power_consumption_kw", "-") # Column T (20): 單台耗電量 kW
+            sheet.cell(row=current_row, column=22).value = getattr(row_data, "dimensions", "-")  # Column V (22): 尺寸 mm
 
             # 🎯 Column W (23) & X (24): 室內冷房總能力 kcal & kW
             qty = row_data.qty if row_data.qty > 0 else 1

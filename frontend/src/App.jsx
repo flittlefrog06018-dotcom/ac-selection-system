@@ -5,24 +5,1309 @@ import * as XLSX from 'xlsx';
 import ExcelJS from 'exceljs';
 
 // 🎯 同步黃經理 Python 原廠內建的大金規格資料庫
+// 🎯 大金全系列實體型號與冷房能力資料庫 (含系列別與型式對應)
 const EQUIPMENT_DB = {
-  RA: [
-    { model: "FTXM22ZVLT", cap: 2.2 }, { model: "FTXM28ZVLT", cap: 2.8 },
-    { model: "FTXM36ZVLT", cap: 3.5 }, { model: "FTXM41ZVLT", cap: 4.1 },
-    { model: "FTXM50ZVLT", cap: 5.0 }, { model: "FTXM60ZVLT", cap: 6.0 },
-    { model: "FTXM71ZVLT", cap: 7.2 }, { model: "FTXM80ZVLT", cap: 8.0 },
-    { model: "FTXM90ZVLT", cap: 8.7 }
+  "RA": [
+    {
+      "model": "FTXV22XVLT",
+      "cap": 2.2,
+      "series": "橫綱X系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXV28XVLT",
+      "cap": 2.8,
+      "series": "橫綱X系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXV36XVLT",
+      "cap": 3.5,
+      "series": "橫綱X系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXV41XVLT",
+      "cap": 4.1,
+      "series": "橫綱X系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXV50XVLT",
+      "cap": 5.0,
+      "series": "橫綱X系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXV60XVLT",
+      "cap": 6.0,
+      "series": "橫綱X系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXV71XVLT",
+      "cap": 7.2,
+      "series": "橫綱X系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXV80XVLT",
+      "cap": 8.0,
+      "series": "橫綱X系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXV90XVLT",
+      "cap": 8.7,
+      "series": "橫綱X系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXM22YVLT",
+      "cap": 2.2,
+      "series": "橫綱Y系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXM28YVLT",
+      "cap": 2.8,
+      "series": "橫綱Y系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXM36YVLT",
+      "cap": 3.5,
+      "series": "橫綱Y系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXM41YVLT",
+      "cap": 4.1,
+      "series": "橫綱Y系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXM50YVLT",
+      "cap": 5.0,
+      "series": "橫綱Y系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXM60YVLT",
+      "cap": 6.3,
+      "series": "橫綱Y系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXM71YVLT",
+      "cap": 7.2,
+      "series": "橫綱Y系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXM22ZVLT",
+      "cap": 2.2,
+      "series": "橫綱Z系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXM28ZVLT",
+      "cap": 2.8,
+      "series": "橫綱Z系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXM36ZVLT",
+      "cap": 3.5,
+      "series": "橫綱Z系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXM41ZVLT",
+      "cap": 4.1,
+      "series": "橫綱Z系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXM50ZVLT",
+      "cap": 5.0,
+      "series": "橫綱Z系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXM60ZVLT",
+      "cap": 6.0,
+      "series": "橫綱Z系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXM71ZVLT",
+      "cap": 7.2,
+      "series": "橫綱Z系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXM80ZVLT",
+      "cap": 8.0,
+      "series": "橫綱Z系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXM90ZVLT",
+      "cap": 8.7,
+      "series": "橫綱Z系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXV22UVLT",
+      "cap": 2.2,
+      "series": "大關U系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXV28UVLT",
+      "cap": 2.8,
+      "series": "大關U系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXV36UVLT",
+      "cap": 3.5,
+      "series": "大關U系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXV41UVLT",
+      "cap": 4.1,
+      "series": "大關U系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXV50UVLT",
+      "cap": 5.0,
+      "series": "大關U系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXV60UVLT",
+      "cap": 6.0,
+      "series": "大關U系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXV71UVLT",
+      "cap": 7.2,
+      "series": "大關U系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXV22ZVLT",
+      "cap": 2.2,
+      "series": "大關Z系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXV28ZVLT",
+      "cap": 2.8,
+      "series": "大關Z系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXV36ZVLT",
+      "cap": 3.5,
+      "series": "大關Z系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXV41ZVLT",
+      "cap": 4.1,
+      "series": "大關Z系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXV50ZVLT",
+      "cap": 5.0,
+      "series": "大關Z系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXV60ZVLT",
+      "cap": 6.0,
+      "series": "大關Z系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXV71ZVLT",
+      "cap": 7.2,
+      "series": "大關Z系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTHF20VAVLT",
+      "cap": 2.2,
+      "series": "經典VA系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTHF25VAVLT",
+      "cap": 2.5,
+      "series": "經典VA系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTHF30VAVLT",
+      "cap": 3.0,
+      "series": "經典VA系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTHF40VVLT",
+      "cap": 4.0,
+      "series": "經典VA系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTHF50VVLT",
+      "cap": 5.0,
+      "series": "經典VA系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTHF60VVLT",
+      "cap": 6.0,
+      "series": "經典VA系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTHF71VVLT",
+      "cap": 7.2,
+      "series": "經典VA系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTHF20ZVLT",
+      "cap": 2.2,
+      "series": "豪菁Z系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTHF25ZVLT",
+      "cap": 2.5,
+      "series": "豪菁Z系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTHF30ZVLT",
+      "cap": 3.0,
+      "series": "豪菁Z系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTHF40ZVLT",
+      "cap": 4.1,
+      "series": "豪菁Z系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTHF50ZVLT",
+      "cap": 5.0,
+      "series": "豪菁Z系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTHF60ZVLT",
+      "cap": 6.0,
+      "series": "豪菁Z系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTHF71ZVLT",
+      "cap": 7.2,
+      "series": "豪菁Z系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FDXV22RVLT",
+      "cap": 2.2,
+      "series": "隱藏風管系列",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FDXV28RVLT",
+      "cap": 2.8,
+      "series": "隱藏風管系列",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FDXV36RVLT",
+      "cap": 3.5,
+      "series": "隱藏風管系列",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FDXV41RVLT",
+      "cap": 4.1,
+      "series": "隱藏風管系列",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FDXV50RVLT",
+      "cap": 5.0,
+      "series": "隱藏風管系列",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FDXV60RVLT",
+      "cap": 6.0,
+      "series": "隱藏風管系列",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FDXV71RVLT",
+      "cap": 7.2,
+      "series": "隱藏風管系列",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FTXM22YVLT",
+      "cap": 2.2,
+      "series": "家用MULTI系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXM28YVLT",
+      "cap": 2.8,
+      "series": "家用MULTI系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXM36YVLT",
+      "cap": 3.6,
+      "series": "家用MULTI系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXM41YVLT",
+      "cap": 4.1,
+      "series": "家用MULTI系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXM50YVLT",
+      "cap": 5.0,
+      "series": "家用MULTI系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXM60YVLT",
+      "cap": 6.0,
+      "series": "家用MULTI系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXM71TVLT",
+      "cap": 7.1,
+      "series": "家用MULTI系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXM80RVLT",
+      "cap": 8.0,
+      "series": "家用MULTI系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXM90RVLT",
+      "cap": 9.0,
+      "series": "家用MULTI系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FDXV22RVLT",
+      "cap": 2.2,
+      "series": "家用MULTI系列",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FDXV28RVLT",
+      "cap": 2.8,
+      "series": "家用MULTI系列",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FDXV36RVLT",
+      "cap": 3.6,
+      "series": "家用MULTI系列",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FDXV41RVLT",
+      "cap": 4.1,
+      "series": "家用MULTI系列",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FDXV50RVLT",
+      "cap": 5.0,
+      "series": "家用MULTI系列",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FDXV60RVLT",
+      "cap": 6.0,
+      "series": "家用MULTI系列",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FDXV71RVLT",
+      "cap": 7.1,
+      "series": "家用MULTI系列",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FTHF20ZVLT",
+      "cap": 2.2,
+      "series": "SUPER MULTI系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTHF25ZVLT",
+      "cap": 2.5,
+      "series": "SUPER MULTI系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTHF30ZVLT",
+      "cap": 3.0,
+      "series": "SUPER MULTI系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTHF40VVLT",
+      "cap": 4.1,
+      "series": "SUPER MULTI系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTHF50VVLT",
+      "cap": 5.0,
+      "series": "SUPER MULTI系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTHF60VVLT",
+      "cap": 6.0,
+      "series": "SUPER MULTI系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTHF71VVLT",
+      "cap": 7.2,
+      "series": "SUPER MULTI系列",
+      "unit_type": "壁掛式"
+    }
   ],
-  SA: [
-    { model: "FBA71BVLT", cap: 7.2 }, { model: "FBA100BVLT", cap: 10.1 },
-    { model: "FBA125BVLT", cap: 12.5 }, { model: "FBA140BVLT", cap: 13.3 }
+  "SA": [
+    {
+      "model": "FAA71XVLT",
+      "cap": 7.2,
+      "series": "商用冷專系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FAA100XVLT",
+      "cap": 9.5,
+      "series": "商用冷專系列",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FCA71DVLT",
+      "cap": 7.2,
+      "series": "商用冷專系列",
+      "unit_type": "全方吹"
+    },
+    {
+      "model": "FCA71CVLT",
+      "cap": 7.2,
+      "series": "商用冷專系列",
+      "unit_type": "全方吹"
+    },
+    {
+      "model": "FCA100CVLT",
+      "cap": 10.1,
+      "series": "商用冷專系列",
+      "unit_type": "全方吹"
+    },
+    {
+      "model": "FCA125CVLT",
+      "cap": 12.5,
+      "series": "商用冷專系列",
+      "unit_type": "全方吹"
+    },
+    {
+      "model": "FCA140CVLT",
+      "cap": 14.0,
+      "series": "商用冷專系列",
+      "unit_type": "全方吹"
+    },
+    {
+      "model": "FCA140DVLT",
+      "cap": 14.0,
+      "series": "商用冷專系列",
+      "unit_type": "全方吹"
+    },
+    {
+      "model": "FCA140CVLT",
+      "cap": 14.0,
+      "series": "商用冷專系列",
+      "unit_type": "全方吹"
+    },
+    {
+      "model": "FBA71BVLT",
+      "cap": 7.2,
+      "series": "商用冷專系列",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FBA100BVLT",
+      "cap": 10.1,
+      "series": "商用冷專系列",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FBA125BVLT",
+      "cap": 12.5,
+      "series": "商用冷專系列",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FBA140BVLT",
+      "cap": 13.3,
+      "series": "商用冷專系列",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FBA140BVLT",
+      "cap": 13.3,
+      "series": "商用冷專系列",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FBA140BVLT",
+      "cap": 13.3,
+      "series": "商用冷專系列",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FCA71DVLT",
+      "cap": 7.2,
+      "series": "商用冷暖系列",
+      "unit_type": "全方吹"
+    },
+    {
+      "model": "FCA100CVLT",
+      "cap": 10.4,
+      "series": "商用冷暖系列",
+      "unit_type": "全方吹"
+    },
+    {
+      "model": "FCA125CVLT",
+      "cap": 12.5,
+      "series": "商用冷暖系列",
+      "unit_type": "全方吹"
+    },
+    {
+      "model": "FCA140CVLT",
+      "cap": 14.0,
+      "series": "商用冷暖系列",
+      "unit_type": "全方吹"
+    },
+    {
+      "model": "FCA140DVLT",
+      "cap": 14.0,
+      "series": "商用冷暖系列",
+      "unit_type": "全方吹"
+    },
+    {
+      "model": "FCA140CVLT",
+      "cap": 14.0,
+      "series": "商用冷暖系列",
+      "unit_type": "全方吹"
+    },
+    {
+      "model": "FBA71BVLT",
+      "cap": 7.2,
+      "series": "商用冷暖系列",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FBA100BVLT",
+      "cap": 10.1,
+      "series": "商用冷暖系列",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FBA125BVLT",
+      "cap": 12.5,
+      "series": "商用冷暖系列",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FBA140BVLT",
+      "cap": 13.3,
+      "series": "商用冷暖系列",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FBA140BVLT",
+      "cap": 13.3,
+      "series": "商用冷暖系列",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FBA140BVLT",
+      "cap": 13.3,
+      "series": "商用冷暖系列",
+      "unit_type": "吊隱式"
+    }
   ],
-  VRV: [
-    { model: "FXSQ20PAVT", cap: 2.2 }, { model: "FXSQ25PAVT", cap: 2.8 },
-    { model: "FXSQ32PAVT", cap: 3.6 }, { model: "FXSQ40PAVT", cap: 4.5 },
-    { model: "FXSQ50PAVT", cap: 5.6 }, { model: "FXSQ63PAVT", cap: 7.1 },
-    { model: "FXSQ80PAVT", cap: 9.0 }, { model: "FXSQ100PAVT", cap: 11.2 },
-    { model: "FXSQ125PAVT", cap: 14.0 }, { model: "FXSQ140PAVT", cap: 16.0 }
+  "VRV": [
+    {
+      "model": "FXDQ20PDNVT",
+      "cap": 2.2,
+      "series": "低靜壓(無排水泵)",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXDQ25PDNVT",
+      "cap": 2.8,
+      "series": "低靜壓(無排水泵)",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXDQ32PDNVT",
+      "cap": 3.6,
+      "series": "低靜壓(無排水泵)",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXDQ40NDNVT",
+      "cap": 4.5,
+      "series": "低靜壓(無排水泵)",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXDQ50NDNVT",
+      "cap": 5.6,
+      "series": "低靜壓(無排水泵)",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXDQ63NDNVT",
+      "cap": 7.1,
+      "series": "低靜壓(無排水泵)",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXDQ20PDVT",
+      "cap": 2.2,
+      "series": "低靜壓(有排水泵)",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXDQ25PDVT",
+      "cap": 2.8,
+      "series": "低靜壓(有排水泵)",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXDQ32PDVT",
+      "cap": 3.6,
+      "series": "低靜壓(有排水泵)",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXDQ40NDVT",
+      "cap": 4.5,
+      "series": "低靜壓(有排水泵)",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXDQ50NDVT",
+      "cap": 5.6,
+      "series": "低靜壓(有排水泵)",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXDQ63NDVT",
+      "cap": 7.1,
+      "series": "低靜壓(有排水泵)",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXSQ20PAVT",
+      "cap": 2.2,
+      "series": "中靜壓",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXSQ25PAVT",
+      "cap": 2.8,
+      "series": "中靜壓",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXSQ32PAVT",
+      "cap": 3.6,
+      "series": "中靜壓",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXSQ40PAVT",
+      "cap": 4.5,
+      "series": "中靜壓",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXSQ50PAVT",
+      "cap": 5.6,
+      "series": "中靜壓",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXSQ63PAVT",
+      "cap": 7.1,
+      "series": "中靜壓",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXSQ80PAVT",
+      "cap": 9.0,
+      "series": "中靜壓",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXSQ100PAVT",
+      "cap": 11.2,
+      "series": "中靜壓",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXSQ125PAVT",
+      "cap": 14.0,
+      "series": "中靜壓",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXSQ140PAVT",
+      "cap": 16.0,
+      "series": "中靜壓",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXMQ20PAVT",
+      "cap": 2.2,
+      "series": "中高靜壓",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXMQ25PAVT",
+      "cap": 2.8,
+      "series": "中高靜壓",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXMQ32PAVT",
+      "cap": 3.6,
+      "series": "中高靜壓",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXMQ40PAVT",
+      "cap": 4.5,
+      "series": "中高靜壓",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXMQ50PAVT",
+      "cap": 5.6,
+      "series": "中高靜壓",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXMQ63PAVT",
+      "cap": 7.1,
+      "series": "中高靜壓",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXMQ80PAVT",
+      "cap": 9.0,
+      "series": "中高靜壓",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXMQ100PAVT",
+      "cap": 11.2,
+      "series": "中高靜壓",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXMQ125PAVT",
+      "cap": 14.0,
+      "series": "中高靜壓",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXMQ140PAVT",
+      "cap": 16.0,
+      "series": "中高靜壓",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXMQ200MVET",
+      "cap": 22.4,
+      "series": "高靜壓",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXMQ250MVET",
+      "cap": 28.0,
+      "series": "高靜壓",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXMQ200PVMT",
+      "cap": 22.4,
+      "series": "高靜壓(DC)",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXMQ250PVMT",
+      "cap": 28.0,
+      "series": "高靜壓(DC)",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXMQ48MFVJU",
+      "cap": 14.0,
+      "series": "外氣處理(出風溫度控制)",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXMQ72MFVJU",
+      "cap": 22.4,
+      "series": "外氣處理(出風溫度控制)",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXMQ96MFVJU",
+      "cap": 28.0,
+      "series": "外氣處理(出風溫度控制)",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXMQ80AFVLT",
+      "cap": 9.0,
+      "series": "外氣處理(回風溫度控制)",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXMQ140AFVLT",
+      "cap": 16.0,
+      "series": "外氣處理(回風溫度控制)",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXMQ200AFVLT",
+      "cap": 22.4,
+      "series": "外氣處理(回風溫度控制)",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXMQ250AFVLT",
+      "cap": 28.0,
+      "series": "外氣處理(回風溫度控制)",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXPQ25AVN",
+      "cap": 2.8,
+      "series": "單點式空調",
+      "unit_type": "單點式"
+    },
+    {
+      "model": "FXFQ25BVT",
+      "cap": 2.8,
+      "series": "全方吹(一般型)",
+      "unit_type": "嵌入式"
+    },
+    {
+      "model": "FXFQ32BVT",
+      "cap": 3.6,
+      "series": "全方吹(一般型)",
+      "unit_type": "嵌入式"
+    },
+    {
+      "model": "FXFQ40BVT",
+      "cap": 4.5,
+      "series": "全方吹(一般型)",
+      "unit_type": "嵌入式"
+    },
+    {
+      "model": "FXFQ50BVT",
+      "cap": 5.6,
+      "series": "全方吹(一般型)",
+      "unit_type": "嵌入式"
+    },
+    {
+      "model": "FXFQ63BVT",
+      "cap": 7.1,
+      "series": "全方吹(一般型)",
+      "unit_type": "嵌入式"
+    },
+    {
+      "model": "FXFQ80BVT",
+      "cap": 9.0,
+      "series": "全方吹(一般型)",
+      "unit_type": "嵌入式"
+    },
+    {
+      "model": "FXFQ100BVT",
+      "cap": 11.2,
+      "series": "全方吹(一般型)",
+      "unit_type": "嵌入式"
+    },
+    {
+      "model": "FXFQ125BVT",
+      "cap": 14.0,
+      "series": "全方吹(一般型)",
+      "unit_type": "嵌入式"
+    },
+    {
+      "model": "FXFQ140BVT",
+      "cap": 16.0,
+      "series": "全方吹(一般型)",
+      "unit_type": "嵌入式"
+    },
+    {
+      "model": "FXFSQ25BVT",
+      "cap": 2.8,
+      "series": "全方吹(智慧感應型)",
+      "unit_type": "嵌入式"
+    },
+    {
+      "model": "FXFSQ32BVT",
+      "cap": 3.6,
+      "series": "全方吹(智慧感應型)",
+      "unit_type": "嵌入式"
+    },
+    {
+      "model": "FXFSQ40BVT",
+      "cap": 4.5,
+      "series": "全方吹(智慧感應型)",
+      "unit_type": "嵌入式"
+    },
+    {
+      "model": "FXFSQ50BVT",
+      "cap": 5.6,
+      "series": "全方吹(智慧感應型)",
+      "unit_type": "嵌入式"
+    },
+    {
+      "model": "FXFSQ63BVT",
+      "cap": 7.1,
+      "series": "全方吹(智慧感應型)",
+      "unit_type": "嵌入式"
+    },
+    {
+      "model": "FXFSQ80BVT",
+      "cap": 9.0,
+      "series": "全方吹(智慧感應型)",
+      "unit_type": "嵌入式"
+    },
+    {
+      "model": "FXFSQ100BVT",
+      "cap": 11.2,
+      "series": "全方吹(智慧感應型)",
+      "unit_type": "嵌入式"
+    },
+    {
+      "model": "FXFSQ125BVT",
+      "cap": 14.0,
+      "series": "全方吹(智慧感應型)",
+      "unit_type": "嵌入式"
+    },
+    {
+      "model": "FXFSQ140BVT",
+      "cap": 16.0,
+      "series": "全方吹(智慧感應型)",
+      "unit_type": "嵌入式"
+    },
+    {
+      "model": "FXAQ20AVLT",
+      "cap": 2.2,
+      "series": "壁掛式",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FXAQ25AVLT",
+      "cap": 2.8,
+      "series": "壁掛式",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FXAQ32AVLT",
+      "cap": 3.6,
+      "series": "壁掛式",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FXAQ40AVLT",
+      "cap": 4.5,
+      "series": "壁掛式",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FXAQ50AVLT",
+      "cap": 5.6,
+      "series": "壁掛式",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FXAQ63AVLT",
+      "cap": 7.1,
+      "series": "壁掛式",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FXHQ32MVET",
+      "cap": 3.6,
+      "series": "天吊式",
+      "unit_type": "天吊式"
+    },
+    {
+      "model": "FXHQ63MVET",
+      "cap": 7.1,
+      "series": "天吊式",
+      "unit_type": "天吊式"
+    },
+    {
+      "model": "FXHQ100MVET",
+      "cap": 11.2,
+      "series": "天吊式",
+      "unit_type": "天吊式"
+    },
+    {
+      "model": "FXVQ250NTL",
+      "cap": 28.0,
+      "series": "落地箱型機",
+      "unit_type": "箱型機"
+    },
+    {
+      "model": "FXVQ400NTL",
+      "cap": 45.0,
+      "series": "落地箱型機",
+      "unit_type": "箱型機"
+    },
+    {
+      "model": "FXVQ500NTL",
+      "cap": 56.0,
+      "series": "落地箱型機",
+      "unit_type": "箱型機"
+    },
+    {
+      "model": "FXZQ20BVLT",
+      "cap": 2.2,
+      "series": "小型四方吹",
+      "unit_type": "嵌入式"
+    },
+    {
+      "model": "FXZQ25BVLT",
+      "cap": 2.8,
+      "series": "小型四方吹",
+      "unit_type": "嵌入式"
+    },
+    {
+      "model": "FXZQ32BVLT",
+      "cap": 3.6,
+      "series": "小型四方吹",
+      "unit_type": "嵌入式"
+    },
+    {
+      "model": "FXZQ40BVLT",
+      "cap": 4.5,
+      "series": "小型四方吹",
+      "unit_type": "嵌入式"
+    },
+    {
+      "model": "FXZQ50BVLT",
+      "cap": 5.6,
+      "series": "小型四方吹",
+      "unit_type": "嵌入式"
+    },
+    {
+      "model": "FXCQ20AVT",
+      "cap": 2.2,
+      "series": "雙向氣流",
+      "unit_type": "嵌入式"
+    },
+    {
+      "model": "FXCQ25AVT",
+      "cap": 2.8,
+      "series": "雙向氣流",
+      "unit_type": "嵌入式"
+    },
+    {
+      "model": "FXCQ32AVT",
+      "cap": 3.6,
+      "series": "雙向氣流",
+      "unit_type": "嵌入式"
+    },
+    {
+      "model": "FXCQ40AVT",
+      "cap": 4.5,
+      "series": "雙向氣流",
+      "unit_type": "嵌入式"
+    },
+    {
+      "model": "FXCQ50AVT",
+      "cap": 5.6,
+      "series": "雙向氣流",
+      "unit_type": "嵌入式"
+    },
+    {
+      "model": "FXCQ63AVT",
+      "cap": 7.1,
+      "series": "雙向氣流",
+      "unit_type": "嵌入式"
+    },
+    {
+      "model": "FXCQ80AVT",
+      "cap": 9.0,
+      "series": "雙向氣流",
+      "unit_type": "嵌入式"
+    },
+    {
+      "model": "FXCQ125AVT",
+      "cap": 14.0,
+      "series": "雙向氣流",
+      "unit_type": "嵌入式"
+    },
+    {
+      "model": "FFQ25JVLT",
+      "cap": 2.5,
+      "series": "家用系列(小型多方吹)",
+      "unit_type": "嵌入式"
+    },
+    {
+      "model": "FFQ30JVLT",
+      "cap": 3.0,
+      "series": "家用系列(小型多方吹)",
+      "unit_type": "嵌入式"
+    },
+    {
+      "model": "FFQ40JVLT",
+      "cap": 4.0,
+      "series": "家用系列(小型多方吹)",
+      "unit_type": "嵌入式"
+    },
+    {
+      "model": "FFQ50JVLT",
+      "cap": 5.0,
+      "series": "家用系列(小型多方吹)",
+      "unit_type": "嵌入式"
+    },
+    {
+      "model": "FFQ60JVLT",
+      "cap": 6.0,
+      "series": "家用系列(小型多方吹)",
+      "unit_type": "嵌入式"
+    },
+    {
+      "model": "CDXS25EAVMT",
+      "cap": 2.5,
+      "series": "家用系列(吊隱式)",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "CDXS30JVLT",
+      "cap": 3.0,
+      "series": "家用系列(吊隱式)",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "CDXS40JVLT",
+      "cap": 4.0,
+      "series": "家用系列(吊隱式)",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "CDXS50DVMT",
+      "cap": 5.0,
+      "series": "家用系列(吊隱式)",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "CDXS60DVMT",
+      "cap": 6.0,
+      "series": "家用系列(吊隱式)",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FTXS20KVLT",
+      "cap": 2.0,
+      "series": "家用系列(壁掛式)",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXS25KVLT",
+      "cap": 2.5,
+      "series": "家用系列(壁掛式)",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "CTXS30KVLT",
+      "cap": 3.0,
+      "series": "家用系列(壁掛式)",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXS40JVLT",
+      "cap": 4.0,
+      "series": "家用系列(壁掛式)",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "CTXS50JVLT",
+      "cap": 5.0,
+      "series": "家用系列(壁掛式)",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "CTXS60JVLT",
+      "cap": 6.0,
+      "series": "家用系列(壁掛式)",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "CTXS70JVLT",
+      "cap": 7.0,
+      "series": "家用系列(壁掛式)",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXJ25NVLTW",
+      "cap": 2.5,
+      "series": "家用系列(歐風壁掛式)",
+      "unit_type": "壁掛式"
+    },
+    {
+      "model": "FTXJ41NVLTW",
+      "cap": 4.1,
+      "series": "家用系列(歐風壁掛式)",
+      "unit_type": "壁掛式"
+    }
   ]
 };
 
@@ -41,10 +1326,19 @@ const OVERLAY_COLORS = [
 // 🎯 100% 精確中心熱點標定 (16 16) 十字游標：確保滑鼠點擊基準點必為十字正中心 (含中心白點標靶)
 const CROSSHAIR_CURSOR_STYLE = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'><line x1='16' y1='0' x2='16' y2='32' stroke='%23ef4444' stroke-width='2'/><line x1='0' y1='16' x2='32' y2='16' stroke='%23ef4444' stroke-width='2'/><circle cx='16' cy='16' r='3' fill='%23ffffff' stroke='%23ef4444' stroke-width='1.5'/></svg>") 16 16, crosshair`;
 
-// 🎯 安全配機演算法：改用純陣列遍歷與數學除法，100% 杜絕卡死
-const clientSideSelectEquipment = (totalDemandKcal, systemType) => {
+// 🎯 動態相容配機演算法：依據系統、系列別與室內機型式進行最佳能力單機/多機匹配 (嚴格鎖定系列別)
+const clientSideSelectEquipment = (totalDemandKcal, systemType, seriesName = null, unitTypeName = null) => {
   const totalLoadKw = totalDemandKcal / 860.0;
-  const modelsList = EQUIPMENT_DB[systemType] || EQUIPMENT_DB["VRV"];
+  let modelsList = EQUIPMENT_DB[systemType] || EQUIPMENT_DB["VRV"];
+
+  if (seriesName) {
+    const seriesFiltered = modelsList.filter(m => m.series === seriesName);
+    if (seriesFiltered.length > 0) modelsList = seriesFiltered;
+  }
+  if (unitTypeName) {
+    const unitFiltered = modelsList.filter(m => m.unit_type === unitTypeName);
+    if (unitFiltered.length > 0) modelsList = unitFiltered;
+  }
 
   let bestModel = null;
   let bestQty = 999;
@@ -52,7 +1346,7 @@ const clientSideSelectEquipment = (totalDemandKcal, systemType) => {
 
   for (let i = 0; i < modelsList.length; i++) {
     const singleCap = modelsList[i].cap;
-    for (let qty = 1; qty <= 10; qty++) {
+    for (let qty = 1; qty <= 100; qty++) {
       const totalCap = singleCap * qty;
       if (totalCap >= totalLoadKw) {
         if (qty < bestQty) {
@@ -76,10 +1370,49 @@ const clientSideSelectEquipment = (totalDemandKcal, systemType) => {
     return { model: bestModel, qty: bestQty, cap: bestCap };
   }
 
+  // 🎯 絕對限制在已知過濾系列別陣列 (modelsList) 中最大能力機型，以台數擴充，絕不跳至其它系列型號
   const maxItem = modelsList[modelsList.length - 1];
-  let neededQty = Math.round((totalLoadKw / maxItem.cap) + 0.5);
+  let neededQty = Math.ceil(totalLoadKw / maxItem.cap);
   if (neededQty <= 0) neededQty = 1;
   return { model: maxItem.model, qty: neededQty, cap: maxItem.cap };
+};
+
+// 🎯 細緻選機模式專用：限制下拉選單僅呈現系列別內容量落在估算需求 ±20% 範圍內的對應機型
+const getFilteredModelsForDetailMode = (systemType, seriesName, totalDemandKcal) => {
+  const curSys = systemType || 'VRV';
+  let allModels = EQUIPMENT_DB[curSys] || [];
+
+  if (seriesName) {
+    const seriesFiltered = allModels.filter(m => m.series === seriesName);
+    if (seriesFiltered.length > 0) allModels = seriesFiltered;
+  }
+
+  if (allModels.length === 0) return [];
+
+  const targetKw = (totalDemandKcal || 0) / 860.0;
+  if (targetKw <= 0) return Array.from(new Set(allModels.map(m => m.model)));
+
+  const minKw = targetKw * 0.8;
+  const maxKw = targetKw * 1.2;
+
+  // 過濾單機或多機組合容量落在 targetKw ±20% 範圍內的候選機型
+  const filtered = allModels.filter(m => {
+    const singleCap = m.cap;
+    if (singleCap >= minKw && singleCap <= maxKw) return true;
+    for (let qty = 2; qty <= 5; qty++) {
+      const tot = singleCap * qty;
+      if (tot >= minKw && tot <= maxKw) return true;
+    }
+    return false;
+  });
+
+  if (filtered.length > 0) {
+    return Array.from(new Set(filtered.map(m => m.model)));
+  }
+
+  // 備用防護：若無落在 ±20% 者，排序最接近容量的該系列候選機型
+  const sorted = [...allModels].sort((a, b) => Math.abs(a.cap - targetKw) - Math.abs(b.cap - targetKw));
+  return Array.from(new Set(sorted.map(m => m.model)));
 };
 
 const lookupModelCapKw = (modelName) => {
@@ -186,6 +1519,13 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
   const [showColoredMasks, setShowColoredMasks] = useState(false);
+
+  // 🎯 快速選機 vs 細緻選機 模式切換與全域控制 State
+  const [selectionMode, setSelectionMode] = useState('fast'); // 'fast' | 'detail'
+  const [fastSystem, setFastSystem] = useState('VRV'); // 'RA', 'SA', 'VRV'
+  const [fastUnitType, setFastUnitType] = useState('壁掛式'); // '壁掛式', '吊隱式', '嵌入式', '單點式', '天吊式', '箱型機'
+  const [fastSeries, setFastSeries] = useState('橫綱Y系列');
+  const [fastOutdoorType, setFastOutdoorType] = useState('側吹雙風扇'); // '側吹單風扇', '側吹雙風扇', '上吹'
   const handleBucketFillAtPoint = (normX, normY) => {
     try {
       const imgEl = modalImgRef.current || imgRef.current;
@@ -1230,12 +2570,37 @@ function App() {
 
     row.total_cooling_demand = newDemand;
 
-    if (field !== 'best_match_model' && field !== 'unit_count') {
-      const { model, qty, cap } = clientSideSelectEquipment(newDemand, row.system_type);
+    if (field === 'system_type') {
+      row.system_type = value;
+      const sysCascade = (window.DYNAMIC_EQUIPMENT_CASCADE && window.DYNAMIC_EQUIPMENT_CASCADE[value]) || [];
+      const defaultSeries = sysCascade[0]?.series || '低靜壓(無排水泵)';
+      const defaultType = sysCascade[0]?.types[0] || '吊隱式';
+      row.series = defaultSeries;
+      row.unit_type = defaultType;
+      const { model, qty, cap } = clientSideSelectEquipment(newDemand, value, defaultSeries, defaultType);
+      row.best_match_model = model;
+      row.unit_count = qty;
+      row.cap_kw = cap || lookupModelCapKw(model);
+    } else if (field === 'series') {
+      row.series = value;
+      const curSys = row.system_type || 'VRV';
+      const sysCascade = (window.DYNAMIC_EQUIPMENT_CASCADE && window.DYNAMIC_EQUIPMENT_CASCADE[curSys]) || [];
+      const serObj = sysCascade.find(s => s.series === value);
+      row.unit_type = serObj?.types[0] || '吊隱式';
+      const { model, qty, cap } = clientSideSelectEquipment(newDemand, curSys, value, row.unit_type);
+      row.best_match_model = model;
+      row.unit_count = qty;
+      row.cap_kw = cap || lookupModelCapKw(model);
+    } else if (field !== 'best_match_model' && field !== 'unit_count') {
+      const curSys = selectionMode === 'fast' ? fastSystem : (row.system_type || 'VRV');
+      const curSeries = selectionMode === 'fast' ? fastSeries : row.series;
+      const curUnitType = selectionMode === 'fast' ? fastUnitType : row.unit_type;
+      const { model, qty, cap } = clientSideSelectEquipment(newDemand, curSys, curSeries, curUnitType);
       row.best_match_model = model;
       row.unit_count = qty;
       row.cap_kw = cap || lookupModelCapKw(model);
     } else if (field === 'best_match_model') {
+      row.best_match_model = value;
       row.cap_kw = lookupModelCapKw(value);
     }
 
@@ -1488,6 +2853,11 @@ function App() {
         const actualKwPerPing = ping > 0 ? parseFloat((singleCapKw / ping).toFixed(1)) : 0;
         const pingPerUsrt = (qty * singleCapKw > 0) ? parseFloat((ping / ((qty * singleCapKw) / 3.516)).toFixed(1)) : 0;
 
+        const nominalCap = row.nominal_cap || "-";
+        const powerSupply = row.power_supply || "-";
+        const powerConsumption = row.power_consumption_kw || "-";
+        const dimensions = row.dimensions || "-";
+
         const excelRow = ws.getRow(rowIdx);
         excelRow.getCell(1).value = "2F";                                    // Col A: 樓層
         excelRow.getCell(4).value = displayName;                             // Col D: 室名 (空間名稱)
@@ -1497,10 +2867,14 @@ function App() {
         excelRow.getCell(11).value = kwPerPing;                               // Col K: (kW/坪)
         excelRow.getCell(12).value = demandKw;                                // Col L: 總熱負荷 (kW)
         excelRow.getCell(13).value = demandKcal;                              // Col M: 總熱負荷 (kcal/hr)
-        excelRow.getCell(14).value = modelStr;                                // Col N: 大金室內機型號
+        excelRow.getCell(14).value = modelStr;                                // Col N: 室內機型號
         excelRow.getCell(15).value = qty;                                     // Col O: 室內機台數
         excelRow.getCell(16).value = singleCapKcal;                           // Col P: 冷房能力 (kcal/hr)
-        excelRow.getCell(17).value = singleCapKw;                             // Col Q: 冷房能力標稱 (kW)
+        excelRow.getCell(17).value = singleCapKw;                             // Col Q: 冷房能力 (kW)
+        excelRow.getCell(18).value = nominalCap;                              // Col R: 標稱能力 / 能力指數
+        excelRow.getCell(19).value = powerSupply;                             // Col S: 供應電源
+        excelRow.getCell(20).value = powerConsumption;                        // Col T: 單台耗電量 kW
+        excelRow.getCell(22).value = dimensions;                              // Col V: 尺寸 mm (H×W×D)
         excelRow.getCell(23).value = totalCapKcal;                           // Col W: 室內冷房總能力 (kcal/hr)
         excelRow.getCell(24).value = totalCapKw;                             // Col X: 室內冷房總能力 (kW)
         excelRow.getCell(28).value = actualKcalPerPing;                       // Col AB
@@ -2180,7 +3554,6 @@ function App() {
                       </g>
                     );
                   })}
-
                   {/* 🎯 即時渲染正在按住拖曳的矩形框 */}
                   {isRectDrawing && rectStart && rectCurrent && (
                     <g key="active_rect">
@@ -2249,7 +3622,288 @@ function App() {
         </section>
 
         <section style={styles.card}>
-          <div style={styles.cardTitle}>📈 工程負荷試算與大金配機建議表</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <div style={styles.cardTitle}>📈 工程負荷試算與大金配機建議表</div>
+              
+              {/* 🎯 切換按鈕：快速選機 vs 細緻選機 */}
+              <div style={{ display: 'flex', backgroundColor: '#0f172a', borderRadius: '8px', padding: '3px', border: '1px solid #334155' }}>
+                <button
+                  type="button"
+                  onClick={() => setSelectionMode('fast')}
+                  style={{
+                    padding: '5px 14px',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    fontWeight: 'bold',
+                    border: 'none',
+                    cursor: 'pointer',
+                    backgroundColor: selectionMode === 'fast' ? '#3b82f6' : 'transparent',
+                    color: selectionMode === 'fast' ? '#ffffff' : '#94a3b8',
+                    transition: 'all 0.2s ease',
+                    boxShadow: selectionMode === 'fast' ? '0 2px 8px rgba(59, 130, 246, 0.4)' : 'none'
+                  }}
+                >
+                  ⚡ 快速選機
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectionMode('detail')}
+                  style={{
+                    padding: '5px 14px',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    fontWeight: 'bold',
+                    border: 'none',
+                    cursor: 'pointer',
+                    backgroundColor: selectionMode === 'detail' ? '#10b981' : 'transparent',
+                    color: selectionMode === 'detail' ? '#ffffff' : '#94a3b8',
+                    transition: 'all 0.2s ease',
+                    boxShadow: selectionMode === 'detail' ? '0 2px 8px rgba(16, 185, 129, 0.4)' : 'none'
+                  }}
+                >
+                  🔍 細緻選機
+                </button>
+              </div>
+            </div>
+
+            {selectionMode === 'fast' && (
+              <span style={{ fontSize: '12px', color: '#38bdf8', fontWeight: 'bold' }}>
+                💡 快速模式：統一套用全域設備規格，一鍵快速配置全案！
+              </span>
+            )}
+            {selectionMode === 'detail' && (
+              <span style={{ fontSize: '12px', color: '#34d399', fontWeight: 'bold' }}>
+                💡 細緻模式：提供每個獨立空間自由選擇專屬型號與進階配對！
+              </span>
+            )}
+          </div>
+
+          {/* 🎯 依據最新上傳之 EQUIPMENT_Data.xlsx 建立之 系統 -> 系列別 -> 室內機型式 嚴格對應表 */}
+          {(() => {
+            window.DYNAMIC_EQUIPMENT_CASCADE = {
+              RA: [
+                { series: "橫綱X系列", types: ["壁掛式"] },
+                { series: "橫綱Y系列", types: ["壁掛式"] },
+                { series: "橫綱Z系列", types: ["壁掛式"] },
+                { series: "大關U系列", types: ["壁掛式"] },
+                { series: "大關Z系列", types: ["壁掛式"] },
+                { series: "經典VA系列", types: ["壁掛式"] },
+                { series: "豪菁Z系列", types: ["壁掛式"] },
+                { series: "隱藏風管系列", types: ["吊隱式"] },
+                { series: "家用MULTI系列", types: ["壁掛式", "吊隱式"] },
+                { series: "SUPER MULTI系列", types: ["壁掛式"] }
+              ],
+              SA: [
+                { series: "商用冷專系列", types: ["壁掛式", "全方吹", "吊隱式"] },
+                { series: "商用冷暖系列", types: ["全方吹", "吊隱式"] }
+              ],
+              VRV: [
+                { series: "低靜壓(無排水泵)", types: ["吊隱式"] },
+                { series: "低靜壓(有排水泵)", types: ["吊隱式"] },
+                { series: "中靜壓", types: ["吊隱式"] },
+                { series: "中高靜壓", types: ["吊隱式"] },
+                { series: "高靜壓", types: ["吊隱式"] },
+                { series: "高靜壓(DC)", types: ["吊隱式"] },
+                { series: "外氣處理(出風溫度控制)", types: ["吊隱式"] },
+                { series: "外氣處理(回風溫度控制)", types: ["吊隱式"] },
+                { series: "單點式空調", types: ["單點式"] },
+                { series: "全方吹(一般型)", types: ["嵌入式"] },
+                { series: "全方吹(智慧感應型)", types: ["嵌入式"] },
+                { series: "壁掛式", types: ["壁掛式"] },
+                { series: "天吊式", types: ["天吊式"] },
+                { series: "落地箱型機", types: ["箱型機"] },
+                { series: "小型四方吹", types: ["嵌入式"] },
+                { series: "雙向氣流", types: ["嵌入式"] },
+                { series: "家用系列(小型多方吹)", types: ["嵌入式"] },
+                { series: "家用系列(吊隱式)", types: ["吊隱式"] },
+                { series: "家用系列(壁掛式)", types: ["壁掛式"] },
+                { series: "家用系列(歐風壁掛式)", types: ["壁掛式"] }
+              ]
+            };
+            return null;
+          })()}
+
+          {/* 🎯 當選擇「快速選機」時出現之嚴格層級連動選單面板 */}
+          {selectionMode === 'fast' && (
+            <div style={{
+              backgroundColor: '#0f172a',
+              border: '1px solid #1e293b',
+              borderRadius: '10px',
+              padding: '12px 16px',
+              marginBottom: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '20px',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
+            }}>
+              {/* 🎯 1. 系統 (RA / SA / VRV) */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '13px', color: '#94a3b8', fontWeight: 'bold' }}>系統:</span>
+                <select
+                  value={fastSystem}
+                  onChange={(e) => {
+                    const sysVal = e.target.value;
+                    setFastSystem(sysVal);
+
+                    const cascadeList = window.DYNAMIC_EQUIPMENT_CASCADE[sysVal] || [];
+                    const defaultSeries = cascadeList[0]?.series || "橫綱Y系列";
+                    const defaultTypes = cascadeList[0]?.types || ["壁掛式"];
+                    const defaultType = defaultTypes[0] || "壁掛式";
+
+                    setFastSeries(defaultSeries);
+                    setFastUnitType(defaultType);
+
+                    const isOutdoorLocked = (sysVal === 'RA' || sysVal === 'SA');
+                    const newOutdoor = isOutdoorLocked ? '側吹單風扇' : fastOutdoorType;
+                    if (isOutdoorLocked) setFastOutdoorType('側吹單風扇');
+
+                    setRows(prev => prev.map(r => {
+                      const demandKcal = r.total_cooling_demand || (r.area_ping * (r.calc_basis || 500));
+                      const autoMatch = clientSideSelectEquipment(demandKcal, sysVal, defaultSeries, defaultType);
+                      return {
+                        ...r,
+                        system_type: sysVal,
+                        series: defaultSeries,
+                        unit_type: defaultType,
+                        outdoor_type: newOutdoor,
+                        best_match_model: autoMatch.model,
+                        unit_count: autoMatch.qty,
+                        cap_kw: autoMatch.cap
+                      };
+                    }));
+                  }}
+                  style={{ backgroundColor: '#1e293b', color: '#38bdf8', border: '1px solid #334155', padding: '6px 12px', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
+                >
+                  <option value="RA">RA (家用)</option>
+                  <option value="SA">SA (商用)</option>
+                  <option value="VRV">VRV</option>
+                </select>
+              </div>
+
+              {/* 🎯 2. 系列別 (動態根據 selected System 連動，杜絕跨系統系列) */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '13px', color: '#94a3b8', fontWeight: 'bold' }}>系列別:</span>
+                <select
+                  value={fastSeries}
+                  onChange={(e) => {
+                    const seriesVal = e.target.value;
+                    setFastSeries(seriesVal);
+
+                    const cascadeList = DYNAMIC_EQUIPMENT_CASCADE[fastSystem] || [];
+                    const seriesObj = cascadeList.find(s => s.series === seriesVal);
+                    const validTypes = seriesObj?.types || ["壁掛式"];
+                    const autoType = validTypes[0] || "壁掛式";
+                    setFastUnitType(autoType);
+
+                    setRows(prev => prev.map(r => {
+                      const demandKcal = r.total_cooling_demand || (r.area_ping * (r.calc_basis || 500));
+                      const autoMatch = clientSideSelectEquipment(demandKcal, fastSystem, seriesVal, autoType);
+                      return {
+                        ...r,
+                        series: seriesVal,
+                        unit_type: autoType,
+                        best_match_model: autoMatch.model,
+                        unit_count: autoMatch.qty,
+                        cap_kw: autoMatch.cap
+                      };
+                    }));
+                  }}
+                  style={{ backgroundColor: '#1e293b', color: '#f59e0b', border: '1px solid #334155', padding: '6px 12px', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
+                >
+                  {(DYNAMIC_EQUIPMENT_CASCADE[fastSystem] || []).map((item, idx) => (
+                    <option key={idx} value={item.series}>{item.series}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 🎯 3. 室內機型式 (動態根據 selected Series 鎖定/過濾對應型式) */}
+              {(() => {
+                const cascadeList = DYNAMIC_EQUIPMENT_CASCADE[fastSystem] || [];
+                const seriesObj = cascadeList.find(s => s.series === fastSeries);
+                const validTypes = seriesObj?.types || ["壁掛式"];
+                const isLocked = validTypes.length <= 1;
+
+                return (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '13px', color: '#94a3b8', fontWeight: 'bold' }}>室內機型式:</span>
+                    <select
+                      value={validTypes.includes(fastUnitType) ? fastUnitType : validTypes[0]}
+                      disabled={isLocked}
+                      onChange={(e) => {
+                        const unitVal = e.target.value;
+                        setFastUnitType(unitVal);
+                        setRows(prev => prev.map(r => {
+                          const demandKcal = r.total_cooling_demand || (r.area_ping * (r.calc_basis || 500));
+                          const autoMatch = clientSideSelectEquipment(demandKcal, fastSystem, fastSeries, unitVal);
+                          return {
+                            ...r,
+                            unit_type: unitVal,
+                            best_match_model: autoMatch.model,
+                            unit_count: autoMatch.qty,
+                            cap_kw: autoMatch.cap
+                          };
+                        }));
+                      }}
+                      title={isLocked ? `${fastSeries} 對應型式為 ${validTypes[0]} (自動鎖定)` : "請選擇室內機型式"}
+                      style={{
+                        backgroundColor: isLocked ? '#020617' : '#1e293b',
+                        color: isLocked ? '#94a3b8' : '#34d399',
+                        border: '1px solid #334155',
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        fontSize: '13px',
+                        fontWeight: 'bold',
+                        cursor: isLocked ? 'not-allowed' : 'pointer',
+                        opacity: isLocked ? 0.75 : 1
+                      }}
+                    >
+                      {validTypes.map((t, idx) => (
+                        <option key={idx} value={t}>{t}</option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              })()}
+
+              {/* 🎯 4. 室外機型式 (RA 與 SA 均固定為 側吹單風扇 並鎖定，僅 VRV 可自由切換) */}
+              {(() => {
+                const isOutdoorLocked = (fastSystem === 'RA' || fastSystem === 'SA');
+                return (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '13px', color: '#94a3b8', fontWeight: 'bold' }}>室外機型式:</span>
+                    <select
+                      value={isOutdoorLocked ? '側吹單風扇' : fastOutdoorType}
+                      disabled={isOutdoorLocked}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setFastOutdoorType(val);
+                        setRows(prev => prev.map(r => ({ ...r, outdoor_type: val })));
+                      }}
+                      title={isOutdoorLocked ? `${fastSystem} 系統固定為側吹單風扇室外機 (自動鎖定)` : "請選擇室外機型式"}
+                      style={{
+                        backgroundColor: isOutdoorLocked ? '#020617' : '#1e293b',
+                        color: isOutdoorLocked ? '#94a3b8' : '#a855f7',
+                        border: '1px solid #334155',
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        fontSize: '13px',
+                        fontWeight: 'bold',
+                        cursor: isOutdoorLocked ? 'not-allowed' : 'pointer',
+                        opacity: isOutdoorLocked ? 0.75 : 1
+                      }}
+                    >
+                      <option value="側吹單風扇">側吹單風扇</option>
+                      <option value="側吹雙風扇">側吹雙風扇</option>
+                      <option value="上吹">上吹</option>
+                    </select>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
           <div style={{ overflowX: 'auto' }}>
             <table style={styles.table}>
               <thead>
@@ -2265,7 +3919,10 @@ function App() {
                     />
                   </th>
                   <th style={styles.th}>空間名稱</th>
-                  <th style={styles.th}>系統規格</th>
+                  {/* 🎯 僅在「細緻選機」模式下顯示表格內個案「系統規格」欄位 */}
+                  {selectionMode === 'detail' && (
+                    <th style={styles.th}>系統規格</th>
+                  )}
                   <th style={styles.th}>平方公尺(㎡)</th>
                   <th style={styles.th}>坪數(P)</th>
                   <th style={styles.th}>基準(kcal/h/坪)</th>
@@ -2273,6 +3930,10 @@ function App() {
                   <th style={styles.th}>特殊熱源</th>
                   <th style={styles.th}>總需求(kcal/h)</th>
                   <th style={{ ...styles.th, color: '#f59e0b' }}>總需求(kW)</th>
+                  {/* 🎯 僅在「細緻選機」模式下於「大金室內機型號」左側顯示「室內機系列別」欄位 */}
+                  {selectionMode === 'detail' && (
+                    <th style={{ ...styles.th, color: '#f59e0b' }}>室內機系列別</th>
+                  )}
                   <th style={styles.th}>大金室內機型號</th>
                   <th style={{ ...styles.th, color: '#38bdf8' }}>單機能力(kW)</th>
                   <th style={styles.th}>台數</th>
@@ -2281,9 +3942,9 @@ function App() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan="14" style={{ textAlign: 'center', padding: '50px', color: '#94a3b8' }}>🔄 正在啟用雙軌影像引擎分析，請稍候...</td></tr>
+                  <tr><td colSpan={selectionMode === 'detail' ? 15 : 13} style={{ textAlign: 'center', padding: '50px', color: '#94a3b8' }}>🔄 正在啟用雙軌影像引擎分析，請稍候...</td></tr>
                 ) : rows.length === 0 ? (
-                  <tr><td colSpan="14" style={{ textAlign: 'center', padding: '30px', color: '#475569' }}>暫無數據。請上傳圖面並執行解析。</td></tr>
+                  <tr><td colSpan={selectionMode === 'detail' ? 15 : 13} style={{ textAlign: 'center', padding: '30px', color: '#475569' }}>暫無數據。請上傳圖面並執行解析。</td></tr>
                 ) : (
                   rows.map((row, index) => (
                     <tr key={index} style={{ opacity: row.selected ? 1 : 0.45, transition: 'opacity 0.2s' }}>
@@ -2343,18 +4004,21 @@ function App() {
                         </div>
                       </td>
 
-                      <td style={styles.td}>
-                        <select
-                          value={row.system_type}
-                          onChange={(e) => handleCellChange(index, 'system_type', e.target.value)}
-                          style={styles.selectSys}
-                          disabled={!row.selected}
-                        >
-                          <option value="VRV">VRV</option>
-                          <option value="SA">SA (商用)</option>
-                          <option value="RA">RA (家用)</option>
-                        </select>
-                      </td>
+                      {/* 🎯 僅在「細緻選機」模式下顯示獨立「系統規格」欄位 */}
+                      {selectionMode === 'detail' && (
+                        <td style={styles.td}>
+                          <select
+                            value={row.system_type || 'VRV'}
+                            onChange={(e) => handleCellChange(index, 'system_type', e.target.value)}
+                            style={styles.selectSys}
+                            disabled={!row.selected}
+                          >
+                            <option value="VRV">VRV</option>
+                            <option value="SA">SA (商用)</option>
+                            <option value="RA">RA (家用)</option>
+                          </select>
+                        </td>
+                      )}
 
                       <td style={{ ...styles.td, color: '#a7f3d0' }}>{row.area_m2}</td>
                       <td style={{ ...styles.td, color: '#38bdf8' }}>{row.area_ping}</td>
@@ -2412,14 +4076,67 @@ function App() {
                         {(row.total_cooling_demand / 860.0).toFixed(1)} kW
                       </td>
 
+                      {/* 🎯 僅在「細緻選機」模式下於「大金室內機型號」左側顯示「系列別」欄位 (動態連動無重複) */}
+                      {selectionMode === 'detail' && (
+                        <td style={styles.td}>
+                          {(() => {
+                            const curSys = row.system_type || 'VRV';
+                            const sysCascade = (window.DYNAMIC_EQUIPMENT_CASCADE && window.DYNAMIC_EQUIPMENT_CASCADE[curSys]) || [];
+                            const validSeriesList = sysCascade.map(s => s.series);
+                            const activeSeries = validSeriesList.includes(row.series) ? row.series : (validSeriesList[0] || '中靜壓');
+
+                            return (
+                              <select
+                                value={activeSeries}
+                                onChange={(e) => handleCellChange(index, 'series', e.target.value)}
+                                style={{ backgroundColor: '#0f172a', color: '#f59e0b', border: '1px solid #334155', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+                                disabled={!row.selected}
+                              >
+                                {validSeriesList.map((sName, sIdx) => (
+                                  <option key={sIdx} value={sName}>{sName}</option>
+                                ))}
+                              </select>
+                            );
+                          })()}
+                        </td>
+                      )}
+
+                      {/* 🎯 大金室內機型號欄位 (細緻選機模式下提供 ±20% 容量動態限縮下拉選單) */}
                       <td style={styles.td}>
-                        <input
-                          type="text"
-                          value={row.best_match_model}
-                          onChange={(e) => handleCellChange(index, 'best_match_model', e.target.value)}
-                          style={styles.inputModel}
-                          disabled={!row.selected}
-                        />
+                        {selectionMode === 'detail' ? (
+                          (() => {
+                            const curSys = row.system_type || 'VRV';
+                            const curSeries = row.series;
+                            const demandKcal = row.total_cooling_demand || (row.area_ping * (row.calc_basis || 500));
+                            const filteredModelNames = getFilteredModelsForDetailMode(curSys, curSeries, demandKcal);
+                            const activeModel = filteredModelNames.includes(row.best_match_model) ? row.best_match_model : (filteredModelNames[0] || row.best_match_model);
+
+                            return (
+                              <select
+                                value={activeModel}
+                                onChange={(e) => handleCellChange(index, 'best_match_model', e.target.value)}
+                                style={{ ...styles.inputModel, backgroundColor: '#0f172a', color: '#38bdf8', border: '1px solid #38bdf8', padding: '4px 6px', cursor: 'pointer', fontWeight: 'bold' }}
+                                disabled={!row.selected}
+                                title={`已自動限縮呈現冷房需求 ±20% (${(demandKcal / 860.0).toFixed(1)} kW) 範圍內之機型`}
+                              >
+                                {filteredModelNames.map((mName, mIdx) => {
+                                  const mCap = lookupModelCapKw(mName);
+                                  return (
+                                    <option key={mIdx} value={mName}>{mName} ({mCap} kW)</option>
+                                  );
+                                })}
+                              </select>
+                            );
+                          })()
+                        ) : (
+                          <input
+                            type="text"
+                            value={row.best_match_model}
+                            onChange={(e) => handleCellChange(index, 'best_match_model', e.target.value)}
+                            style={styles.inputModel}
+                            disabled={!row.selected}
+                          />
+                        )}
                       </td>
 
                       {/* 🎯 新增 2：大金室內機型號右邊新增 單機能力(kW) 數值 (小數點一位) */}
@@ -2442,10 +4159,30 @@ function App() {
                         </div>
                       </td>
 
-                      {/* 🎯 新增 3：台數右邊新增 總冷房能力(kW) 數值 (單機能力 * 台數，小數點一位) */}
-                      <td style={{ ...styles.td, color: '#a855f7', fontWeight: 'bold' }}>
-                        {(parseFloat(row.cap_kw || lookupModelCapKw(row.best_match_model)) * parseInt(row.unit_count || 1)).toFixed(1)} kW
-                      </td>
+                      {/* 🎯 總冷房能力(kW) 數值 (當與總需求差值超過 ±10% 時，字體反紅與警示底色標記) */}
+                      {(() => {
+                        const demandKw = (row.total_cooling_demand || 0) / 860.0;
+                        const singleCap = parseFloat(row.cap_kw || lookupModelCapKw(row.best_match_model)) || 0;
+                        const qty = parseInt(row.unit_count || 1);
+                        const totalCapKw = singleCap * qty;
+                        const diffPct = demandKw > 0 ? (totalCapKw - demandKw) / demandKw : 0;
+                        const isBeyond10 = Math.abs(diffPct) > 0.10;
+
+                        return (
+                          <td
+                            style={{
+                              ...styles.td,
+                              color: isBeyond10 ? '#ef4444' : '#a855f7',
+                              fontWeight: 'bold',
+                              backgroundColor: isBeyond10 ? 'rgba(239, 68, 68, 0.15)' : 'transparent',
+                              borderRadius: isBeyond10 ? '4px' : '0'
+                            }}
+                            title={isBeyond10 ? `⚠️ 警示：選定總冷房能力 (${totalCapKw.toFixed(1)} kW) 與總需求 (${demandKw.toFixed(1)} kW) 差值超過 ±10% (目前差值: ${(diffPct * 100).toFixed(1)}%)！建議調整台數或型號` : "總冷房能力於 ±10% 合理範圍內"}
+                          >
+                            {isBeyond10 ? `⚠️ ${totalCapKw.toFixed(1)} kW` : `${totalCapKw.toFixed(1)} kW`}
+                          </td>
+                        );
+                      })()}
                     </tr>
                   ))
                 )}

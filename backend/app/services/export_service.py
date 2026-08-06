@@ -72,7 +72,12 @@ class ExportService:
                 cap_kw = float(room.get("indoor_capacity_kw", 0.0))
                 cap_kcal = float(room.get("indoor_capacity_kcal", 0.0))
                 
-                # Write to exact column mappings (from your script)
+                nominal_cap = room.get("nominal_cap", "-")
+                power_supply = room.get("power_supply", "-")
+                power_consumption_kw = room.get("power_consumption_kw", "-")
+                dimensions = room.get("dimensions", "-")
+
+                # Write to exact column mappings (N=14, O=15, P=16, Q=17, R=18, S=19, T=20, V=22)
                 ws.cell(row=row_idx, column=settings.NAME_COL).value = name
                 ws.cell(row=row_idx, column=settings.AREA_COL).value = area_m2
                 ws.cell(row=row_idx, column=settings.PING_COL).value = ping_val
@@ -84,10 +89,23 @@ class ExportService:
                 
                 ws.cell(row=row_idx, column=settings.LOAD_L_COL).value = total_load_kw
                 ws.cell(row=row_idx, column=settings.LOAD_M_COL).value = total_load_kcal           
-                ws.cell(row=row_idx, column=settings.MODEL_N_COL).value = matched_model            
-                ws.cell(row=row_idx, column=settings.QTY_O_COL).value = qty                        
-                ws.cell(row=row_idx, column=settings.CAP_KCAL_P_COL).value = cap_kcal
-                ws.cell(row=row_idx, column=settings.CAP_KW_Q_COL).value = cap_kw
+                
+                # 🎯 N 欄 (14): 室內機型號
+                ws.cell(row=row_idx, column=14).value = matched_model            
+                # 🎯 O 欄 (15): 室內機台數
+                ws.cell(row=row_idx, column=15).value = qty                        
+                # 🎯 P 欄 (16): 冷房能力 kcal/hr (kW * 860)
+                ws.cell(row=row_idx, column=16).value = cap_kcal
+                # 🎯 Q 欄 (17): 冷房能力 kW
+                ws.cell(row=row_idx, column=17).value = cap_kw
+                # 🎯 R 欄 (18): 標稱能力 / 能力指數
+                ws.cell(row=row_idx, column=18).value = nominal_cap
+                # 🎯 S 欄 (19): 供應電源
+                ws.cell(row=row_idx, column=19).value = power_supply
+                # 🎯 T 欄 (20): 單台耗電量 kW
+                ws.cell(row=row_idx, column=20).value = power_consumption_kw
+                # 🎯 V 欄 (22): 尺寸 mm (H×W×D)
+                ws.cell(row=row_idx, column=22).value = dimensions
                 
                 ws.cell(row=row_idx, column=settings.TOTAL_KCAL_W_COL).value = float(qty * cap_kcal)
                 ws.cell(row=row_idx, column=settings.TOTAL_KW_X_COL).value = float(qty * cap_kw)
