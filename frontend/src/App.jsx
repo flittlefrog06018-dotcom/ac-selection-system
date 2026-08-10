@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import * as XLSX from 'xlsx';
@@ -1415,6 +1415,31 @@ const getFilteredModelsForDetailMode = (systemType, seriesName, totalDemandKcal)
   return Array.from(new Set(sorted.map(m => m.model)));
 };
 
+const getDynamicModelCandidates = (demandKw, system, series, unitType) => {
+  const sysKey = system || 'VRV';
+  const allModels = EQUIPMENT_DB[sysKey] || EQUIPMENT_DB['VRV'] || [];
+  let filtered = allModels;
+
+  if (series) {
+    filtered = filtered.filter(m => m.series === series);
+  }
+  if (unitType) {
+    filtered = filtered.filter(m => m.unit_type === unitType);
+  }
+  if (filtered.length === 0) {
+    filtered = allModels;
+  }
+
+  const kw = demandKw || 2.2;
+  const minKw = kw * 0.8;
+  const maxKw = kw * 1.2;
+  const inRange = filtered.filter(m => m.cap >= minKw && m.cap <= maxKw);
+  const result = inRange.length > 0 ? inRange : filtered;
+  const sorted = [...result].sort((a, b) => a.cap - b.cap);
+
+  return sorted.map(m => m.model);
+};
+
 const lookupModelCapKw = (modelName) => {
   if (!modelName) return 0.0;
   const allModels = [
@@ -1520,12 +1545,294 @@ function App() {
   const [exportLoading, setExportLoading] = useState(false);
   const [showColoredMasks, setShowColoredMasks] = useState(false);
 
-  // 🎯 快速選機 vs 細緻選機 模式切換與全域控制 State
+  // 🎯 快速選機 vs 細緻選機 模式切換與全域控制 State (一開始預設皆為空白)
   const [selectionMode, setSelectionMode] = useState('fast'); // 'fast' | 'detail'
-  const [fastSystem, setFastSystem] = useState('VRV'); // 'RA', 'SA', 'VRV'
-  const [fastUnitType, setFastUnitType] = useState('壁掛式'); // '壁掛式', '吊隱式', '嵌入式', '單點式', '天吊式', '箱型機'
-  const [fastSeries, setFastSeries] = useState('橫綱Y系列');
-  const [fastOutdoorType, setFastOutdoorType] = useState('側吹雙風扇'); // '側吹單風扇', '側吹雙風扇', '上吹'
+  const [fastSystem, setFastSystem] = useState(''); // 'RA', 'SA', 'VRV'
+  const [fastUnitType, setFastUnitType] = useState(''); // 一開始室內機型式保持空白
+  const [fastSeries, setFastSeries] = useState(''); // 一開始系列別保持空白
+  const [fastOutdoorType, setFastOutdoorType] = useState(''); // 一開始室外機型式保持空白
+  const [fastOutdoorPower, setFastOutdoorPower] = useState(''); // 一開始室外機電源保持空白
+
+  // 🎯 室外機智慧配對與分組 UI State & 數據庫
+  const [outdoorGroups, setOutdoorGroups] = useState([]);
+  const [contextMenu, setContextMenu] = useState({ show: false, x: 0, y: 0, targetRowIndex: null });
+
+  useEffect(() => {
+    const handleGlobalClick = () => setContextMenu(prev => prev.show ? { ...prev, show: false } : prev);
+    window.addEventListener('click', handleGlobalClick);
+    return () => window.removeEventListener('click', handleGlobalClick);
+  }, []);
+
+  const rowsRef = useRef(rows);
+  useEffect(() => {
+    rowsRef.current = rows;
+  }, [rows]);
+
+  useEffect(() => {
+    const handleKeyUp = (e) => {
+      if (e.key === 'Control' || e.key === 'Meta') {
+        const currentRows = rowsRef.current || [];
+        const selectedCount = currentRows.filter(r => r.selected).length;
+        if (selectedCount >= 1) {
+          handleCreateGroupFromSelection();
+        }
+      }
+    };
+    window.addEventListener('keyup', handleKeyUp);
+    return () => window.removeEventListener('keyup', handleKeyUp);
+  }, [outdoorGroups, fastSystem, fastSeries, fastOutdoorType]);
+
+  const GROUP_COLOR_PALETTE = [
+    { name: "琥珀金", hex: "#f59e0b", bg: "rgba(245, 158, 11, 0.15)", border: "#f59e0b" },
+    { name: "天空藍", hex: "#3b82f6", bg: "rgba(59, 130, 246, 0.15)", border: "#3b82f6" },
+    { name: "翡翠綠", hex: "#10b981", bg: "rgba(16, 185, 129, 0.15)", border: "#10b981" },
+    { name: "紫羅蘭", hex: "#8b5cf6", bg: "rgba(139, 92, 246, 0.15)", border: "#8b5cf6" },
+    { name: "玫瑰紅", hex: "#f43f5e", bg: "rgba(244, 63, 94, 0.15)", border: "#f43f5e" },
+    { name: "青碧色", hex: "#14b8a6", bg: "rgba(20, 184, 166, 0.15)", border: "#14b8a6" }
+  ];
+
+  const OUTDOOR_UNITS_DB = [
+    // VRV 側吹單風扇 (1φ, 220V, 60Hz)
+    { system: "VRV", series: "VRV mini+ 系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXYCQ4BVLT", cap_kw: 11.2, cap_index: 100.0 },
+    { system: "VRV", series: "VRV mini+ 系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXYCQ5BVLT", cap_kw: 12.5, cap_index: 112.5 },
+    { system: "VRV", series: "VRV mini+ 系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXYCQ6BVLT", cap_kw: 14.0, cap_index: 125.0 },
+    { system: "VRV", series: "VRV S系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RSUYQ112AVT", cap_kw: 11.2, cap_index: 100.0 },
+    { system: "VRV", series: "VRV S系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RSUYQ125AVT", cap_kw: 12.5, cap_index: 112.5 },
+    { system: "VRV", series: "VRV S系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RSUYQ140AVT", cap_kw: 14.0, cap_index: 125.0 },
+    { system: "VRV", series: "VRV S系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RSUYQ160AVT", cap_kw: 16.0, cap_index: 150.0 },
+
+    // VRV 側吹雙風扇 (3φ, 220V, 60Hz & 3φ, 380V, 60Hz)
+    { system: "VRV", series: "VRV IV-S 系列", outdoor_type: "側吹雙風扇", power_supply: "3φ, 220V, 60Hz", model: "RXYMQ8TTLT", cap_kw: 22.4, cap_index: 200.0 },
+    { system: "VRV", series: "VRV IV-S 系列", outdoor_type: "側吹雙風扇", power_supply: "3φ, 220V, 60Hz", model: "RXYMQ10TTLT", cap_kw: 25.0, cap_index: 223.0 },
+    { system: "VRV", series: "VRV S系列", outdoor_type: "側吹雙風扇", power_supply: "3φ, 380V, 60Hz", model: "RXYMQ10ARYLT", cap_kw: 28.0, cap_index: 250.0 },
+    { system: "VRV", series: "VRV S系列", outdoor_type: "側吹雙風扇", power_supply: "3φ, 380V, 60Hz", model: "RXYMQ12ARYLT", cap_kw: 33.5, cap_index: 300.0 },
+
+    // VRV 上吹 (3φ, 380V, 60Hz)
+    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 380V, 60Hz", model: "RXYQ8AYLT", cap_kw: 22.4, cap_index: 200.0 },
+    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 380V, 60Hz", model: "RXYQ10AYLT", cap_kw: 28.0, cap_index: 250.0 },
+    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 380V, 60Hz", model: "RXYQ12AYLT", cap_kw: 33.5, cap_index: 300.0 },
+    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 380V, 60Hz", model: "RXYQ14AYLT", cap_kw: 40.0, cap_index: 350.0 },
+    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 380V, 60Hz", model: "RXYQ16AYLT", cap_kw: 45.0, cap_index: 400.0 },
+    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 380V, 60Hz", model: "RXYQ18AYLT", cap_kw: 50.0, cap_index: 450.0 },
+    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 380V, 60Hz", model: "RXYQ20AYLT", cap_kw: 56.0, cap_index: 500.0 },
+
+    // RA - 家用MULTI / SUPER MULTI 系列 (1φ, 220V, 60Hz)
+    { system: "RA", series: "家用MULTI系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "2MXM56YVLT", cap_kw: 5.6 },
+    { system: "RA", series: "家用MULTI系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "2MXM75YVLT", cap_kw: 7.2 },
+    { system: "RA", series: "家用MULTI系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "3MXM90YVLT", cap_kw: 8.5 },
+    { system: "RA", series: "家用MULTI系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "4MXM110YVLT", cap_kw: 10.5 },
+    { system: "RA", series: "SUPER MULTI系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "2MXP50ZVLT", cap_kw: 5.0 },
+    { system: "RA", series: "SUPER MULTI系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "2MXP85ZVLT", cap_kw: 8.5 },
+
+    // RA - 橫綱Z/Y, 大關X 系列 (1φ, 220V, 60Hz)
+    { system: "RA", series: "橫綱Z系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXM22ZVLT", cap_kw: 2.2 },
+    { system: "RA", series: "橫綱Z系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXM28ZVLT", cap_kw: 2.8 },
+    { system: "RA", series: "橫綱Z系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXM36ZVLT", cap_kw: 3.5 },
+    { system: "RA", series: "橫綱Z系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXM41ZVLT", cap_kw: 4.1 },
+    { system: "RA", series: "橫綱Z系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXM50ZVLT", cap_kw: 5.0 },
+    { system: "RA", series: "橫綱Z系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXM60ZVLT", cap_kw: 6.0 },
+    { system: "RA", series: "橫綱Z系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXM71ZVLT", cap_kw: 7.2 },
+    { system: "RA", series: "橫綱Z系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXM80ZVLT", cap_kw: 8.0 },
+    { system: "RA", series: "橫綱Z系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXM90ZVLT", cap_kw: 8.7 },
+
+    { system: "RA", series: "橫綱Y系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXM22YVLT", cap_kw: 2.2 },
+    { system: "RA", series: "橫綱Y系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXM28YVLT", cap_kw: 2.8 },
+    { system: "RA", series: "橫綱Y系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXM36YVLT", cap_kw: 3.5 },
+    { system: "RA", series: "橫綱Y系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXM41YVLT", cap_kw: 4.1 },
+    { system: "RA", series: "橫綱Y系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXM50YVLT", cap_kw: 5.0 },
+    { system: "RA", series: "橫綱Y系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXM60YVLT", cap_kw: 6.3 },
+    { system: "RA", series: "橫綱Y系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXM71YVLT", cap_kw: 7.2 },
+
+    { system: "RA", series: "大關X系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXV22ZVLT", cap_kw: 2.2 },
+    { system: "RA", series: "大關X系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXV28ZVLT", cap_kw: 2.8 },
+    { system: "RA", series: "大關X系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXV36ZVLT", cap_kw: 3.5 },
+    { system: "RA", series: "大關X系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXV41ZVLT", cap_kw: 4.1 },
+    { system: "RA", series: "大關X系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXV50ZVLT", cap_kw: 5.0 },
+    { system: "RA", series: "大關X系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXV60ZVLT", cap_kw: 6.0 },
+    { system: "RA", series: "大關X系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXV71ZVLT", cap_kw: 7.2 },
+
+    // SA - 商用系列 (1φ, 220V / 3φ, 220V / 3φ, 380V)
+    { system: "SA", series: "商用冷專系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RZFC71AVLT", cap_kw: 7.1 },
+    { system: "SA", series: "商用冷專系列", outdoor_type: "側吹雙風扇", power_supply: "1φ, 220V, 60Hz", model: "RZFC100AVLT", cap_kw: 10.0 },
+    { system: "SA", series: "商用冷專系列", outdoor_type: "側吹雙風扇", power_supply: "1φ, 220V, 60Hz", model: "RZFC125AVLT", cap_kw: 12.5 },
+    { system: "SA", series: "商用冷專系列", outdoor_type: "側吹雙風扇", power_supply: "3φ, 220V, 60Hz", model: "RZF100DTLT", cap_kw: 10.1 },
+    { system: "SA", series: "商用冷專系列", outdoor_type: "側吹雙風扇", power_supply: "3φ, 220V, 60Hz", model: "RZF125DTLT", cap_kw: 12.5 },
+    { system: "SA", series: "商用冷專系列", outdoor_type: "側吹雙風扇", power_supply: "3φ, 380V, 60Hz", model: "RZF100CYLT", cap_kw: 10.1 },
+    { system: "SA", series: "商用冷專系列", outdoor_type: "側吹雙風扇", power_supply: "3φ, 380V, 60Hz", model: "RZF125CYLT", cap_kw: 12.5 }
+  ];
+
+  const getOutdoorModelsForSystem = (sysType, seriesVal, outdoorTypeVal, powerSupplyVal) => {
+    const targetOutdoorType = outdoorTypeVal || fastOutdoorType;
+    const targetPower = powerSupplyVal || fastOutdoorPower;
+    let matched = OUTDOOR_UNITS_DB;
+
+    if (sysType) {
+      matched = matched.filter(m => m.system === sysType);
+    }
+    if (targetOutdoorType) {
+      const typeMatches = matched.filter(m => m.outdoor_type === targetOutdoorType);
+      if (typeMatches.length > 0) {
+        matched = typeMatches;
+      }
+    }
+    if (targetPower) {
+      const powerMatches = matched.filter(m => m.power_supply === targetPower);
+      if (powerMatches.length > 0) {
+        matched = powerMatches;
+      }
+    }
+    if (seriesVal && (seriesVal.includes('MULTI') || seriesVal.includes('多聯'))) {
+      const multiMatches = matched.filter(m => m.series.includes('MULTI') || m.model.includes('MXM') || m.model.includes('MXP'));
+      if (multiMatches.length > 0) {
+        matched = multiMatches;
+      }
+    }
+
+    return matched.length > 0 ? matched : OUTDOOR_UNITS_DB;
+  };
+
+  const autoMatchOutdoorModelForRow = (sysType, seriesVal, demandKw, outdoorTypeVal, powerSupplyVal) => {
+    const candidates = getOutdoorModelsForSystem(sysType, seriesVal, outdoorTypeVal, powerSupplyVal);
+    const sorted = [...candidates].sort((a, b) => a.cap_kw - b.cap_kw);
+    const kw = demandKw || 2.2;
+    const matched = sorted.find(m => m.cap_kw >= kw) || sorted[sorted.length - 1];
+    return matched ? matched.model : (sorted[0]?.model || '');
+  };
+
+  // 🎯 參照 EQUIPMENT_Data 數據庫計算「室內機能力指數加總」與「室外機能力指數」以精準求得連結率 (%)
+  const lookupIndoorCapIndex = (modelName) => {
+    if (!modelName) return 0.0;
+    const clean = modelName.trim();
+    const numMatch = clean.match(/(?:FXDQ|FXSQ|FTXV|FTXM|FTX|FCQ|FHA|FXYP|FXAQ|FXNQ|FXMQ|FXEQ|FXHQ)(\d{2,3})/i);
+    if (numMatch) {
+      const num = parseInt(numMatch[1]);
+      if (num === 63) return 62.5; // 🎯 原廠規範: FXDQ63 / FXSQ63 能力指數為 62.5
+      if (num === 20) return 20.0;
+      if (num === 25) return 25.0;
+      if (num === 32) return 32.5;
+      if (num === 40) return 40.0;
+      if (num === 50) return 50.0;
+      if (num === 71) return 71.0;
+      if (num === 80) return 80.0;
+      if (num === 100) return 100.0;
+      if (num === 125) return 125.0;
+      if (num === 140) return 140.0;
+      return num;
+    }
+    const kw = lookupModelCapKw(clean);
+    return kw * 10.0;
+  };
+
+  const lookupOutdoorCapIndex = (modelName) => {
+    if (!modelName) return 223.0;
+    const clean = modelName.trim();
+    const matched = OUTDOOR_UNITS_DB.find(m => m.model === clean);
+    if (matched && matched.cap_index !== undefined) {
+      return parseFloat(matched.cap_index);
+    }
+    return 223.0;
+  };
+
+  const handleTableContextMenu = (e, index) => {
+    e.preventDefault();
+    setContextMenu({
+      show: true,
+      x: e.clientX,
+      y: e.clientY,
+      targetRowIndex: index
+    });
+  };
+
+  const handleCreateGroupFromSelection = () => {
+    setContextMenu({ show: false, x: 0, y: 0, targetRowIndex: null });
+    const selectedIndices = rows.map((r, idx) => r.selected ? idx : null).filter(idx => idx !== null);
+
+    if (selectedIndices.length === 0) {
+      toast.info("💡 請先勾選表格第一欄的空間核取方塊 (Checkbox)，按滑鼠右鍵即可一鍵成立室外機系統群組！");
+      return;
+    }
+
+    const gSys = rows[selectedIndices[0]]?.system_type || fastSystem || 'VRV';
+    const gSeries = rows[selectedIndices[0]]?.series || fastSeries || '';
+    const sumKw = selectedIndices.reduce((acc, idx) => acc + (parseFloat(rows[idx]?.cap_kw || lookupModelCapKw(rows[idx]?.best_match_model)) * (rows[idx]?.unit_count || 1)), 0);
+    const outdoorList = getOutdoorModelsForSystem(gSys, gSeries);
+    const sorted = [...outdoorList].sort((a, b) => a.cap_kw - b.cap_kw);
+    const matchedOutdoor = sorted.find(m => m.cap_kw >= sumKw) || sorted[sorted.length - 1] || { model: "RXYQ10AYLT", cap_kw: 28.0 };
+
+    const colorObj = GROUP_COLOR_PALETTE[outdoorGroups.length % GROUP_COLOR_PALETTE.length];
+    const newGroupId = `group-${Date.now()}`;
+    const groupName = `系統 #${outdoorGroups.length + 1} (${gSys})`;
+
+    const newGroup = {
+      id: newGroupId,
+      name: groupName,
+      system_type: gSys,
+      outdoor_model: matchedOutdoor.model,
+      outdoor_cap_kw: matchedOutdoor.cap_kw,
+      power_supply: "1φ, 220V, 60Hz",
+      diversity_factor: 100,
+      color: colorObj,
+      space_indices: selectedIndices
+    };
+
+    // Assign outdoorGroupId to selected rows and uncheck them
+    setRows(prev => prev.map((r, idx) => {
+      if (selectedIndices.includes(idx)) {
+        return { ...r, outdoorGroupId: newGroupId, selected: false };
+      }
+      return r;
+    }));
+
+    setOutdoorGroups(prev => [...prev, newGroup]);
+    toast.success(`✨ 已建立 [${groupName}]！已為 ${selectedIndices.length} 個空間套用標記顏色：${colorObj.name}`);
+  };
+
+  const handleRemoveRowFromGroup = (rowIdx) => {
+    setContextMenu({ show: false, x: 0, y: 0, targetRowIndex: null });
+    const row = rows[rowIdx];
+    if (!row || !row.outdoorGroupId) return;
+
+    const gId = row.outdoorGroupId;
+    setRows(prev => prev.map((r, idx) => idx === rowIdx ? { ...r, outdoorGroupId: null } : r));
+
+    setOutdoorGroups(prev => prev.map(g => {
+      if (g.id === gId) {
+        return { ...g, space_indices: g.space_indices.filter(i => i !== rowIdx) };
+      }
+      return g;
+    }).filter(g => g.space_indices.length > 0));
+
+    toast.info("已解除該空間之室外機系統群組！");
+  };
+
+  const handleDiversityChange = (groupId, dfVal) => {
+    setOutdoorGroups(prev => prev.map(g => {
+      if (g.id === groupId) {
+        return { ...g, diversity_factor: dfVal };
+      }
+      return g;
+    }));
+  };
+
+  const handleOutdoorModelChange = (groupId, modelVal) => {
+    const matched = OUTDOOR_UNITS_DB.find(m => m.model === modelVal);
+    const capKw = matched ? matched.cap_kw : 10.0;
+    setOutdoorGroups(prev => prev.map(g => {
+      if (g.id === groupId) {
+        return { ...g, outdoor_model: modelVal, outdoor_cap_kw: capKw };
+      }
+      return g;
+    }));
+  };
+
+  const handleOutdoorPowerSupplyChange = (groupId, powerVal) => {
+    setOutdoorGroups(prev => prev.map(g => {
+      if (g.id === groupId) {
+        return { ...g, power_supply: powerVal };
+      }
+      return g;
+    }));
+  };
   const handleBucketFillAtPoint = (normX, normY) => {
     try {
       const imgEl = modalImgRef.current || imgRef.current;
@@ -2442,23 +2749,29 @@ function App() {
           setShowColoredMasks(true);
           const spacesList = Array.isArray(data) ? data : (data.spaces || data.data || []);
           if (spacesList.length > 0) {
+            const activeSys = selectionMode === 'fast' ? fastSystem : "VRV";
+            const activeSeries = selectionMode === 'fast' ? fastSeries : "低靜壓(無排水泵)";
+            const activeType = selectionMode === 'fast' ? fastUnitType : "吊隱式";
+
             const normalizedData = spacesList.map(item => {
               const baseKcal = item.base_suggested_load || getFuzzyBaseLoadByName(item.space_name) || 520;
               const areaM2 = item.area_m2 !== undefined ? parseFloat(item.area_m2) : 0;
               const ping = item.area_ping !== undefined ? parseFloat(item.area_ping) : Math.round(areaM2 * 0.3025 * 100) / 100;
               const initialDemand = item.total_cooling_load_kcal || Math.round(ping * baseKcal);
-              const autoMatch = clientSideSelectEquipment(initialDemand, "VRV");
+              const autoMatch = clientSideSelectEquipment(initialDemand, activeSys, activeSeries, activeType);
               return {
                 ...item,
                 area_m2: areaM2,
                 area_ping: ping,
                 selected: true,
-                system_type: "VRV",
+                system_type: activeSys,
+                series: activeSeries,
+                unit_type: activeType,
                 calc_basis: baseKcal,
                 total_cooling_demand: initialDemand,
-                best_match_model: item.recommended_model || autoMatch.model,
-                unit_count: item.qty || autoMatch.qty,
-                cap_kw: item.cap_kw || autoMatch.cap,
+                best_match_model: autoMatch.model,
+                unit_count: autoMatch.qty,
+                cap_kw: autoMatch.cap,
                 special_kw: 0,
                 modifiers: { 全內周: false, 二面牆: false, 西曬: false, 挑高: false, 頂曬: false },
                 is_matched: true
@@ -2496,18 +2809,24 @@ function App() {
         }
 
         if (dynamicTextSpaces && dynamicTextSpaces.length > 0) {
+          const activeSys = selectionMode === 'fast' ? fastSystem : "VRV";
+          const activeSeries = selectionMode === 'fast' ? fastSeries : "低靜壓(無排水泵)";
+          const activeType = selectionMode === 'fast' ? fastUnitType : "吊隱式";
+
           const normalizedData = dynamicTextSpaces.map(item => {
             const baseKcal = getFuzzyBaseLoadByName(item.space_name) || 520;
             const areaM2 = parseFloat(item.area_m2) || 0;
             const ping = parseFloat(item.area_ping) || Math.round(areaM2 * 0.3025 * 100) / 100;
             const initialDemand = Math.round(ping * baseKcal);
-            const autoMatch = clientSideSelectEquipment(initialDemand, "VRV");
+            const autoMatch = clientSideSelectEquipment(initialDemand, activeSys, activeSeries, activeType);
             return {
               space_name: item.space_name,
               area_m2: areaM2,
               area_ping: ping,
               selected: true,
-              system_type: "VRV",
+              system_type: activeSys,
+              series: activeSeries,
+              unit_type: activeType,
               calc_basis: baseKcal,
               total_cooling_demand: initialDemand,
               best_match_model: autoMatch.model,
@@ -2922,7 +3241,7 @@ function App() {
           const ping = parseFloat(row.area_ping) || 0;
           const basis = parseFloat(row.calc_basis) || 500;
           const demandKcal = parseFloat(row.total_cooling_demand) || Math.round(ping * basis);
-          const singleCap = parseFloat(row.cap_kw) || 0;
+          const singleCap = parseFloat(row.cap_kw) || lookupModelCapKw(row.best_match_model);
           const qty = parseInt(row.unit_count) || 1;
 
           return {
@@ -2940,7 +3259,39 @@ function App() {
             qty: qty,
             cap_kw: singleCap
           };
-        })
+        }),
+        outdoor_groups: outdoorGroups.map(g => ({
+          group_id: g.id,
+          group_name: g.name,
+          system_type: g.system_type,
+          outdoor_model: g.outdoor_model,
+          outdoor_cap_kw: g.outdoor_cap_kw,
+          diversity_factor: g.diversity_factor,
+          spaces: g.space_indices.filter(idx => rows[idx] && rows[idx].selected).map(idx => {
+            const row = rows[idx];
+            const ping = parseFloat(row.area_ping) || 0;
+            const basis = parseFloat(row.calc_basis) || 500;
+            const demandKcal = parseFloat(row.total_cooling_demand) || Math.round(ping * basis);
+            const singleCap = parseFloat(row.cap_kw) || lookupModelCapKw(row.best_match_model);
+            const qty = parseInt(row.unit_count) || 1;
+            return {
+              space_name: row.space_name || "空間",
+              area_m2: parseFloat(row.area_m2) || 0,
+              area_ping: ping,
+              system_type: row.system_type || "VRV",
+              calc_basis: basis,
+              total_cooling_demand: demandKcal,
+              indoor_model: row.best_match_model || "FTXM28ZVLT",
+              qty: qty,
+              indoor_capacity_kw: singleCap,
+              indoor_capacity_kcal: Math.round(singleCap * 860.0),
+              nominal_cap: row.nominal_cap || "-",
+              power_supply: row.power_supply || "-",
+              power_consumption_kw: row.power_consumption_kw || "-",
+              dimensions: row.dimensions || "-"
+            };
+          })
+        }))
       };
 
       const controller = new AbortController();
@@ -3746,43 +4097,60 @@ function App() {
                   onChange={(e) => {
                     const sysVal = e.target.value;
                     setFastSystem(sysVal);
+                    setFastSeries('');
+                    setFastUnitType('');
 
-                    const cascadeList = window.DYNAMIC_EQUIPMENT_CASCADE[sysVal] || [];
-                    const defaultSeries = cascadeList[0]?.series || "橫綱Y系列";
-                    const defaultTypes = cascadeList[0]?.types || ["壁掛式"];
-                    const defaultType = defaultTypes[0] || "壁掛式";
-
-                    setFastSeries(defaultSeries);
-                    setFastUnitType(defaultType);
+                    // 🎯 規則 1 & 規則 3: RA 系統室外機電源自動帶入 1φ, 220V, 60Hz；SA / VRV 系統保持空白
+                    let newPower = '';
+                    if (sysVal === 'RA') {
+                      newPower = '1φ, 220V, 60Hz';
+                    }
+                    setFastOutdoorPower(newPower);
 
                     const isOutdoorLocked = (sysVal === 'RA' || sysVal === 'SA');
-                    const newOutdoor = isOutdoorLocked ? '側吹單風扇' : fastOutdoorType;
-                    if (isOutdoorLocked) setFastOutdoorType('側吹單風扇');
+                    const newOutdoor = isOutdoorLocked ? '側吹單風扇' : '';
+                    setFastOutdoorType(newOutdoor);
 
                     setRows(prev => prev.map(r => {
                       const demandKcal = r.total_cooling_demand || (r.area_ping * (r.calc_basis || 500));
-                      const autoMatch = clientSideSelectEquipment(demandKcal, sysVal, defaultSeries, defaultType);
+                      const autoMatch = clientSideSelectEquipment(demandKcal, sysVal, '', '');
+                      const indoorKw = autoMatch.cap * autoMatch.qty;
+                      const autoOutdoor = autoMatchOutdoorModelForRow(sysVal, '', indoorKw, newOutdoor, newPower);
                       return {
                         ...r,
                         system_type: sysVal,
-                        series: defaultSeries,
-                        unit_type: defaultType,
+                        series: '',
+                        unit_type: '',
                         outdoor_type: newOutdoor,
+                        power_supply: newPower,
                         best_match_model: autoMatch.model,
                         unit_count: autoMatch.qty,
-                        cap_kw: autoMatch.cap
+                        cap_kw: autoMatch.cap,
+                        outdoor_model: autoOutdoor
+                      };
+                    }));
+                    setOutdoorGroups(prev => prev.map(g => {
+                      const candidates = getOutdoorModelsForSystem(sysVal, '', newOutdoor, newPower);
+                      const matched = candidates[0] || { model: 'RXYCQ4BVLT', cap_kw: 11.2 };
+                      return {
+                        ...g,
+                        system_type: sysVal,
+                        outdoor_model: matched.model,
+                        outdoor_cap_kw: matched.cap_kw,
+                        power_supply: newPower
                       };
                     }));
                   }}
-                  style={{ backgroundColor: '#1e293b', color: '#38bdf8', border: '1px solid #334155', padding: '6px 12px', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
+                  style={{ backgroundColor: '#1e293b', color: fastSystem ? '#38bdf8' : '#94a3b8', border: '1px solid #334155', padding: '6px 12px', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
                 >
+                  <option value=""></option>
                   <option value="RA">RA (家用)</option>
                   <option value="SA">SA (商用)</option>
                   <option value="VRV">VRV</option>
                 </select>
               </div>
 
-              {/* 🎯 2. 系列別 (動態根據 selected System 連動，杜絕跨系統系列) */}
+              {/* 🎯 2. 系列別 (動態根據 selected System 連動，並依 4 大規則自動連動室內機型式) */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span style={{ fontSize: '13px', color: '#94a3b8', fontWeight: 'bold' }}>系列別:</span>
                 <select
@@ -3791,74 +4159,107 @@ function App() {
                     const seriesVal = e.target.value;
                     setFastSeries(seriesVal);
 
-                    const cascadeList = DYNAMIC_EQUIPMENT_CASCADE[fastSystem] || [];
-                    const seriesObj = cascadeList.find(s => s.series === seriesVal);
-                    const validTypes = seriesObj?.types || ["壁掛式"];
-                    const autoType = validTypes[0] || "壁掛式";
-                    setFastUnitType(autoType);
+                    // 🎯 判定自動帶入室內機型式：
+                    // 規則 2: RA 系統且非「隱藏風管系列」、「家用MULTI系列」、「SUPER MULTI系列」時自動帶入「壁掛式」
+                    // 規則 3: SA 系統（商用冷專 / 商用冷暖）保持空白
+                    // 規則 4: VRV 系統依系列別自動帶入對應型式（如：低靜壓 -> 吊隱式；全方吹 -> 嵌入式）
+                    let autoUnitType = '';
+
+                    if (fastSystem === 'RA') {
+                      if (seriesVal === '隱藏風管系列') {
+                        autoUnitType = '吊隱式';
+                      } else if (seriesVal === '家用MULTI系列' || seriesVal === 'SUPER MULTI系列') {
+                        autoUnitType = '';
+                      } else if (seriesVal) {
+                        autoUnitType = '壁掛式';
+                      }
+                    } else if (fastSystem === 'SA') {
+                      autoUnitType = '';
+                    } else if (fastSystem === 'VRV') {
+                      const cascadeList = DYNAMIC_EQUIPMENT_CASCADE['VRV'] || [];
+                      const seriesObj = cascadeList.find(s => s.series === seriesVal);
+                      if (seriesObj && seriesObj.types && seriesObj.types.length > 0) {
+                        autoUnitType = seriesObj.types[0];
+                      }
+                    }
+
+                    setFastUnitType(autoUnitType);
 
                     setRows(prev => prev.map(r => {
                       const demandKcal = r.total_cooling_demand || (r.area_ping * (r.calc_basis || 500));
-                      const autoMatch = clientSideSelectEquipment(demandKcal, fastSystem, seriesVal, autoType);
+                      const autoMatch = clientSideSelectEquipment(demandKcal, fastSystem, seriesVal, autoUnitType);
+                      const indoorKw = autoMatch.cap * autoMatch.qty;
+                      const autoOutdoor = autoMatchOutdoorModelForRow(fastSystem, seriesVal, indoorKw, fastOutdoorType, fastOutdoorPower);
                       return {
                         ...r,
                         series: seriesVal,
-                        unit_type: autoType,
+                        unit_type: autoUnitType,
                         best_match_model: autoMatch.model,
                         unit_count: autoMatch.qty,
-                        cap_kw: autoMatch.cap
+                        cap_kw: autoMatch.cap,
+                        outdoor_model: autoOutdoor
                       };
                     }));
                   }}
-                  style={{ backgroundColor: '#1e293b', color: '#f59e0b', border: '1px solid #334155', padding: '6px 12px', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
+                  style={{ backgroundColor: '#1e293b', color: fastSeries ? '#f59e0b' : '#94a3b8', border: '1px solid #334155', padding: '6px 12px', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
                 >
+                  <option value=""></option>
                   {(DYNAMIC_EQUIPMENT_CASCADE[fastSystem] || []).map((item, idx) => (
                     <option key={idx} value={item.series}>{item.series}</option>
                   ))}
                 </select>
               </div>
 
-              {/* 🎯 3. 室內機型式 (動態根據 selected Series 鎖定/過濾對應型式) */}
+              {/* 🎯 3. 室內機型式 (動態根據 selected Series 鎖定/過濾對應型式，當自動確定時改為不可編輯灰底) */}
               {(() => {
                 const cascadeList = DYNAMIC_EQUIPMENT_CASCADE[fastSystem] || [];
                 const seriesObj = cascadeList.find(s => s.series === fastSeries);
                 const validTypes = seriesObj?.types || ["壁掛式"];
-                const isLocked = validTypes.length <= 1;
+                const isUnitTypeLocked = Boolean(
+                  fastSeries && (
+                    (fastSystem === 'RA' && !['家用MULTI系列', 'SUPER MULTI系列'].includes(fastSeries)) ||
+                    (fastSystem === 'VRV' && validTypes.length === 1)
+                  )
+                );
 
                 return (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span style={{ fontSize: '13px', color: '#94a3b8', fontWeight: 'bold' }}>室內機型式:</span>
                     <select
-                      value={validTypes.includes(fastUnitType) ? fastUnitType : validTypes[0]}
-                      disabled={isLocked}
+                      value={fastUnitType}
+                      disabled={isUnitTypeLocked}
                       onChange={(e) => {
                         const unitVal = e.target.value;
                         setFastUnitType(unitVal);
                         setRows(prev => prev.map(r => {
                           const demandKcal = r.total_cooling_demand || (r.area_ping * (r.calc_basis || 500));
                           const autoMatch = clientSideSelectEquipment(demandKcal, fastSystem, fastSeries, unitVal);
+                          const indoorKw = autoMatch.cap * autoMatch.qty;
+                          const autoOutdoor = autoMatchOutdoorModelForRow(fastSystem, fastSeries, indoorKw);
                           return {
                             ...r,
                             unit_type: unitVal,
                             best_match_model: autoMatch.model,
                             unit_count: autoMatch.qty,
-                            cap_kw: autoMatch.cap
+                            cap_kw: autoMatch.cap,
+                            outdoor_model: autoOutdoor
                           };
                         }));
                       }}
-                      title={isLocked ? `${fastSeries} 對應型式為 ${validTypes[0]} (自動鎖定)` : "請選擇室內機型式"}
+                      title={isUnitTypeLocked ? `此系列型式已確定為 [${fastUnitType}] (自動鎖定，不可編輯)` : "請選擇室內機型式"}
                       style={{
-                        backgroundColor: isLocked ? '#020617' : '#1e293b',
-                        color: isLocked ? '#94a3b8' : '#34d399',
-                        border: '1px solid #334155',
+                        backgroundColor: isUnitTypeLocked ? '#334155' : '#1e293b',
+                        color: isUnitTypeLocked ? '#94a3b8' : (fastUnitType ? '#34d399' : '#94a3b8'),
+                        border: isUnitTypeLocked ? '1px solid #475569' : '1px solid #334155',
                         padding: '6px 12px',
                         borderRadius: '6px',
                         fontSize: '13px',
                         fontWeight: 'bold',
-                        cursor: isLocked ? 'not-allowed' : 'pointer',
-                        opacity: isLocked ? 0.75 : 1
+                        cursor: isUnitTypeLocked ? 'not-allowed' : 'pointer',
+                        opacity: isUnitTypeLocked ? 0.8 : 1
                       }}
                     >
+                      <option value=""></option>
                       {validTypes.map((t, idx) => (
                         <option key={idx} value={t}>{t}</option>
                       ))}
@@ -3867,7 +4268,7 @@ function App() {
                 );
               })()}
 
-              {/* 🎯 4. 室外機型式 (RA 與 SA 均固定為 側吹單風扇 並鎖定，僅 VRV 可自由切換) */}
+              {/* 🎯 4. 室外機型式 (RA 與 SA 固定為 側吹單風扇，確定時改為不可編輯灰底) */}
               {(() => {
                 const isOutdoorLocked = (fastSystem === 'RA' || fastSystem === 'SA');
                 return (
@@ -3879,21 +4280,26 @@ function App() {
                       onChange={(e) => {
                         const val = e.target.value;
                         setFastOutdoorType(val);
-                        setRows(prev => prev.map(r => ({ ...r, outdoor_type: val })));
+                        setRows(prev => prev.map(r => {
+                          const indoorKw = (parseFloat(r.cap_kw || lookupModelCapKw(r.best_match_model)) * (r.unit_count || 1));
+                          const autoOutdoor = autoMatchOutdoorModelForRow(r.system_type || fastSystem, r.series || fastSeries, indoorKw);
+                          return { ...r, outdoor_type: val, outdoor_model: r.outdoor_model || autoOutdoor };
+                        }));
                       }}
-                      title={isOutdoorLocked ? `${fastSystem} 系統固定為側吹單風扇室外機 (自動鎖定)` : "請選擇室外機型式"}
+                      title={isOutdoorLocked ? `${fastSystem} 系統固定為側吹單風扇室外機 (自動鎖定，不可編輯)` : "請選擇室外機型式"}
                       style={{
-                        backgroundColor: isOutdoorLocked ? '#020617' : '#1e293b',
-                        color: isOutdoorLocked ? '#94a3b8' : '#a855f7',
-                        border: '1px solid #334155',
+                        backgroundColor: isOutdoorLocked ? '#334155' : '#1e293b',
+                        color: isOutdoorLocked ? '#94a3b8' : (fastOutdoorType ? '#a855f7' : '#94a3b8'),
+                        border: isOutdoorLocked ? '1px solid #475569' : '1px solid #334155',
                         padding: '6px 12px',
                         borderRadius: '6px',
                         fontSize: '13px',
                         fontWeight: 'bold',
                         cursor: isOutdoorLocked ? 'not-allowed' : 'pointer',
-                        opacity: isOutdoorLocked ? 0.75 : 1
+                        opacity: isOutdoorLocked ? 0.8 : 1
                       }}
                     >
+                      <option value=""></option>
                       <option value="側吹單風扇">側吹單風扇</option>
                       <option value="側吹雙風扇">側吹雙風扇</option>
                       <option value="上吹">上吹</option>
@@ -3901,6 +4307,67 @@ function App() {
                   </div>
                 );
               })()}
+
+              {/* 🎯 5. 室外機電源 (RA 系統自動固定為 1φ, 220V, 60Hz 時改為不可編輯灰底) */}
+              {(() => {
+                const isPowerLocked = (fastSystem === 'RA');
+                return (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '13px', color: '#94a3b8', fontWeight: 'bold' }}>室外機電源:</span>
+                    <select
+                      value={isPowerLocked ? '1φ, 220V, 60Hz' : fastOutdoorPower}
+                      disabled={isPowerLocked}
+                      onChange={(e) => {
+                        const powerVal = e.target.value;
+                        setFastOutdoorPower(powerVal);
+                        setRows(prev => prev.map(r => ({ ...r, power_supply: powerVal })));
+                        setOutdoorGroups(prev => prev.map(g => ({ ...g, power_supply: powerVal })));
+                      }}
+                      title={isPowerLocked ? "RA 系統自動固定為 1φ, 220V, 60Hz 電源 (自動鎖定，不可編輯)" : "請選擇室外機電源"}
+                      style={{
+                        backgroundColor: isPowerLocked ? '#334155' : '#1e293b',
+                        color: isPowerLocked ? '#94a3b8' : (fastOutdoorPower ? '#eab308' : '#94a3b8'),
+                        border: isPowerLocked ? '1px solid #475569' : '1px solid #334155',
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        fontSize: '13px',
+                        fontWeight: 'bold',
+                        cursor: isPowerLocked ? 'not-allowed' : 'pointer',
+                        opacity: isPowerLocked ? 0.8 : 1
+                      }}
+                    >
+                      <option value=""></option>
+                      <option value="1φ, 220V, 60Hz">1φ, 220V, 60Hz</option>
+                      <option value="3φ, 220V, 60Hz">3φ, 220V, 60Hz</option>
+                      <option value="3φ, 380V, 60Hz">3φ, 380V, 60Hz</option>
+                    </select>
+                  </div>
+                );
+              })()}
+
+              {/* 🎯 6. 一鍵將勾選空間併入同一台室外機按鈕 */}
+              <button
+                onClick={handleCreateGroupFromSelection}
+                title="點擊將表格中已勾選的空間，組合配對為同一台大金室外機"
+                style={{
+                  backgroundColor: '#0284c7',
+                  color: '#ffffff',
+                  border: 'none',
+                  padding: '7px 16px',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(2, 132, 199, 0.4)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  marginLeft: 'auto',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                🔗 將勾選空間併入同一台室外機
+              </button>
             </div>
           )}
 
@@ -3919,272 +4386,438 @@ function App() {
                     />
                   </th>
                   <th style={styles.th}>空間名稱</th>
-                  {/* 🎯 僅在「細緻選機」模式下顯示表格內個案「系統規格」欄位 */}
-                  {selectionMode === 'detail' && (
-                    <th style={styles.th}>系統規格</th>
-                  )}
+                  {selectionMode === 'detail' && <th style={styles.th}>系統規格</th>}
                   <th style={styles.th}>平方公尺(㎡)</th>
                   <th style={styles.th}>坪數(P)</th>
                   <th style={styles.th}>基準(kcal/h/坪)</th>
-                  <th style={styles.th}>環境加成百分比偏置 (可複選)</th>
+                  <th style={styles.th}>環境加成百分比偏置</th>
                   <th style={styles.th}>特殊熱源</th>
                   <th style={styles.th}>總需求(kcal/h)</th>
                   <th style={{ ...styles.th, color: '#f59e0b' }}>總需求(kW)</th>
-                  {/* 🎯 僅在「細緻選機」模式下於「大金室內機型號」左側顯示「室內機系列別」欄位 */}
-                  {selectionMode === 'detail' && (
-                    <th style={{ ...styles.th, color: '#f59e0b' }}>室內機系列別</th>
-                  )}
+                  {selectionMode === 'detail' && <th style={{ ...styles.th, color: '#f59e0b' }}>室內機系列別</th>}
+                  {selectionMode === 'detail' && <th style={{ ...styles.th, color: '#34d399' }}>室內機型式</th>}
                   <th style={styles.th}>大金室內機型號</th>
                   <th style={{ ...styles.th, color: '#38bdf8' }}>單機能力(kW)</th>
                   <th style={styles.th}>台數</th>
                   <th style={{ ...styles.th, color: '#a855f7' }}>總冷房能力(kW)</th>
+                  {/* 🎯 向後擴充室外機配對欄位 */}
+                  <th style={{ ...styles.th, color: '#38bdf8', backgroundColor: '#1e293b' }}>室外機型號</th>
+                  <th style={{ ...styles.th, color: '#a855f7', backgroundColor: '#1e293b' }}>室外機冷房能力(kW)</th>
+                  {/* 🎯 連結率 (%) 僅在 VRV 系統時顯示 */}
+                  {(fastSystem === 'VRV' || selectionMode === 'detail') && (
+                    <th style={{ ...styles.th, color: '#34d399', backgroundColor: '#1e293b' }}>連結率 (%)</th>
+                  )}
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={selectionMode === 'detail' ? 15 : 13} style={{ textAlign: 'center', padding: '50px', color: '#94a3b8' }}>🔄 正在啟用雙軌影像引擎分析，請稍候...</td></tr>
+                  <tr><td colSpan={selectionMode === 'detail' ? 19 : (fastSystem === 'VRV' ? 16 : 15)} style={{ textAlign: 'center', padding: '50px', color: '#94a3b8' }}>🔄 正在啟用雙軌影像引擎分析，請稍候...</td></tr>
                 ) : rows.length === 0 ? (
-                  <tr><td colSpan={selectionMode === 'detail' ? 15 : 13} style={{ textAlign: 'center', padding: '30px', color: '#475569' }}>暫無數據。請上傳圖面並執行解析。</td></tr>
+                  <tr><td colSpan={selectionMode === 'detail' ? 19 : (fastSystem === 'VRV' ? 16 : 15)} style={{ textAlign: 'center', padding: '30px', color: '#475569' }}>暫無數據。請上傳圖面並執行解析。</td></tr>
                 ) : (
-                  rows.map((row, index) => (
-                    <tr key={index} style={{ opacity: row.selected ? 1 : 0.45, transition: 'opacity 0.2s' }}>
-                      <td style={{ ...styles.td, textAlign: 'center' }}>
-                        <input
-                          type="checkbox"
-                          checked={row.selected}
-                          onChange={(e) => handleCellChange(index, 'selected', e.target.checked)}
-                          style={{ cursor: 'pointer', scale: '1.1' }}
-                        />
-                      </td>
+                  rows.map((row, index) => {
+                    const gCard = outdoorGroups.find(g => g.id === row.outdoorGroupId);
+                    const rowColorStyle = gCard ? {
+                      backgroundColor: gCard.color.bg,
+                      borderLeft: `4px solid ${gCard.color.border}`
+                    } : {};
+                    const isVRV = (selectionMode === 'detail' ? row.system_type === 'VRV' : fastSystem === 'VRV');
 
-                      <td style={{ ...styles.td, fontWeight: 'bold', color: '#34d399' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+                    return (
+                      <tr
+                        key={index}
+                        onContextMenu={(e) => handleTableContextMenu(e, index)}
+                        onClick={(e) => {
+                          if (e.ctrlKey || e.metaKey) {
+                            handleCellChange(index, 'selected', !row.selected);
+                          }
+                        }}
+                        title="💡 提示：按住 Ctrl 鍵點選空間列，放開 Ctrl 鍵即可自動成立室外機群組與計算連結率！"
+                        style={{
+                          opacity: row.selected ? 1 : (gCard ? 0.9 : 0.45),
+                          transition: 'all 0.2s ease',
+                          cursor: 'pointer',
+                          ...rowColorStyle
+                        }}
+                      >
+                        <td style={{ ...styles.td, textAlign: 'center' }}>
                           <input
-                            type="text"
-                            value={row.space_name || ''}
-                            onChange={(e) => handleCellChange(index, 'space_name', e.target.value)}
-                            placeholder="請輸入空間名稱"
-                            style={{
-                              backgroundColor: '#0f172a',
-                              border: '1px solid #34d399',
-                              color: '#34d399',
-                              padding: '4px 6px',
-                              borderRadius: '4px',
-                              fontSize: '13px',
-                              fontWeight: 'bold',
-                              width: '110px'
-                            }}
-                            disabled={!row.selected}
-                            title="可自由編輯空間名稱，系統將自動匹配熱負荷基準與大金選機！"
+                            type="checkbox"
+                            checked={row.selected}
+                            onChange={(e) => handleCellChange(index, 'selected', e.target.checked)}
+                            style={{ cursor: 'pointer', scale: '1.1' }}
                           />
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            {(row.area_m2 >= 75 || (row.space_name && (row.space_name.includes('客餐廳') || row.space_name.includes('開放')))) && (
-                              <button
-                                onClick={() => handleSplitSpace(index)}
-                                title="此為大型開放空間，點擊滑鼠劃線分割為獨立區域"
-                                style={{
-                                  backgroundColor: '#b45309',
-                                  color: '#fef3c7',
-                                  border: '1px solid #f59e0b',
-                                  padding: '2px 6px',
-                                  borderRadius: '4px',
-                                  fontSize: '11px',
-                                  cursor: 'pointer',
-                                  fontWeight: 'bold'
-                                }}
-                              >
-                                ✂️ 分割
-                              </button>
-                            )}
-                            <div style={{ display: 'flex', gap: '3px', fontSize: '11px', userSelect: 'none', alignItems: 'center' }}>
-                              <span onClick={() => moveRow(index, 'up')} style={{ cursor: 'pointer', opacity: index === 0 ? 0.2 : 0.8 }} title="上移">🔼</span>
-                              <span onClick={() => moveRow(index, 'down')} style={{ cursor: 'pointer', opacity: index === rows.length - 1 ? 0.2 : 0.8 }} title="下移">🔽</span>
+                        </td>
+
+                        <td style={{ ...styles.td, fontWeight: 'bold', color: '#34d399' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+                            <input
+                              type="text"
+                              value={row.space_name || ''}
+                              onChange={(e) => handleCellChange(index, 'space_name', e.target.value)}
+                              placeholder="請輸入空間名稱"
+                              style={{
+                                backgroundColor: '#0f172a',
+                                border: '1px solid #34d399',
+                                color: '#34d399',
+                                padding: '4px 6px',
+                                borderRadius: '4px',
+                                fontSize: '13px',
+                                fontWeight: 'bold',
+                                width: '110px'
+                              }}
+                              disabled={!row.selected && !row.outdoorGroupId}
+                              title="可自由編輯空間名稱"
+                            />
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              {(row.area_m2 >= 75 || (row.space_name && (row.space_name.includes('客餐廳') || row.space_name.includes('開放')))) && (
+                                <button
+                                  onClick={() => handleSplitSpace(index)}
+                                  title="此為大型開放空間，點擊滑鼠劃線分割為獨立區域"
+                                  style={{
+                                    backgroundColor: '#b45309',
+                                    color: '#fef3c7',
+                                    border: '1px solid #f59e0b',
+                                    padding: '2px 6px',
+                                    borderRadius: '4px',
+                                    fontSize: '11px',
+                                    cursor: 'pointer',
+                                    fontWeight: 'bold'
+                                  }}
+                                >
+                                  ✂️ 分割
+                                </button>
+                              )}
+                              <div style={{ display: 'flex', gap: '3px', fontSize: '11px', userSelect: 'none', alignItems: 'center' }}>
+                                <span onClick={() => moveRow(index, 'up')} style={{ cursor: 'pointer', opacity: index === 0 ? 0.2 : 0.8 }} title="上移">🔼</span>
+                                <span onClick={() => moveRow(index, 'down')} style={{ cursor: 'pointer', opacity: index === rows.length - 1 ? 0.2 : 0.8 }} title="下移">🔽</span>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </td>
-
-                      {/* 🎯 僅在「細緻選機」模式下顯示獨立「系統規格」欄位 */}
-                      {selectionMode === 'detail' && (
-                        <td style={styles.td}>
-                          <select
-                            value={row.system_type || 'VRV'}
-                            onChange={(e) => handleCellChange(index, 'system_type', e.target.value)}
-                            style={styles.selectSys}
-                            disabled={!row.selected}
-                          >
-                            <option value="VRV">VRV</option>
-                            <option value="SA">SA (商用)</option>
-                            <option value="RA">RA (家用)</option>
-                          </select>
                         </td>
-                      )}
 
-                      <td style={{ ...styles.td, color: '#a7f3d0' }}>{row.area_m2}</td>
-                      <td style={{ ...styles.td, color: '#38bdf8' }}>{row.area_ping}</td>
+                        {selectionMode === 'detail' && (
+                          <td style={styles.td}>
+                            <select
+                              value={row.system_type || 'VRV'}
+                              onChange={(e) => handleCellChange(index, 'system_type', e.target.value)}
+                              style={styles.selectSys}
+                            >
+                              <option value="VRV">VRV</option>
+                              <option value="SA">SA (商用)</option>
+                              <option value="RA">RA (家用)</option>
+                            </select>
+                          </td>
+                        )}
 
-                      <td style={styles.td}>
-                        <input
-                          type="number"
-                          value={row.calc_basis}
-                          onChange={(e) => handleCellChange(index, 'calc_basis', e.target.value)}
-                          style={{
-                            ...styles.inputNum,
-                            color: row.is_unknown_space ? '#ef4444' : '#f8fafc',
-                            fontWeight: row.is_unknown_space ? 'bold' : 'normal',
-                            border: row.is_unknown_space ? '1px solid #ef4444' : '1px solid #475569'
-                          }}
-                          disabled={!row.selected}
-                          title={row.is_unknown_space ? "偵測到未定義特殊空間，請確認並自定義數值" : "冷房負荷基準值"}
-                        />
-                      </td>
+                        <td style={{ ...styles.td, color: '#a7f3d0' }}>{row.area_m2}</td>
+                        <td style={{ ...styles.td, color: '#38bdf8' }}>{row.area_ping}</td>
 
-                      <td style={styles.td}>
-                        {Object.keys(MODIFIER_VALUES).map(k => (
-                          <label key={k} style={{ ...styles.chkLabel, pointerEvents: row.selected ? 'auto' : 'none' }}>
-                            <input
-                              type="checkbox"
-                              checked={(row.modifiers && row.modifiers[k]) || false}
-                              onChange={(e) => handleCellChange(index, 'modifiers', e.target.checked, k)}
-                              disabled={!row.selected}
-                            />
-                            {k}({MODIFIER_VALUES[k] >= 0 ? '+' : ''}{MODIFIER_VALUES[k] * 100}%)
-                          </label>
-                        ))}
-                      </td>
-
-                      <td style={styles.td}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                        <td style={styles.td}>
                           <input
                             type="number"
-                            step="0.1"
-                            value={row.special_kw || 0}
-                            onChange={(e) => handleCellChange(index, 'special_kw', e.target.value)}
-                            style={{ ...styles.inputNum, width: '45px' }}
-                            disabled={!row.selected}
+                            value={row.calc_basis}
+                            onChange={(e) => handleCellChange(index, 'calc_basis', e.target.value)}
+                            style={{
+                              ...styles.inputNum,
+                              color: row.is_unknown_space ? '#ef4444' : '#f8fafc',
+                              fontWeight: row.is_unknown_space ? 'bold' : 'normal',
+                              border: row.is_unknown_space ? '1px solid #ef4444' : '1px solid #475569'
+                            }}
                           />
-                          <span style={{ fontSize: '11px', color: '#64748b' }}>kW</span>
-                        </div>
-                      </td>
+                        </td>
 
-                      <td style={{ ...styles.td, color: '#fb923c', fontWeight: 'bold' }}>
-                        {Math.round(row.total_cooling_demand).toLocaleString()}
-                      </td>
-
-                      {/* 🎯 新增 1：總需求(kcal/h) 旁邊新增 總需求(kW) 單位 */}
-                      <td style={{ ...styles.td, color: '#f59e0b', fontWeight: 'bold' }}>
-                        {(row.total_cooling_demand / 860.0).toFixed(1)} kW
-                      </td>
-
-                      {/* 🎯 僅在「細緻選機」模式下於「大金室內機型號」左側顯示「系列別」欄位 (動態連動無重複) */}
-                      {selectionMode === 'detail' && (
                         <td style={styles.td}>
-                          {(() => {
-                            const curSys = row.system_type || 'VRV';
-                            const sysCascade = (window.DYNAMIC_EQUIPMENT_CASCADE && window.DYNAMIC_EQUIPMENT_CASCADE[curSys]) || [];
-                            const validSeriesList = sysCascade.map(s => s.series);
-                            const activeSeries = validSeriesList.includes(row.series) ? row.series : (validSeriesList[0] || '中靜壓');
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', maxWidth: '280px' }}>
+                            {[
+                              { label: '全內周(-10%)', key: '全內周' },
+                              { label: '二面牆(+5%)', key: '二面牆' },
+                              { label: '西曬(+6%)', key: '西曬' },
+                              { label: '挑高(+4%)', key: '挑高' },
+                              { label: '頂曬(+5%)', key: '頂曬' }
+                            ].map((mod) => {
+                              const isChecked = !!(row.modifiers && (row.modifiers[mod.key] || row.modifiers[mod.key.replace('二', '2')]));
+                              return (
+                                <label
+                                  key={mod.key}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '3px',
+                                    fontSize: '11px',
+                                    backgroundColor: isChecked ? '#1e293b' : '#0f172a',
+                                    border: isChecked ? '1px solid #38bdf8' : '1px solid #334155',
+                                    color: isChecked ? '#38bdf8' : '#64748b',
+                                    padding: '2px 6px',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={(e) => handleCellChange(index, 'modifiers', e.target.checked, mod.key)}
+                                  />
+                                  {mod.label}
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </td>
 
-                            return (
+                        <td style={styles.td}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                            <input
+                              type="number"
+                              step="0.5"
+                              value={row.special_kw || 0}
+                              onChange={(e) => handleCellChange(index, 'special_kw', e.target.value)}
+                              style={{ ...styles.inputNum, width: '50px' }}
+                            />
+                            <span style={{ fontSize: '11px', color: '#64748b' }}>kW</span>
+                          </div>
+                        </td>
+
+                        <td style={{ ...styles.td, fontWeight: 'bold' }}>{row.total_cooling_demand}</td>
+
+                        <td style={{ ...styles.td, color: '#f59e0b', fontWeight: 'bold' }}>
+                          {((row.total_cooling_demand || 0) / 860.0).toFixed(1)} kW
+                        </td>
+
+                        {selectionMode === 'detail' && (
+                          <td style={styles.td}>
+                            <select
+                              value={row.series || ''}
+                              onChange={(e) => handleCellChange(index, 'series', e.target.value)}
+                              style={{ ...styles.selectSys, color: '#f59e0b', border: '1px solid #f59e0b' }}
+                            >
+                              <option value="">--請選擇系列--</option>
+                              {(DYNAMIC_EQUIPMENT_CASCADE[row.system_type || 'VRV'] || []).map((sItem, sIdx) => (
+                                <option key={sIdx} value={sItem.series}>{sItem.series}</option>
+                              ))}
+                            </select>
+                          </td>
+                        )}
+
+                        {selectionMode === 'detail' && (() => {
+                          const cascadeList = DYNAMIC_EQUIPMENT_CASCADE[row.system_type || 'VRV'] || [];
+                          const seriesObj = cascadeList.find(s => s.series === row.series);
+                          const validTypes = seriesObj?.types || ["壁掛式", "吊隱式", "嵌入式", "單點式", "天吊式", "箱型機"];
+                          return (
+                            <td style={styles.td}>
                               <select
-                                value={activeSeries}
-                                onChange={(e) => handleCellChange(index, 'series', e.target.value)}
-                                style={{ backgroundColor: '#0f172a', color: '#f59e0b', border: '1px solid #334155', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
-                                disabled={!row.selected}
+                                value={row.unit_type || ''}
+                                onChange={(e) => handleCellChange(index, 'unit_type', e.target.value)}
+                                style={{ ...styles.selectSys, color: '#34d399', border: '1px solid #34d399' }}
                               >
-                                {validSeriesList.map((sName, sIdx) => (
-                                  <option key={sIdx} value={sName}>{sName}</option>
+                                <option value="">--請選擇型式--</option>
+                                {validTypes.map((t, idx) => (
+                                  <option key={idx} value={t}>{t}</option>
                                 ))}
                               </select>
-                            );
-                          })()}
-                        </td>
-                      )}
+                            </td>
+                          );
+                        })()}
 
-                      {/* 🎯 大金室內機型號欄位 (細緻選機模式下提供 ±20% 容量動態限縮下拉選單) */}
-                      <td style={styles.td}>
-                        {selectionMode === 'detail' ? (
-                          (() => {
-                            const curSys = row.system_type || 'VRV';
-                            const curSeries = row.series;
-                            const demandKcal = row.total_cooling_demand || (row.area_ping * (row.calc_basis || 500));
-                            const filteredModelNames = getFilteredModelsForDetailMode(curSys, curSeries, demandKcal);
-                            const activeModel = filteredModelNames.includes(row.best_match_model) ? row.best_match_model : (filteredModelNames[0] || row.best_match_model);
+                        <td style={styles.td}>
+                          {selectionMode === 'fast' ? (
+                            <span style={{
+                              backgroundColor: '#334155',
+                              color: '#cbd5e1',
+                              border: '1px solid #475569',
+                              padding: '3px 8px',
+                              borderRadius: '4px',
+                              fontSize: '12px',
+                              fontWeight: 'bold',
+                              display: 'inline-block',
+                              userSelect: 'none'
+                            }}>
+                              {row.best_match_model || '-'}
+                            </span>
+                          ) : (
+                            <select
+                              value={row.best_match_model || ''}
+                              onChange={(e) => handleCellChange(index, 'best_match_model', e.target.value)}
+                              style={{ ...styles.selectSys, width: '130px', color: '#34d399', fontWeight: 'bold' }}
+                            >
+                              {getDynamicModelCandidates(
+                                (row.total_cooling_demand || 0) / 860.0,
+                                row.system_type || 'VRV',
+                                row.series,
+                                row.unit_type
+                              ).map((m, mIdx) => (
+                                <option key={mIdx} value={m}>{m}</option>
+                              ))}
+                            </select>
+                          )}
+                        </td>
+
+                        <td style={{ ...styles.td, color: '#38bdf8', fontWeight: 'bold' }}>
+                          {parseFloat(row.cap_kw || lookupModelCapKw(row.best_match_model)).toFixed(1)} kW
+                        </td>
+
+                        <td style={styles.td}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                            <input
+                              type="number"
+                              min="1"
+                              max="10"
+                              value={row.unit_count || 1}
+                              onChange={(e) => handleCellChange(index, 'unit_count', parseInt(e.target.value) || 1)}
+                              style={styles.inputQty}
+                            />
+                            <span style={{ fontSize: '12px', color: '#64748b' }}>台</span>
+                          </div>
+                        </td>
+
+                        <td style={{ ...styles.td, color: '#a855f7', fontWeight: 'bold' }}>
+                          {((parseFloat(row.cap_kw || lookupModelCapKw(row.best_match_model)) || 0) * (row.unit_count || 1)).toFixed(1)} kW
+                        </td>
+
+                        {/* 🎯 室外機延伸 2, 3, 4: 室外機型號、冷房能力與連結率 (依大金原廠「能力指數」公式計算) */}
+                        {(() => {
+                          if (gCard) {
+                            const gIndices = rows.map((r, i) => r.outdoorGroupId === gCard.id ? i : null).filter(i => i !== null);
+                            const isFirstInGroup = (gIndices[0] === index);
+                            const gSpan = gIndices.length;
+
+                            if (!isFirstInGroup) {
+                              return null;
+                            }
+
+                            const gSpaces = gIndices.map(i => rows[i]).filter(Boolean);
+                            
+                            // 🎯 1. 分子：同系統所有室內機能力指數加總 (能力指數 x 台數)
+                            const sumIndoorIndex = gSpaces.reduce((acc, sp) => {
+                              const singleIdx = lookupIndoorCapIndex(sp.best_match_model);
+                              const qty = sp.unit_count || 1;
+                              return acc + (singleIdx * qty);
+                            }, 0);
+
+                            // 🎯 2. 分母與能力：動態參照選定室外機型號之冷房能力 (kW) 與室外機能力指數
+                            const matchedOutdoorObj = OUTDOOR_UNITS_DB.find(m => m.model === gCard.outdoor_model);
+                            const outdoorCapKw = matchedOutdoorObj ? matchedOutdoorObj.cap_kw : (gCard.outdoor_cap_kw || 25.0);
+                            const outdoorCapIndex = matchedOutdoorObj ? (matchedOutdoorObj.cap_index || 223.0) : 223.0;
+
+                            // 🎯 3. 連結率 (%) = (分子 / 分母) * 100%
+                            const rawRatio = outdoorCapIndex > 0 ? (sumIndoorIndex / outdoorCapIndex) * 100.0 : 0;
+                            const connRatio = Math.round(rawRatio);
+                            const isWarn = connRatio < 50 || connRatio > 130;
+                            const ratioColor = isWarn ? '#ef4444' : (connRatio >= 100 && connRatio <= 110 ? '#34d399' : '#f59e0b');
 
                             return (
-                              <select
-                                value={activeModel}
-                                onChange={(e) => handleCellChange(index, 'best_match_model', e.target.value)}
-                                style={{ ...styles.inputModel, backgroundColor: '#0f172a', color: '#38bdf8', border: '1px solid #38bdf8', padding: '4px 6px', cursor: 'pointer', fontWeight: 'bold' }}
-                                disabled={!row.selected}
-                                title={`已自動限縮呈現冷房需求 ±20% (${(demandKcal / 860.0).toFixed(1)} kW) 範圍內之機型`}
-                              >
-                                {filteredModelNames.map((mName, mIdx) => {
-                                  const mCap = lookupModelCapKw(mName);
-                                  return (
-                                    <option key={mIdx} value={mName}>{mName} ({mCap} kW)</option>
-                                  );
-                                })}
-                              </select>
+                              <>
+                                <td
+                                  rowSpan={gSpan}
+                                  style={{
+                                    ...styles.td,
+                                    verticalAlign: 'middle',
+                                    textAlign: 'center',
+                                    backgroundColor: gCard.color.bg,
+                                    borderLeft: `4px solid ${gCard.color.border}`
+                                  }}
+                                >
+                                  <select
+                                    value={gCard.outdoor_model}
+                                    onChange={(e) => handleOutdoorModelChange(gCard.id, e.target.value)}
+                                    style={{
+                                      backgroundColor: '#0f172a',
+                                      color: '#38bdf8',
+                                      border: '1px solid #38bdf8',
+                                      padding: '4px 8px',
+                                      borderRadius: '4px',
+                                      fontSize: '12px',
+                                      fontWeight: 'bold',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    {getOutdoorModelsForSystem(gCard.system_type, row.series || fastSeries, fastOutdoorType, fastOutdoorPower).map((m, mIdx) => (
+                                      <option key={mIdx} value={m.model}>{m.model}</option>
+                                    ))}
+                                  </select>
+                                </td>
+
+                                <td
+                                  rowSpan={gSpan}
+                                  style={{
+                                    ...styles.td,
+                                    verticalAlign: 'middle',
+                                    textAlign: 'center',
+                                    color: '#a855f7',
+                                    fontWeight: 'bold',
+                                    backgroundColor: gCard.color.bg
+                                  }}
+                                >
+                                  {outdoorCapKw ? `${parseFloat(outdoorCapKw).toFixed(1)} kW` : '-'}
+                                </td>
+
+                                {isVRV && (
+                                  <td
+                                    rowSpan={gSpan}
+                                    style={{
+                                      ...styles.td,
+                                      verticalAlign: 'middle',
+                                      textAlign: 'center',
+                                      color: ratioColor,
+                                      fontWeight: 'bold',
+                                      fontSize: '13px',
+                                      backgroundColor: gCard.color.bg
+                                    }}
+                                    title={`連結率 = (室內能力指數總和 ${sumIndoorIndex} / 室外能力指數 ${outdoorCapIndex}) * 100% = ${rawRatio.toFixed(1)}%`}
+                                  >
+                                    {isWarn ? `⚠️ ${connRatio}%` : `${connRatio}%`}
+                                  </td>
+                                )}
+                              </>
                             );
-                          })()
-                        ) : (
-                          <input
-                            type="text"
-                            value={row.best_match_model}
-                            onChange={(e) => handleCellChange(index, 'best_match_model', e.target.value)}
-                            style={styles.inputModel}
-                            disabled={!row.selected}
-                          />
-                        )}
-                      </td>
+                          }
 
-                      {/* 🎯 新增 2：大金室內機型號右邊新增 單機能力(kW) 數值 (小數點一位) */}
-                      <td style={{ ...styles.td, color: '#38bdf8', fontWeight: 'bold' }}>
-                        {parseFloat(row.cap_kw || lookupModelCapKw(row.best_match_model)).toFixed(1)} kW
-                      </td>
+                          // 獨立單機個體列 (非併機群組)
+                          const autoOutdoor = autoMatchOutdoorModelForRow(row.system_type || fastSystem, row.series || fastSeries, (parseFloat(row.cap_kw || lookupModelCapKw(row.best_match_model)) * (row.unit_count || 1)), fastOutdoorType, fastOutdoorPower);
+                          const selectedModelStr = row.outdoor_model || autoOutdoor;
+                          const matchedOutdoorObj = OUTDOOR_UNITS_DB.find(m => m.model === selectedModelStr);
+                          const outdoorCapKw = matchedOutdoorObj ? matchedOutdoorObj.cap_kw : 25.0;
+                          const outdoorCapIndex = matchedOutdoorObj ? (matchedOutdoorObj.cap_index || 223.0) : 223.0;
 
-                      <td style={styles.td}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                          <input
-                            type="number"
-                            min="1"
-                            max="10"
-                            value={row.unit_count || 1}
-                            onChange={(e) => handleCellChange(index, 'unit_count', parseInt(e.target.value) || 1)}
-                            style={styles.inputQty}
-                            disabled={!row.selected}
-                          />
-                          <span style={{ fontSize: '12px', color: '#64748b' }}>台</span>
-                        </div>
-                      </td>
+                          const singleIndoorIdx = lookupIndoorCapIndex(row.best_match_model);
+                          const totalIndoorIdx = singleIndoorIdx * (row.unit_count || 1);
+                          const rawRatio = outdoorCapIndex > 0 ? (totalIndoorIdx / outdoorCapIndex) * 100.0 : 0;
+                          const connRatio = Math.round(rawRatio);
+                          const isWarn = connRatio < 50 || connRatio > 130;
+                          const ratioColor = isWarn ? '#ef4444' : (connRatio >= 100 && connRatio <= 110 ? '#34d399' : '#f59e0b');
 
-                      {/* 🎯 總冷房能力(kW) 數值 (當與總需求差值超過 ±10% 時，字體反紅與警示底色標記) */}
-                      {(() => {
-                        const demandKw = (row.total_cooling_demand || 0) / 860.0;
-                        const singleCap = parseFloat(row.cap_kw || lookupModelCapKw(row.best_match_model)) || 0;
-                        const qty = parseInt(row.unit_count || 1);
-                        const totalCapKw = singleCap * qty;
-                        const diffPct = demandKw > 0 ? (totalCapKw - demandKw) / demandKw : 0;
-                        const isBeyond10 = Math.abs(diffPct) > 0.10;
+                          return (
+                            <>
+                              <td style={styles.td}>
+                                <select
+                                  value={selectedModelStr}
+                                  onChange={(e) => handleCellChange(index, 'outdoor_model', e.target.value)}
+                                  style={{ backgroundColor: '#0f172a', color: '#38bdf8', border: '1px solid #334155', padding: '3px 6px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+                                >
+                                  {getOutdoorModelsForSystem(row.system_type || fastSystem, row.series || fastSeries, fastOutdoorType, fastOutdoorPower).map((m, mIdx) => (
+                                    <option key={mIdx} value={m.model}>{m.model}</option>
+                                  ))}
+                                </select>
+                              </td>
 
-                        return (
-                          <td
-                            style={{
-                              ...styles.td,
-                              color: isBeyond10 ? '#ef4444' : '#a855f7',
-                              fontWeight: 'bold',
-                              backgroundColor: isBeyond10 ? 'rgba(239, 68, 68, 0.15)' : 'transparent',
-                              borderRadius: isBeyond10 ? '4px' : '0'
-                            }}
-                            title={isBeyond10 ? `⚠️ 警示：選定總冷房能力 (${totalCapKw.toFixed(1)} kW) 與總需求 (${demandKw.toFixed(1)} kW) 差值超過 ±10% (目前差值: ${(diffPct * 100).toFixed(1)}%)！建議調整台數或型號` : "總冷房能力於 ±10% 合理範圍內"}
-                          >
-                            {isBeyond10 ? `⚠️ ${totalCapKw.toFixed(1)} kW` : `${totalCapKw.toFixed(1)} kW`}
-                          </td>
-                        );
-                      })()}
-                    </tr>
-                  ))
+                              <td style={{ ...styles.td, color: '#a855f7', fontWeight: 'bold' }}>
+                                {outdoorCapKw ? `${parseFloat(outdoorCapKw).toFixed(1)} kW` : '-'}
+                              </td>
+
+                              {isVRV && (
+                                <td
+                                  style={{ ...styles.td, color: ratioColor, fontWeight: 'bold', fontSize: '12px' }}
+                                  title={`連結率 = (室內能力指數 ${totalIndoorIdx} / 室外能力指數 ${outdoorCapIndex}) * 100% = ${rawRatio.toFixed(1)}%`}
+                                >
+                                  {isWarn ? `⚠️ ${connRatio}%` : `${connRatio}%`}
+                                </td>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>

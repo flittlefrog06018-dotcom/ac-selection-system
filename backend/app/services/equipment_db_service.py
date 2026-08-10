@@ -128,15 +128,53 @@ class EquipmentDBService:
                 units_list.append(unit_obj)
                 
             self.units = units_list
+            self.load_outdoor_units(target_path)
             self.is_loaded = True
             self.db_path = target_path
-            logger.info(f"✨ 成功從 {target_path} 讀取 {len(units_list)} 台室內機規格數據！")
+            logger.info(f"✨ 成功從 {target_path} 讀取 {len(units_list)} 台室內機與 {len(self.outdoor_units)} 台室外機規格數據！")
             return True
         except Exception as e:
             logger.error(f"Failed to parse equipment DB {target_path}: {e}")
             if raise_error_on_missing:
                 raise e
             return False
+
+    def load_outdoor_units(self, file_path: str):
+        try:
+            wb = openpyxl.load_workbook(file_path, data_only=True)
+            if "outdoor_units" not in wb.sheetnames:
+                self.outdoor_units = []
+                return
+            ws = wb["outdoor_units"]
+            cols = list(ws.columns)
+            outdoors = []
+            for c in range(2, len(cols)):
+                sys_val = cols[c][1].value
+                ser_val = cols[c][2].value
+                mod_val = cols[c][3].value
+                cap_val = cols[c][4].value
+                nom_val = cols[c][5].value
+                pwr_sup = cols[c][6].value
+                pwr_con = cols[c][7].value
+                dim_val = cols[c][11].value
+                ut_val = cols[c][12].value
+                
+                if sys_val and mod_val and isinstance(cap_val, (int, float)):
+                    outdoors.append({
+                        "system": str(sys_val).strip(),
+                        "series": str(ser_val or "").strip(),
+                        "model": str(mod_val).strip(),
+                        "cap_kw": float(cap_val),
+                        "nominal_cap": str(nom_val or "-"),
+                        "power_supply": str(pwr_sup or "-"),
+                        "power_consumption_kw": str(pwr_con or "-"),
+                        "dimensions": str(dim_val or "-"),
+                        "unit_type": str(ut_val or "-")
+                    })
+            self.outdoor_units = outdoors
+        except Exception as e:
+            logger.error(f"Failed to parse outdoor_units sheet: {e}")
+            self.outdoor_units = []
 
     def get_systems(self) -> List[str]:
         if not self.is_loaded:
@@ -213,14 +251,15 @@ class EquipmentDBService:
             sys_upper = "VRV"
             
         candidates = [u for u in self.units if u["system"] == sys_upper]
-        if unit_type:
-            ut_filtered = [u for u in candidates if u["unit_type"] == unit_type.strip()]
-            if ut_filtered:
-                candidates = ut_filtered
-        if series:
+        if series and series.strip():
             ser_filtered = [u for u in candidates if u["series"] == series.strip()]
             if ser_filtered:
                 candidates = ser_filtered
+
+        if unit_type and unit_type.strip():
+            ut_filtered = [u for u in candidates if u["unit_type"] == unit_type.strip()]
+            if ut_filtered:
+                candidates = ut_filtered
                 
         if not candidates:
             # Fallback to any VRV or any unit

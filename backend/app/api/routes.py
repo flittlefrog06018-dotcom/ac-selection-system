@@ -90,6 +90,7 @@ class ExportRowModel(BaseModel):
 class ExportRequest(BaseModel):
     filename: str = ""
     data: List[ExportRowModel]
+    outdoor_groups: Optional[List[Dict[str, Any]]] = None
 
 class OCRSpaceNameRequest(BaseModel):
     image_base64: str
@@ -587,102 +588,13 @@ async def upload_layout(request: Request):
         raise HTTPException(status_code=500, detail=f"【後端運行錯誤診斷】: {str(e)}")
 
 
-# 🎯 Excel 匯出路由 (完全遵照經理指示，自 D9 欄位起點乾淨帶入)
+# 🎯 Excel 匯出路由 (完全遵照經理指示，支援室外機群組與縱向跨列合併)
 @router.post("/export-excel")
 async def export_excel(payload: ExportRequest):
     try:
-        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-        root_dir = os.path.abspath(os.path.join(base_dir, ".."))
+        raw_rooms_data = [r.dict() for r in payload.data]
+        output = ExportService.generate_excel_report(raw_rooms_data, payload.outdoor_groups)
 
-        template_candidates = [
-            os.path.join(base_dir, "product_database", "選機表-.xlsx"),
-            os.path.join(base_dir, "選機表-.xlsx"),
-            os.path.join(root_dir, "選機表-.xlsx"),
-            os.path.abspath("backend/product_database/選機表-.xlsx"),
-            os.path.abspath("backend/選機表-.xlsx"),
-            os.path.abspath("選機表-.xlsx")
-        ]
-
-        template_path = None
-        for candidate in template_candidates:
-            if os.path.exists(candidate):
-                template_path = candidate
-                break
-
-        if not template_path:
-            raise FileNotFoundError("找不到官方『選機表-.xlsx』範本檔案！請確認 product_database/選機表-.xlsx 存在。")
-
-        wb = openpyxl.load_workbook(template_path)
-        sheet = wb.active
-        
-        start_row = 9  
-        
-        for i, row_data in enumerate(payload.data):
-            current_row = start_row + i
-            
-            display_name = row_data.space_name
-            if "檔率" in display_name:
-                display_name = display_name.replace("檔率", "檔案室")
-                
-            area_ping = row_data.area_ping
-            area_m2 = row_data.area_m2
-
-            calc_basis = row_data.final_kcal_per_ping if (row_data.final_kcal_per_ping and row_data.final_kcal_per_ping > 0) else row_data.base_suggested_load
-            if not calc_basis or calc_basis == 0:
-                calc_basis = 500.0
-
-            # 🎯 嚴格遵循大金官方選機表實體截圖指定欄位對應規則填入：
-            sheet.cell(row=current_row, column=1).value = "2F"                  # Column A: 樓層
-            sheet.cell(row=current_row, column=4).value = display_name           # Column D (4): 室名 (空間名稱)
-            sheet.cell(row=current_row, column=5).value = area_m2                # Column E (5): 面積 (㎡)
-            sheet.cell(row=current_row, column=6).value = area_ping              # Column F (6): 坪數 (P)
-            sheet.cell(row=current_row, column=8).value = calc_basis             # Column H (8): 每坪建議負荷值 (kcal/hr/坪)
-
-            # 🎯 Column K (11): kW/坪
-            kw_per_ping = round(calc_basis / 860.0, 2)
-            cell_k = sheet.cell(row=current_row, column=11)
-            cell_k.value = kw_per_ping
-            cell_k.number_format = '0.00'
-
-            # 🎯 Column L (12): 總熱負荷 kW
-            total_load_kw = round(area_ping * kw_per_ping, 1)
-            sheet.cell(row=current_row, column=12).value = total_load_kw
-
-            # 🎯 Column M (13): 總熱負荷 kcal/hr
-            sheet.cell(row=current_row, column=13).value = row_data.total_cooling_load_kcal
-
-            # 🎯 依據新版設備資料庫對應填入 N, O, P, Q, R, S, T, V 欄位：
-            cap_kw = row_data.cap_kw if row_data.cap_kw > 0 else lookup_cap_kw(row_data.recommended_model)
-            cap_kcal = round(cap_kw * 860.0, 1)
-
-            sheet.cell(row=current_row, column=14).value = row_data.recommended_model             # Column N (14): 室內機型號
-            sheet.cell(row=current_row, column=15).value = row_data.qty                           # Column O (15): 室內機台數
-            sheet.cell(row=current_row, column=16).value = cap_kcal                               # Column P (16): 冷房能力 (kcal/hr)
-            sheet.cell(row=current_row, column=17).value = cap_kw                                 # Column Q (17): 冷房能力 (kW)
-            sheet.cell(row=current_row, column=18).value = getattr(row_data, "nominal_cap", "-")  # Column R (18): 標稱能力
-            sheet.cell(row=current_row, column=19).value = getattr(row_data, "power_supply", "-") # Column S (19): 供應電源
-            sheet.cell(row=current_row, column=20).value = getattr(row_data, "power_consumption_kw", "-") # Column T (20): 單台耗電量 kW
-            sheet.cell(row=current_row, column=22).value = getattr(row_data, "dimensions", "-")  # Column V (22): 尺寸 mm
-
-            # 🎯 Column W (23) & X (24): 室內冷房總能力 kcal & kW
-            qty = row_data.qty if row_data.qty > 0 else 1
-            sheet.cell(row=current_row, column=23).value = float(qty * cap_kcal)  # Column W (23)
-            sheet.cell(row=current_row, column=24).value = float(qty * cap_kw)    # Column X (24)
-
-            # 🎯 Column AB (28) & AC (29): 每坪平均能力 kcal & kW
-            if area_ping > 0:
-                sheet.cell(row=current_row, column=28).value = int(round(cap_kcal / area_ping, 0)) # Column AB (28)
-                sheet.cell(row=current_row, column=29).value = round(cap_kw / area_ping, 1)        # Column AC (29)
-
-            # 🎯 Column AD (30): 冷房負擔坪數/冷凍噸
-            if (qty * cap_kw) > 0:
-                sheet.cell(row=current_row, column=30).value = round(area_ping / ((qty * cap_kw) / 3.516), 1) # Column AD (30)
-
-        output = io.BytesIO()
-        wb.save(output)
-        output.seek(0)
-        
-        # 🎯 動態檔名：選機表-"匯入的案名".xlsx
         raw_case_name = payload.filename.strip() if payload.filename else ""
         if raw_case_name:
             case_name = os.path.splitext(os.path.basename(raw_case_name))[0]
@@ -693,7 +605,7 @@ async def export_excel(payload: ExportRequest):
 
         from urllib.parse import quote
         encoded_filename = quote(excel_download_name)
-        
+
         return StreamingResponse(
             output, 
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
