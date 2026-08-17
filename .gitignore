@@ -11,6 +11,10 @@ frontend/dist/
 .DS_Store
 Thumbs.db
 temp/
+scratch/
+~$*
 *.env
 config.env
 backend/config.env
+backend/temp_merged_selection_report.xlsx
+assets/

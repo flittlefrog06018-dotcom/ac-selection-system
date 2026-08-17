@@ -1545,17 +1545,58 @@ function App() {
   const [exportLoading, setExportLoading] = useState(false);
   const [showColoredMasks, setShowColoredMasks] = useState(false);
 
-  // 🎯 快速選機 vs 細緻選機 模式切換與全域控制 State (一開始預設皆為空白)
+  // 🎯 快速選機 vs 細緻選機 模式切換與全域控制 State (快速選機預設帶入 VRV / 中靜壓 / 吊隱式 / 上吹 / 3φ, 4P, 380V, 60Hz)
   const [selectionMode, setSelectionMode] = useState('fast'); // 'fast' | 'detail'
-  const [fastSystem, setFastSystem] = useState(''); // 'RA', 'SA', 'VRV'
-  const [fastUnitType, setFastUnitType] = useState(''); // 一開始室內機型式保持空白
-  const [fastSeries, setFastSeries] = useState(''); // 一開始系列別保持空白
-  const [fastOutdoorType, setFastOutdoorType] = useState(''); // 一開始室外機型式保持空白
-  const [fastOutdoorPower, setFastOutdoorPower] = useState(''); // 一開始室外機電源保持空白
+  const [fastSystem, setFastSystem] = useState('VRV'); // 'RA', 'SA', 'VRV' (預設 VRV)
+  const [fastSeries, setFastSeries] = useState('中靜壓'); // 預設 中靜壓
+  const [fastUnitType, setFastUnitType] = useState('吊隱式'); // 預設 吊隱式
+  const [fastOutdoorType, setFastOutdoorType] = useState('上吹'); // 預設 上吹
+  const [fastOutdoorPower, setFastOutdoorPower] = useState('3φ, 4P, 380V, 60Hz'); // 預設 3φ, 4P, 380V, 60Hz
 
   // 🎯 室外機智慧配對與分組 UI State & 數據庫
   const [outdoorGroups, setOutdoorGroups] = useState([]);
   const [contextMenu, setContextMenu] = useState({ show: false, x: 0, y: 0, targetRowIndex: null });
+  const [userHasCustomGroups, setUserHasCustomGroups] = useState(false);
+
+  // 🎯 空間拖曳排序 UI State 與 Handlers (取消箭頭，改為直接拖曳)
+  const [draggedRowIndex, setDraggedRowIndex] = useState(null);
+  const [dragOverRowIndex, setDragOverRowIndex] = useState(null);
+
+  const handleRowDragStart = (e, index) => {
+    setDraggedRowIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', index.toString());
+  };
+
+  const handleRowDragOver = (e, index) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverRowIndex !== index) {
+      setDragOverRowIndex(index);
+    }
+  };
+
+  const handleRowDrop = (e, targetIndex) => {
+    e.preventDefault();
+    if (draggedRowIndex === null || draggedRowIndex === targetIndex) {
+      setDraggedRowIndex(null);
+      setDragOverRowIndex(null);
+      return;
+    }
+
+    const newRows = [...rows];
+    const [movedRow] = newRows.splice(draggedRowIndex, 1);
+    newRows.splice(targetIndex, 0, movedRow);
+    setRows(newRows);
+
+    setDraggedRowIndex(null);
+    setDragOverRowIndex(null);
+  };
+
+  const handleRowDragEnd = () => {
+    setDraggedRowIndex(null);
+    setDragOverRowIndex(null);
+  };
 
   useEffect(() => {
     const handleGlobalClick = () => setContextMenu(prev => prev.show ? { ...prev, show: false } : prev);
@@ -1601,20 +1642,43 @@ function App() {
     { system: "VRV", series: "VRV S系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RSUYQ140AVT", cap_kw: 14.0, cap_index: 125.0 },
     { system: "VRV", series: "VRV S系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RSUYQ160AVT", cap_kw: 16.0, cap_index: 150.0 },
 
-    // VRV 側吹雙風扇 (3φ, 220V, 60Hz & 3φ, 380V, 60Hz)
-    { system: "VRV", series: "VRV IV-S 系列", outdoor_type: "側吹雙風扇", power_supply: "3φ, 220V, 60Hz", model: "RXYMQ8TTLT", cap_kw: 22.4, cap_index: 200.0 },
-    { system: "VRV", series: "VRV IV-S 系列", outdoor_type: "側吹雙風扇", power_supply: "3φ, 220V, 60Hz", model: "RXYMQ10TTLT", cap_kw: 25.0, cap_index: 223.0 },
-    { system: "VRV", series: "VRV S系列", outdoor_type: "側吹雙風扇", power_supply: "3φ, 380V, 60Hz", model: "RXYMQ10ARYLT", cap_kw: 28.0, cap_index: 250.0 },
-    { system: "VRV", series: "VRV S系列", outdoor_type: "側吹雙風扇", power_supply: "3φ, 380V, 60Hz", model: "RXYMQ12ARYLT", cap_kw: 33.5, cap_index: 300.0 },
+    // VRV 側吹雙風扇 (1φ, 220V, 60Hz & 3φ, 3P, 220V, 60Hz & 3φ, 4P, 380V, 60Hz)
+    { system: "VRV", series: "VRV III-S 系列", outdoor_type: "側吹雙風扇", power_supply: "1φ, 220V, 60Hz", model: "RXYMQ6TVET", cap_kw: 15.5, cap_index: 140.0 },
+    { system: "VRV", series: "VRV III-S 系列", outdoor_type: "側吹雙風扇", power_supply: "3φ, 4P, 380V, 60Hz", model: "RXYMQ8TYLT", cap_kw: 20.0, cap_index: 180.0 },
+    { system: "VRV", series: "VRV III-S 系列", outdoor_type: "側吹雙風扇", power_supply: "3φ, 4P, 380V, 60Hz", model: "RXYMQ10TYLT", cap_kw: 24.0, cap_index: 215.0 },
+    { system: "VRV", series: "VRV IV-S 系列", outdoor_type: "側吹雙風扇", power_supply: "3φ, 3P, 220V, 60Hz", model: "RXYMQ8TTLT", cap_kw: 22.4, cap_index: 200.0 },
+    { system: "VRV", series: "VRV IV-S 系列", outdoor_type: "側吹雙風扇", power_supply: "3φ, 3P, 220V, 60Hz", model: "RXYMQ10TTLT", cap_kw: 25.0, cap_index: 223.0 },
+    { system: "VRV", series: "VRV S系列", outdoor_type: "側吹雙風扇", power_supply: "3φ, 4P, 380V, 60Hz", model: "RXYMQ10ARYLT", cap_kw: 28.0, cap_index: 250.0 },
+    { system: "VRV", series: "VRV S系列", outdoor_type: "側吹雙風扇", power_supply: "3φ, 4P, 380V, 60Hz", model: "RXYMQ12ARYLT", cap_kw: 33.5, cap_index: 300.0 },
 
-    // VRV 上吹 (3φ, 380V, 60Hz)
-    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 380V, 60Hz", model: "RXYQ8AYLT", cap_kw: 22.4, cap_index: 200.0 },
-    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 380V, 60Hz", model: "RXYQ10AYLT", cap_kw: 28.0, cap_index: 250.0 },
-    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 380V, 60Hz", model: "RXYQ12AYLT", cap_kw: 33.5, cap_index: 300.0 },
-    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 380V, 60Hz", model: "RXYQ14AYLT", cap_kw: 40.0, cap_index: 350.0 },
-    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 380V, 60Hz", model: "RXYQ16AYLT", cap_kw: 45.0, cap_index: 400.0 },
-    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 380V, 60Hz", model: "RXYQ18AYLT", cap_kw: 50.0, cap_index: 450.0 },
-    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 380V, 60Hz", model: "RXYQ20AYLT", cap_kw: 56.0, cap_index: 500.0 },
+    // VRV 上吹 (3φ, 4P, 380V, 60Hz)
+    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 4P, 380V, 60Hz", model: "RXYQ8AYLT", cap_kw: 22.4, cap_index: 200.0 },
+    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 4P, 380V, 60Hz", model: "RXYQ10AYLT", cap_kw: 28.0, cap_index: 250.0 },
+    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 4P, 380V, 60Hz", model: "RXYQ12AYLT", cap_kw: 33.5, cap_index: 300.0 },
+    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 4P, 380V, 60Hz", model: "RXYQ14AYLT", cap_kw: 40.0, cap_index: 350.0 },
+    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 4P, 380V, 60Hz", model: "RXYQ16AYLT", cap_kw: 45.0, cap_index: 400.0 },
+    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 4P, 380V, 60Hz", model: "RXYQ18AYLT", cap_kw: 50.0, cap_index: 450.0 },
+    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 4P, 380V, 60Hz", model: "RXYQ20AYLT", cap_kw: 54.0, cap_index: 500.0 },
+    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 4P, 380V, 60Hz", model: "RXYQ22ANYLT", cap_kw: 61.5, cap_index: 550.0 },
+    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 4P, 380V, 60Hz", model: "RXYQ24ANYLT", cap_kw: 67.0, cap_index: 600.0 },
+    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 4P, 380V, 60Hz", model: "RXYQ26ANYLT", cap_kw: 73.5, cap_index: 650.0 },
+    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 4P, 380V, 60Hz", model: "RXYQ28ANYLT", cap_kw: 78.5, cap_index: 700.0 },
+    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 4P, 380V, 60Hz", model: "RXYQ30ANYLT", cap_kw: 85.0, cap_index: 750.0 },
+    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 4P, 380V, 60Hz", model: "RXYQ32ANYLT", cap_kw: 90.0, cap_index: 800.0 },
+    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 4P, 380V, 60Hz", model: "RXYQ34ANYLT", cap_kw: 95.0, cap_index: 850.0 },
+    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 4P, 380V, 60Hz", model: "RXYQ36ANYLT", cap_kw: 100.0, cap_index: 900.0 },
+    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 4P, 380V, 60Hz", model: "RXYQ38ANYLT", cap_kw: 104.0, cap_index: 950.0 },
+    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 4P, 380V, 60Hz", model: "RXYQ40ANYLT", cap_kw: 108.0, cap_index: 1000.0 },
+    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 4P, 380V, 60Hz", model: "RXYQ42ANYLT", cap_kw: 117.0, cap_index: 1050.0 },
+    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 4P, 380V, 60Hz", model: "RXYQ44ANYLT", cap_kw: 121.0, cap_index: 1100.0 },
+    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 4P, 380V, 60Hz", model: "RXYQ46ANYLT", cap_kw: 130.0, cap_index: 1150.0 },
+    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 4P, 380V, 60Hz", model: "RXYQ48ANYLT", cap_kw: 135.0, cap_index: 1200.0 },
+    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 4P, 380V, 60Hz", model: "RXYQ50ANYLT", cap_kw: 140.0, cap_index: 1250.0 },
+    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 4P, 380V, 60Hz", model: "RXYQ52ANYLT", cap_kw: 145.0, cap_index: 1300.0 },
+    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 4P, 380V, 60Hz", model: "RXYQ54ANYLT", cap_kw: 150.0, cap_index: 1350.0 },
+    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 4P, 380V, 60Hz", model: "RXYQ56ANYLT", cap_kw: 154.0, cap_index: 1400.0 },
+    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 4P, 380V, 60Hz", model: "RXYQ58ANYLT", cap_kw: 158.0, cap_index: 1450.0 },
+    { system: "VRV", series: "VRV H系列", outdoor_type: "上吹", power_supply: "3φ, 4P, 380V, 60Hz", model: "RXYQ60ANYLT", cap_kw: 162.0, cap_index: 1500.0 },
 
     // RA - 家用MULTI / SUPER MULTI 系列 (1φ, 220V, 60Hz)
     { system: "RA", series: "家用MULTI系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "2MXM56YVLT", cap_kw: 5.6 },
@@ -1652,13 +1716,35 @@ function App() {
     { system: "RA", series: "大關X系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXV71ZVLT", cap_kw: 7.2 },
 
     // SA - 商用系列 (1φ, 220V / 3φ, 220V / 3φ, 380V)
+    { system: "SA", series: "商用冷專系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RZFC50AVLT", cap_kw: 5.0 },
+    { system: "SA", series: "商用冷專系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RZFC60AVLT", cap_kw: 6.0 },
     { system: "SA", series: "商用冷專系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RZFC71AVLT", cap_kw: 7.1 },
     { system: "SA", series: "商用冷專系列", outdoor_type: "側吹雙風扇", power_supply: "1φ, 220V, 60Hz", model: "RZFC100AVLT", cap_kw: 10.0 },
     { system: "SA", series: "商用冷專系列", outdoor_type: "側吹雙風扇", power_supply: "1φ, 220V, 60Hz", model: "RZFC125AVLT", cap_kw: 12.5 },
-    { system: "SA", series: "商用冷專系列", outdoor_type: "側吹雙風扇", power_supply: "3φ, 220V, 60Hz", model: "RZF100DTLT", cap_kw: 10.1 },
-    { system: "SA", series: "商用冷專系列", outdoor_type: "側吹雙風扇", power_supply: "3φ, 220V, 60Hz", model: "RZF125DTLT", cap_kw: 12.5 },
-    { system: "SA", series: "商用冷專系列", outdoor_type: "側吹雙風扇", power_supply: "3φ, 380V, 60Hz", model: "RZF100CYLT", cap_kw: 10.1 },
-    { system: "SA", series: "商用冷專系列", outdoor_type: "側吹雙風扇", power_supply: "3φ, 380V, 60Hz", model: "RZF125CYLT", cap_kw: 12.5 }
+    { system: "SA", series: "商用冷專系列", outdoor_type: "側吹雙風扇", power_supply: "1φ, 220V, 60Hz", model: "RZFC140AVLT", cap_kw: 14.0 },
+
+    { system: "SA", series: "商用冷專系列", outdoor_type: "側吹單風扇", power_supply: "3φ, 3P, 220V, 60Hz", model: "RZF71DTLT", cap_kw: 7.1 },
+    { system: "SA", series: "商用冷專系列", outdoor_type: "側吹雙風扇", power_supply: "3φ, 3P, 220V, 60Hz", model: "RZF100DTLT", cap_kw: 10.1 },
+    { system: "SA", series: "商用冷專系列", outdoor_type: "側吹雙風扇", power_supply: "3φ, 3P, 220V, 60Hz", model: "RZF125DTLT", cap_kw: 12.5 },
+    { system: "SA", series: "商用冷專系列", outdoor_type: "側吹雙風扇", power_supply: "3φ, 3P, 220V, 60Hz", model: "RZF140DTLT", cap_kw: 14.0 },
+
+    { system: "SA", series: "商用冷專系列", outdoor_type: "側吹單風扇", power_supply: "3φ, 4P, 380V, 60Hz", model: "RZF71CYLT", cap_kw: 7.1 },
+    { system: "SA", series: "商用冷專系列", outdoor_type: "側吹雙風扇", power_supply: "3φ, 4P, 380V, 60Hz", model: "RZF100CYLT", cap_kw: 10.1 },
+    { system: "SA", series: "商用冷專系列", outdoor_type: "側吹雙風扇", power_supply: "3φ, 4P, 380V, 60Hz", model: "RZF125CYLT", cap_kw: 12.5 },
+    { system: "SA", series: "商用冷專系列", outdoor_type: "側吹雙風扇", power_supply: "3φ, 4P, 380V, 60Hz", model: "RZF140CYLT", cap_kw: 14.0 },
+
+    { system: "SA", series: "商用冷暖系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RZAC71AVLT", cap_kw: 7.1 },
+    { system: "SA", series: "商用冷暖系列", outdoor_type: "側吹雙風扇", power_supply: "1φ, 220V, 60Hz", model: "RZAC100AVLT", cap_kw: 10.0 },
+    { system: "SA", series: "商用冷暖系列", outdoor_type: "側吹雙風扇", power_supply: "1φ, 220V, 60Hz", model: "RZAC125AVLT", cap_kw: 12.5 },
+    { system: "SA", series: "商用冷暖系列", outdoor_type: "側吹雙風扇", power_supply: "1φ, 220V, 60Hz", model: "RZAC140AVLT", cap_kw: 14.0 },
+
+    { system: "SA", series: "商用冷暖系列", outdoor_type: "側吹雙風扇", power_supply: "3φ, 3P, 220V, 60Hz", model: "RZA100DTLT", cap_kw: 10.1 },
+    { system: "SA", series: "商用冷暖系列", outdoor_type: "側吹雙風扇", power_supply: "3φ, 3P, 220V, 60Hz", model: "RZA125DTLT", cap_kw: 12.5 },
+    { system: "SA", series: "商用冷暖系列", outdoor_type: "側吹雙風扇", power_supply: "3φ, 3P, 220V, 60Hz", model: "RZA140DTLT", cap_kw: 14.0 },
+
+    { system: "SA", series: "商用冷暖系列", outdoor_type: "側吹雙風扇", power_supply: "3φ, 4P, 380V, 60Hz", model: "RZA100CYLT", cap_kw: 10.1 },
+    { system: "SA", series: "商用冷暖系列", outdoor_type: "側吹雙風扇", power_supply: "3φ, 4P, 380V, 60Hz", model: "RZA125CYLT", cap_kw: 12.5 },
+    { system: "SA", series: "商用冷暖系列", outdoor_type: "側吹雙風扇", power_supply: "3φ, 4P, 380V, 60Hz", model: "RZA140CYLT", cap_kw: 14.0 }
   ];
 
   const getOutdoorModelsForSystem = (sysType, seriesVal, outdoorTypeVal, powerSupplyVal) => {
@@ -1670,16 +1756,10 @@ function App() {
       matched = matched.filter(m => m.system === sysType);
     }
     if (targetOutdoorType) {
-      const typeMatches = matched.filter(m => m.outdoor_type === targetOutdoorType);
-      if (typeMatches.length > 0) {
-        matched = typeMatches;
-      }
+      matched = matched.filter(m => m.outdoor_type === targetOutdoorType);
     }
     if (targetPower) {
-      const powerMatches = matched.filter(m => m.power_supply === targetPower);
-      if (powerMatches.length > 0) {
-        matched = powerMatches;
-      }
+      matched = matched.filter(m => m.power_supply === targetPower);
     }
     if (seriesVal && (seriesVal.includes('MULTI') || seriesVal.includes('多聯'))) {
       const multiMatches = matched.filter(m => m.series.includes('MULTI') || m.model.includes('MXM') || m.model.includes('MXP'));
@@ -1688,15 +1768,16 @@ function App() {
       }
     }
 
-    return matched.length > 0 ? matched : OUTDOOR_UNITS_DB;
+    return matched;
   };
 
   const autoMatchOutdoorModelForRow = (sysType, seriesVal, demandKw, outdoorTypeVal, powerSupplyVal) => {
     const candidates = getOutdoorModelsForSystem(sysType, seriesVal, outdoorTypeVal, powerSupplyVal);
+    if (!candidates || candidates.length === 0) return '無此機型';
     const sorted = [...candidates].sort((a, b) => a.cap_kw - b.cap_kw);
     const kw = demandKw || 2.2;
     const matched = sorted.find(m => m.cap_kw >= kw) || sorted[sorted.length - 1];
-    return matched ? matched.model : (sorted[0]?.model || '');
+    return matched ? matched.model : '無此機型';
   };
 
   // 🎯 參照 EQUIPMENT_Data 數據庫計算「室內機能力指數加總」與「室外機能力指數」以精準求得連結率 (%)
@@ -1724,7 +1805,7 @@ function App() {
   };
 
   const lookupOutdoorCapIndex = (modelName) => {
-    if (!modelName) return 223.0;
+    if (!modelName || modelName === '無此機型') return 0.0;
     const clean = modelName.trim();
     const matched = OUTDOOR_UNITS_DB.find(m => m.model === clean);
     if (matched && matched.cap_index !== undefined) {
@@ -1733,8 +1814,223 @@ function App() {
     return 223.0;
   };
 
+  // 🎯 驗證選定室外機是否支援當前電源 (如 RXYQ/RXQ 7.1~60HP 上吹機型固定需 3φ 380V 60Hz 電源)
+  const isValidOutdoorPower = (outdoorModelStr, targetPowerStr) => {
+    if (!outdoorModelStr || outdoorModelStr === '無此機型') return true;
+    if (!targetPowerStr) return true;
+    const cleanModel = outdoorModelStr.trim();
+    const cleanPower = targetPowerStr.trim();
+    const matched = OUTDOOR_UNITS_DB.find(m => m.model === cleanModel);
+    if (!matched) return true;
+    return matched.power_supply === cleanPower;
+  };
+
+  // 🎯 核心智慧配對演算法：快速選機模式下自動將全場空間併入 VRV 系統，自動計算 115% 內之 HP 數；
+  // 當 60HP (RXYQ60ANYLT, 1500指數) 連結率超過 116% 時，自動拆分成兩套平衡 VRV 系統 (如 30HP + 32HP)
+  const autoGroupAllRowsForVRV = (targetRows, sysVal, seriesVal, outTypeVal, outPowerVal) => {
+    if (!targetRows || targetRows.length === 0) return { updatedRows: targetRows, groups: [] };
+
+    const activeSys = sysVal || fastSystem || 'VRV';
+    const activeSeries = seriesVal || fastSeries || '中靜壓';
+    const activeOutType = outTypeVal || fastOutdoorType || '上吹';
+    const activeOutPower = outPowerVal || fastOutdoorPower || '3φ, 4P, 380V, 60Hz';
+
+    // 1. 計算所有空間的室內機能力指數總和 (Total Indoor Index)
+    let totalIndoorIndex = 0;
+    const processedRows = targetRows.map(r => {
+      const demandKcal = r.total_cooling_demand || (r.area_ping * (r.calc_basis || 500));
+      const autoMatch = clientSideSelectEquipment(demandKcal, activeSys, activeSeries, '吊隱式');
+      const singleIdx = lookupIndoorCapIndex(autoMatch.model);
+      const qty = autoMatch.qty || 1;
+      totalIndoorIndex += (singleIdx * qty);
+
+      return {
+        ...r,
+        system_type: activeSys,
+        series: activeSeries,
+        unit_type: '吊隱式',
+        best_match_model: autoMatch.model,
+        unit_count: qty,
+        cap_kw: autoMatch.cap,
+        outdoor_type: activeOutType,
+        power_supply: activeOutPower
+      };
+    });
+
+    // 2. 取得所有對應條件之 VRV 室外機型態備選清單，依 cap_index 升冪排序
+    const candidates = getOutdoorModelsForSystem(activeSys, activeSeries, activeOutType, activeOutPower);
+    if (!candidates || candidates.length === 0) {
+      const singleGroupId = `group-auto-1`;
+      const singleGroup = {
+        id: singleGroupId,
+        name: `VRV 全域系統 (無此機型)`,
+        system_type: activeSys,
+        outdoor_model: '無此機型',
+        outdoor_cap_kw: 0,
+        outdoor_cap_index: 0,
+        power_supply: activeOutPower,
+        color: GROUP_COLOR_PALETTE[0],
+        space_indices: processedRows.map((_, idx) => idx)
+      };
+      const finalRows = processedRows.map(r => ({
+        ...r,
+        outdoorGroupId: singleGroupId,
+        outdoor_model: '無此機型'
+      }));
+      return { updatedRows: finalRows, groups: [singleGroup] };
+    }
+
+    const sortedCandidates = [...candidates].sort((a, b) => (a.cap_index || a.cap_kw * 10) - (b.cap_index || b.cap_kw * 10));
+
+    // 3. 判斷是否需要自動拆分成 2 套 VRV 系統：
+    // 當 60HP (RXYQ60ANYLT, cap_index=1500) 連結率超過 116% (總指數 > 1500 * 1.16 = 1740) 時自動拆分成兩套 (如 30HP + 32HP)
+    const maxSingleSystemIndexLimit = 1500 * 1.16; // 1740
+
+    if (totalIndoorIndex > maxSingleSystemIndexLimit) {
+      // 🎯 拆分成 2 套平均系統
+      const halfTarget = totalIndoorIndex / 2.0;
+      let accumulated = 0;
+      const g1Indices = [];
+      const g2Indices = [];
+
+      processedRows.forEach((r, idx) => {
+        const singleIdx = lookupIndoorCapIndex(r.best_match_model);
+        const rowIdxSum = singleIdx * (r.unit_count || 1);
+        if (g1Indices.length === 0 || (accumulated < halfTarget && g2Indices.length === 0)) {
+          g1Indices.push(idx);
+          accumulated += rowIdxSum;
+        } else {
+          g2Indices.push(idx);
+        }
+      });
+
+      const sumIdx1 = g1Indices.reduce((acc, i) => acc + lookupIndoorCapIndex(processedRows[i].best_match_model) * (processedRows[i].unit_count || 1), 0);
+      const sumIdx2 = g2Indices.reduce((acc, i) => acc + lookupIndoorCapIndex(processedRows[i].best_match_model) * (processedRows[i].unit_count || 1), 0);
+
+      // 尋找連結率 <= 115% 之最小室外機
+      const matchOutdoor1 = sortedCandidates.find(m => ((sumIdx1 / (m.cap_index || m.cap_kw * 10)) * 100.0) <= 115.0) || sortedCandidates[sortedCandidates.length - 1];
+      const matchOutdoor2 = sortedCandidates.find(m => ((sumIdx2 / (m.cap_index || m.cap_kw * 10)) * 100.0) <= 115.0) || sortedCandidates[sortedCandidates.length - 1];
+
+      const g1Id = `group-auto-1`;
+      const g2Id = `group-auto-2`;
+
+      const newGroups = [
+        {
+          id: g1Id,
+          name: `VRV 系統 #1 (${matchOutdoor1.model})`,
+          system_type: activeSys,
+          outdoor_model: matchOutdoor1.model,
+          outdoor_cap_kw: matchOutdoor1.cap_kw,
+          outdoor_cap_index: matchOutdoor1.cap_index,
+          power_supply: activeOutPower,
+          color: GROUP_COLOR_PALETTE[0],
+          space_indices: g1Indices
+        },
+        {
+          id: g2Id,
+          name: `VRV 系統 #2 (${matchOutdoor2.model})`,
+          system_type: activeSys,
+          outdoor_model: matchOutdoor2.model,
+          outdoor_cap_kw: matchOutdoor2.cap_kw,
+          outdoor_cap_index: matchOutdoor2.cap_index,
+          power_supply: activeOutPower,
+          color: GROUP_COLOR_PALETTE[1],
+          space_indices: g2Indices
+        }
+      ];
+
+      const finalRows = processedRows.map((r, idx) => ({
+        ...r,
+        outdoorGroupId: g1Indices.includes(idx) ? g1Id : g2Id,
+        outdoor_model: g1Indices.includes(idx) ? matchOutdoor1.model : matchOutdoor2.model
+      }));
+
+      return { updatedRows: finalRows, groups: newGroups };
+    } else {
+      // 🎯 併入同一套 VRV 室外機系統，自動帶入連結率 <= 115% 的室外機 HP
+      const matchedOutdoor = sortedCandidates.find(m => ((totalIndoorIndex / (m.cap_index || m.cap_kw * 10)) * 100.0) <= 115.0) || sortedCandidates[sortedCandidates.length - 1];
+      const singleGroupId = `group-auto-1`;
+
+      const singleGroup = {
+        id: singleGroupId,
+        name: `VRV 全域系統 (${matchedOutdoor.model})`,
+        system_type: activeSys,
+        outdoor_model: matchedOutdoor.model,
+        outdoor_cap_kw: matchedOutdoor.cap_kw,
+        outdoor_cap_index: matchedOutdoor.cap_index,
+        power_supply: activeOutPower,
+        color: GROUP_COLOR_PALETTE[0],
+        space_indices: processedRows.map((_, idx) => idx)
+      };
+
+      const finalRows = processedRows.map(r => ({
+        ...r,
+        outdoorGroupId: singleGroupId,
+        outdoor_model: matchedOutdoor.model
+      }));
+
+      return { updatedRows: finalRows, groups: [singleGroup] };
+    }
+  };
+
+  // 🎯 在快速選機 VRV 模式下，當資料變動時自動執行全場配對與動態調整
+  useEffect(() => {
+    if (selectionMode === 'fast' && fastSystem === 'VRV' && rows.length > 0) {
+      // 若使用者已經手動拆分群組且群組數量 > 1，則僅針對各個別群組動態更新配對的室外機型號，不重置合併為全場單一系統
+      if (userHasCustomGroups && outdoorGroups.length > 1) {
+        const activeSys = fastSystem || 'VRV';
+        const activeSeries = fastSeries || '中靜壓';
+        const activeOutType = fastOutdoorType || '上吹';
+        const activeOutPower = fastOutdoorPower || '3φ, 4P, 380V, 60Hz';
+        const candidates = getOutdoorModelsForSystem(activeSys, activeSeries, activeOutType, activeOutPower);
+        const sortedCandidates = [...candidates].sort((a, b) => (a.cap_index || a.cap_kw * 10) - (b.cap_index || b.cap_kw * 10));
+
+        let hasGroupChange = false;
+        const updatedGroups = outdoorGroups.map(g => {
+          const gSpaces = rows.filter(r => r.outdoorGroupId === g.id);
+          if (gSpaces.length === 0) return g;
+          const sumIdx = gSpaces.reduce((acc, sp) => acc + (lookupIndoorCapIndex(sp.best_match_model) * (sp.unit_count || 1)), 0);
+          const matched = sortedCandidates.find(m => ((sumIdx / (m.cap_index || m.cap_kw * 10)) * 100.0) <= 115.0) || sortedCandidates[sortedCandidates.length - 1];
+          if (matched.model !== g.outdoor_model || activeOutPower !== g.power_supply) {
+            hasGroupChange = true;
+            return {
+              ...g,
+              outdoor_model: matched.model,
+              outdoor_cap_kw: matched.cap_kw,
+              outdoor_cap_index: matched.cap_index,
+              power_supply: activeOutPower
+            };
+          }
+          return g;
+        });
+
+        if (hasGroupChange) {
+          setOutdoorGroups(updatedGroups);
+        }
+        return;
+      }
+
+      // 未進行手動拆分時，執行預設的全場併機與 116% 自動拆分
+      const { updatedRows, groups } = autoGroupAllRowsForVRV(rows, fastSystem, fastSeries, fastOutdoorType, fastOutdoorPower);
+      
+      const needUpdate = groups.length !== outdoorGroups.length || 
+        outdoorGroups.some((g, i) => g.outdoor_model !== groups[i]?.outdoor_model || g.power_supply !== groups[i]?.power_supply) ||
+        rows.some((r, i) => r.outdoorGroupId !== updatedRows[i]?.outdoorGroupId || r.best_match_model !== updatedRows[i]?.best_match_model || r.outdoor_model !== updatedRows[i]?.outdoor_model);
+
+      if (needUpdate) {
+        setOutdoorGroups(groups);
+        setRows(updatedRows);
+      }
+    }
+  }, [selectionMode, fastSystem, fastSeries, fastOutdoorType, fastOutdoorPower, rows, userHasCustomGroups]);
+
   const handleTableContextMenu = (e, index) => {
     e.preventDefault();
+    // 若當前沒有任何空間被勾選，則將滑鼠右鍵點擊的目標空間自動勾選
+    const hasAnySelected = rows.some(r => r.selected);
+    if (!hasAnySelected && index !== undefined && index !== null) {
+      setRows(prev => prev.map((r, i) => i === index ? { ...r, selected: true } : r));
+    }
     setContextMenu({
       show: true,
       x: e.clientX,
@@ -1745,46 +2041,116 @@ function App() {
 
   const handleCreateGroupFromSelection = () => {
     setContextMenu({ show: false, x: 0, y: 0, targetRowIndex: null });
-    const selectedIndices = rows.map((r, idx) => r.selected ? idx : null).filter(idx => idx !== null);
+    let selectedIndices = rows.map((r, idx) => r.selected ? idx : null).filter(idx => idx !== null);
+
+    if (selectedIndices.length === 0 && contextMenu.targetRowIndex !== null) {
+      selectedIndices = [contextMenu.targetRowIndex];
+    }
 
     if (selectedIndices.length === 0) {
-      toast.info("💡 請先勾選表格第一欄的空間核取方塊 (Checkbox)，按滑鼠右鍵即可一鍵成立室外機系統群組！");
+      toast.info("💡 請先勾選空間或在目標空間列按滑鼠右鍵！");
       return;
     }
 
-    const gSys = rows[selectedIndices[0]]?.system_type || fastSystem || 'VRV';
-    const gSeries = rows[selectedIndices[0]]?.series || fastSeries || '';
-    const sumKw = selectedIndices.reduce((acc, idx) => acc + (parseFloat(rows[idx]?.cap_kw || lookupModelCapKw(rows[idx]?.best_match_model)) * (rows[idx]?.unit_count || 1)), 0);
-    const outdoorList = getOutdoorModelsForSystem(gSys, gSeries);
-    const sorted = [...outdoorList].sort((a, b) => a.cap_kw - b.cap_kw);
-    const matchedOutdoor = sorted.find(m => m.cap_kw >= sumKw) || sorted[sorted.length - 1] || { model: "RXYQ10AYLT", cap_kw: 28.0 };
+    const activeSys = fastSystem || 'VRV';
+    const activeSeries = fastSeries || '中靜壓';
+    const activeOutType = fastOutdoorType || '上吹';
+    const activeOutPower = fastOutdoorPower || '3φ, 4P, 380V, 60Hz';
 
+    const candidates = getOutdoorModelsForSystem(activeSys, activeSeries, activeOutType, activeOutPower);
+    const sortedCandidates = [...candidates].sort((a, b) => (a.cap_index || a.cap_kw * 10) - (b.cap_index || b.cap_kw * 10));
+
+    // 🎯 計算此次勾選空間之能力指數總和並自動對應連結率 <= 115% 之室外機
+    const sumIdx = selectedIndices.reduce((acc, i) => {
+      const sp = rows[i];
+      const singleIdx = lookupIndoorCapIndex(sp.best_match_model);
+      return acc + (singleIdx * (sp.unit_count || 1));
+    }, 0);
+    const matchedOutdoor = sortedCandidates.find(m => ((sumIdx / (m.cap_index || m.cap_kw * 10)) * 100.0) <= 115.0) || sortedCandidates[sortedCandidates.length - 1];
+
+    const nextGroupNum = outdoorGroups.length + 1;
+    const newGroupId = `group-${Date.now()}-${nextGroupNum}`;
+    const groupName = `VRV 系統 #${nextGroupNum} (${matchedOutdoor.model})`;
     const colorObj = GROUP_COLOR_PALETTE[outdoorGroups.length % GROUP_COLOR_PALETTE.length];
-    const newGroupId = `group-${Date.now()}`;
-    const groupName = `系統 #${outdoorGroups.length + 1} (${gSys})`;
 
     const newGroup = {
       id: newGroupId,
       name: groupName,
-      system_type: gSys,
+      system_type: activeSys,
       outdoor_model: matchedOutdoor.model,
       outdoor_cap_kw: matchedOutdoor.cap_kw,
-      power_supply: "1φ, 220V, 60Hz",
-      diversity_factor: 100,
+      outdoor_cap_index: matchedOutdoor.cap_index,
+      power_supply: activeOutPower,
       color: colorObj,
       space_indices: selectedIndices
     };
 
-    // Assign outdoorGroupId to selected rows and uncheck them
-    setRows(prev => prev.map((r, idx) => {
+    // 僅把當前勾選的空間標記為該新群組 ID，未勾選者保留其原有群組狀態
+    const finalRows = rows.map((r, idx) => {
       if (selectedIndices.includes(idx)) {
-        return { ...r, outdoorGroupId: newGroupId, selected: false };
+        return { ...r, outdoorGroupId: newGroupId, selected: false, outdoor_model: matchedOutdoor.model };
       }
       return r;
-    }));
+    });
 
+    setUserHasCustomGroups(true);
     setOutdoorGroups(prev => [...prev, newGroup]);
-    toast.success(`✨ 已建立 [${groupName}]！已為 ${selectedIndices.length} 個空間套用標記顏色：${colorObj.name}`);
+    setRows(finalRows);
+    toast.success(`✨ 已成功為勾選空間建立 [${groupName}]！配對室外機 ${matchedOutdoor.model}`);
+  };
+
+  const handleCreateGroupWithSpecificModel = (chosenModelStr) => {
+    setContextMenu({ show: false, x: 0, y: 0, targetRowIndex: null });
+    let selectedIndices = rows.map((r, idx) => r.selected ? idx : null).filter(idx => idx !== null);
+
+    if (selectedIndices.length === 0 && contextMenu.targetRowIndex !== null) {
+      selectedIndices = [contextMenu.targetRowIndex];
+    }
+
+    if (selectedIndices.length === 0) {
+      toast.info("💡 請先勾選空間或在目標空間列按滑鼠右鍵！");
+      return;
+    }
+
+    const activeSys = fastSystem || 'VRV';
+    const activeOutPower = fastOutdoorPower || '3φ, 4P, 380V, 60Hz';
+    const matchedOutdoor = OUTDOOR_UNITS_DB.find(m => m.model === chosenModelStr) || { model: chosenModelStr, cap_kw: 28.0, cap_index: 250.0 };
+
+    const nextGroupNum = outdoorGroups.length + 1;
+    const newGroupId = `group-${Date.now()}-${nextGroupNum}`;
+    const groupName = `VRV 系統 #${nextGroupNum} (${matchedOutdoor.model})`;
+    const colorObj = GROUP_COLOR_PALETTE[outdoorGroups.length % GROUP_COLOR_PALETTE.length];
+
+    const newGroup = {
+      id: newGroupId,
+      name: groupName,
+      system_type: activeSys,
+      outdoor_model: matchedOutdoor.model,
+      outdoor_cap_kw: matchedOutdoor.cap_kw,
+      outdoor_cap_index: matchedOutdoor.cap_index,
+      power_supply: activeOutPower,
+      color: colorObj,
+      space_indices: selectedIndices
+    };
+
+    const finalRows = rows.map((r, idx) => {
+      if (selectedIndices.includes(idx)) {
+        return { ...r, outdoorGroupId: newGroupId, selected: false, outdoor_model: matchedOutdoor.model };
+      }
+      return r;
+    });
+
+    setUserHasCustomGroups(true);
+    setOutdoorGroups(prev => [...prev, newGroup]);
+    setRows(finalRows);
+    toast.success(`✨ 已成功指定室外機型號 [${matchedOutdoor.model}] 並建立 [${groupName}]！`);
+  };
+
+  const handleResetAutoGrouping = () => {
+    setUserHasCustomGroups(false);
+    setOutdoorGroups([]);
+    setRows(prev => prev.map(r => ({ ...r, outdoorGroupId: null, selected: false })));
+    toast.info("🧹 已重置所有自訂群組，恢復為全場一併智慧演算模式！");
   };
 
   const handleRemoveRowFromGroup = (rowIdx) => {
@@ -2910,7 +3276,7 @@ function App() {
       row.best_match_model = model;
       row.unit_count = qty;
       row.cap_kw = cap || lookupModelCapKw(model);
-    } else if (field !== 'best_match_model' && field !== 'unit_count') {
+    } else if (field !== 'best_match_model' && field !== 'unit_count' && field !== 'outdoor_model' && field !== 'outdoor_unit_count' && field !== 'power_supply') {
       const curSys = selectionMode === 'fast' ? fastSystem : (row.system_type || 'VRV');
       const curSeries = selectionMode === 'fast' ? fastSeries : row.series;
       const curUnitType = selectionMode === 'fast' ? fastUnitType : row.unit_type;
@@ -2921,6 +3287,18 @@ function App() {
     } else if (field === 'best_match_model') {
       row.best_match_model = value;
       row.cap_kw = lookupModelCapKw(value);
+    }
+
+    // 🎯 核心連動：當系統為 SA (商用) 或變動機型/電源/台數時，自動即時更新對應之商用 1對1 室外機型號與室外機台數
+    if (row.system_type === 'SA' || row.system_type === 'RA') {
+      const singleKw = parseFloat(row.cap_kw || lookupModelCapKw(row.best_match_model)) || 7.1;
+      const targetPwr = row.power_supply || fastOutdoorPower || '3φ, 4P, 380V, 60Hz';
+      const targetType = row.outdoor_type || fastOutdoorType;
+      const matchedOutdoor = autoMatchOutdoorModelForRow(row.system_type, row.series, singleKw, targetType, targetPwr);
+      row.outdoor_model = matchedOutdoor;
+      if (field === 'unit_count' || !row.outdoor_unit_count) {
+        row.outdoor_unit_count = row.unit_count || 1;
+      }
     }
 
     setRows(updatedRows);
@@ -4338,36 +4716,56 @@ function App() {
                     >
                       <option value=""></option>
                       <option value="1φ, 220V, 60Hz">1φ, 220V, 60Hz</option>
-                      <option value="3φ, 220V, 60Hz">3φ, 220V, 60Hz</option>
-                      <option value="3φ, 380V, 60Hz">3φ, 380V, 60Hz</option>
+                      <option value="3φ, 3P, 220V, 60Hz">3φ, 3P, 220V, 60Hz</option>
+                      <option value="3φ, 4P, 380V, 60Hz">3φ, 4P, 380V, 60Hz</option>
                     </select>
                   </div>
                 );
               })()}
 
-              {/* 🎯 6. 一鍵將勾選空間併入同一台室外機按鈕 */}
-              <button
-                onClick={handleCreateGroupFromSelection}
-                title="點擊將表格中已勾選的空間，組合配對為同一台大金室外機"
-                style={{
-                  backgroundColor: '#0284c7',
-                  color: '#ffffff',
-                  border: 'none',
-                  padding: '7px 16px',
-                  borderRadius: '6px',
-                  fontSize: '13px',
-                  fontWeight: 'bold',
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 8px rgba(2, 132, 199, 0.4)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  marginLeft: 'auto',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                🔗 將勾選空間併入同一台室外機
-              </button>
+              {/* 🎯 6. 一鍵將勾選空間併入獨立室外機系統與重置按鈕 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto' }}>
+                {userHasCustomGroups && (
+                  <button
+                    onClick={handleResetAutoGrouping}
+                    title="點擊重置所有自訂分組，恢復全場一併智慧配對"
+                    style={{
+                      backgroundColor: '#475569',
+                      color: '#f8fafc',
+                      border: 'none',
+                      padding: '7px 12px',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    🧹 重置全場一併
+                  </button>
+                )}
+                <button
+                  onClick={handleCreateGroupFromSelection}
+                  title="點擊將表格中已勾選的空間組合為獨立的大金室外機系統"
+                  style={{
+                    backgroundColor: '#0284c7',
+                    color: '#ffffff',
+                    border: 'none',
+                    padding: '7px 16px',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 8px rgba(2, 132, 199, 0.4)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  🔗 將勾選空間併入同一台室外機
+                </button>
+              </div>
             </div>
           )}
 
@@ -4401,7 +4799,11 @@ function App() {
                   <th style={styles.th}>台數</th>
                   <th style={{ ...styles.th, color: '#a855f7' }}>總冷房能力(kW)</th>
                   {/* 🎯 向後擴充室外機配對欄位 */}
+                  {selectionMode === 'detail' && (
+                    <th style={{ ...styles.th, color: '#eab308', backgroundColor: '#1e293b' }}>供應電源</th>
+                  )}
                   <th style={{ ...styles.th, color: '#38bdf8', backgroundColor: '#1e293b' }}>室外機型號</th>
+                  <th style={{ ...styles.th, color: '#34d399', backgroundColor: '#1e293b' }}>室外機台數</th>
                   <th style={{ ...styles.th, color: '#a855f7', backgroundColor: '#1e293b' }}>室外機冷房能力(kW)</th>
                   {/* 🎯 連結率 (%) 僅在 VRV 系統時顯示 */}
                   {(fastSystem === 'VRV' || selectionMode === 'detail') && (
@@ -4411,9 +4813,9 @@ function App() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={selectionMode === 'detail' ? 19 : (fastSystem === 'VRV' ? 16 : 15)} style={{ textAlign: 'center', padding: '50px', color: '#94a3b8' }}>🔄 正在啟用雙軌影像引擎分析，請稍候...</td></tr>
+                  <tr><td colSpan={selectionMode === 'detail' ? 21 : (fastSystem === 'VRV' ? 17 : 16)} style={{ textAlign: 'center', padding: '50px', color: '#94a3b8' }}>🔄 正在啟用雙軌影像引擎分析，請稍候...</td></tr>
                 ) : rows.length === 0 ? (
-                  <tr><td colSpan={selectionMode === 'detail' ? 19 : (fastSystem === 'VRV' ? 16 : 15)} style={{ textAlign: 'center', padding: '30px', color: '#475569' }}>暫無數據。請上傳圖面並執行解析。</td></tr>
+                  <tr><td colSpan={selectionMode === 'detail' ? 21 : (fastSystem === 'VRV' ? 17 : 16)} style={{ textAlign: 'center', padding: '30px', color: '#475569' }}>暫無數據。請上傳圖面並執行解析。</td></tr>
                 ) : (
                   rows.map((row, index) => {
                     const gCard = outdoorGroups.find(g => g.id === row.outdoorGroupId);
@@ -4426,17 +4828,24 @@ function App() {
                     return (
                       <tr
                         key={index}
+                        draggable={true}
+                        onDragStart={(e) => handleRowDragStart(e, index)}
+                        onDragOver={(e) => handleRowDragOver(e, index)}
+                        onDrop={(e) => handleRowDrop(e, index)}
+                        onDragEnd={handleRowDragEnd}
                         onContextMenu={(e) => handleTableContextMenu(e, index)}
                         onClick={(e) => {
                           if (e.ctrlKey || e.metaKey) {
                             handleCellChange(index, 'selected', !row.selected);
                           }
                         }}
-                        title="💡 提示：按住 Ctrl 鍵點選空間列，放開 Ctrl 鍵即可自動成立室外機群組與計算連結率！"
+                        title="💡 提示：按住 ⋮⋮ 或整個空間列即可直接上下拖曳排序！按住 Ctrl 鍵可多選成立室外機群組！"
                         style={{
-                          opacity: row.selected ? 1 : (gCard ? 0.9 : 0.45),
+                          opacity: draggedRowIndex === index ? 0.35 : (row.selected ? 1 : (gCard ? 0.9 : 0.45)),
+                          borderTop: dragOverRowIndex === index ? '3px solid #38bdf8' : undefined,
+                          backgroundColor: dragOverRowIndex === index ? 'rgba(56, 189, 248, 0.15)' : (rowColorStyle.backgroundColor || 'transparent'),
                           transition: 'all 0.2s ease',
-                          cursor: 'pointer',
+                          cursor: 'grab',
                           ...rowColorStyle
                         }}
                       >
@@ -4469,7 +4878,7 @@ function App() {
                               disabled={!row.selected && !row.outdoorGroupId}
                               title="可自由編輯空間名稱"
                             />
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                               {(row.area_m2 >= 75 || (row.space_name && (row.space_name.includes('客餐廳') || row.space_name.includes('開放')))) && (
                                 <button
                                   onClick={() => handleSplitSpace(index)}
@@ -4488,10 +4897,19 @@ function App() {
                                   ✂️ 分割
                                 </button>
                               )}
-                              <div style={{ display: 'flex', gap: '3px', fontSize: '11px', userSelect: 'none', alignItems: 'center' }}>
-                                <span onClick={() => moveRow(index, 'up')} style={{ cursor: 'pointer', opacity: index === 0 ? 0.2 : 0.8 }} title="上移">🔼</span>
-                                <span onClick={() => moveRow(index, 'down')} style={{ cursor: 'pointer', opacity: index === rows.length - 1 ? 0.2 : 0.8 }} title="下移">🔽</span>
-                              </div>
+                              <span
+                                style={{
+                                  cursor: 'grab',
+                                  color: '#38bdf8',
+                                  fontSize: '16px',
+                                  fontWeight: 'bold',
+                                  padding: '2px 4px',
+                                  userSelect: 'none'
+                                }}
+                                title="按住拖曳可調整此空間上下排序"
+                              >
+                                ⋮⋮
+                              </span>
                             </div>
                           </div>
                         </td>
@@ -4674,8 +5092,10 @@ function App() {
                           {((parseFloat(row.cap_kw || lookupModelCapKw(row.best_match_model)) || 0) * (row.unit_count || 1)).toFixed(1)} kW
                         </td>
 
-                        {/* 🎯 室外機延伸 2, 3, 4: 室外機型號、冷房能力與連結率 (依大金原廠「能力指數」公式計算) */}
+                        {/* 🎯 室外機延伸: 供應電源、室外機型號、室外機台數、冷房能力與連結率 */}
                         {(() => {
+                          const targetPower = row.power_supply || (gCard ? (gCard.power_supply || fastOutdoorPower) : fastOutdoorPower);
+
                           if (gCard) {
                             const gIndices = rows.map((r, i) => r.outdoorGroupId === gCard.id ? i : null).filter(i => i !== null);
                             const isFirstInGroup = (gIndices[0] === index);
@@ -4686,6 +5106,9 @@ function App() {
                             }
 
                             const gSpaces = gIndices.map(i => rows[i]).filter(Boolean);
+                            const validCandidateList = getOutdoorModelsForSystem(gCard.system_type, row.series || fastSeries, fastOutdoorType, targetPower);
+                            const isNoModel = !gCard.outdoor_model || gCard.outdoor_model === '無此機型' || validCandidateList.length === 0;
+                            const isPowerValid = isNoModel ? true : isValidOutdoorPower(gCard.outdoor_model, targetPower);
                             
                             // 🎯 1. 分子：同系統所有室內機能力指數加總 (能力指數 x 台數)
                             const sumIndoorIndex = gSpaces.reduce((acc, sp) => {
@@ -4696,17 +5119,51 @@ function App() {
 
                             // 🎯 2. 分母與能力：動態參照選定室外機型號之冷房能力 (kW) 與室外機能力指數
                             const matchedOutdoorObj = OUTDOOR_UNITS_DB.find(m => m.model === gCard.outdoor_model);
-                            const outdoorCapKw = matchedOutdoorObj ? matchedOutdoorObj.cap_kw : (gCard.outdoor_cap_kw || 25.0);
-                            const outdoorCapIndex = matchedOutdoorObj ? (matchedOutdoorObj.cap_index || 223.0) : 223.0;
+                            const outdoorCapKw = (!isNoModel && isPowerValid && matchedOutdoorObj) ? matchedOutdoorObj.cap_kw : 0;
+                            const outdoorCapIndex = (!isNoModel && isPowerValid && matchedOutdoorObj) ? (matchedOutdoorObj.cap_index || 223.0) : 0;
 
-                            // 🎯 3. 連結率 (%) = (分子 / 分母) * 100%
-                            const rawRatio = outdoorCapIndex > 0 ? (sumIndoorIndex / outdoorCapIndex) * 100.0 : 0;
+                            // 🎯 3. 連結率 (%) 樣式與警示規範：
+                            const rawRatio = (!isNoModel && isPowerValid && outdoorCapIndex > 0) ? (sumIndoorIndex / outdoorCapIndex) * 100.0 : 0;
                             const connRatio = Math.round(rawRatio);
-                            const isWarn = connRatio < 50 || connRatio > 130;
-                            const ratioColor = isWarn ? '#ef4444' : (connRatio >= 100 && connRatio <= 110 ? '#34d399' : '#f59e0b');
+                            const isWarn = connRatio < 100 || connRatio > 120;
+                            const ratioColor = connRatio < 100 ? '#ef4444' : (connRatio > 120 ? '#f97316' : (connRatio <= 110 ? '#34d399' : '#f59e0b'));
 
                             return (
                               <>
+                                {selectionMode === 'detail' && (
+                                  <td
+                                    rowSpan={gSpan}
+                                    style={{
+                                      ...styles.td,
+                                      verticalAlign: 'middle',
+                                      textAlign: 'center',
+                                      backgroundColor: gCard.color.bg
+                                    }}
+                                  >
+                                    <select
+                                      value={gCard.power_supply || targetPower}
+                                      onChange={(e) => {
+                                        const pVal = e.target.value;
+                                        setOutdoorGroups(prev => prev.map(g => g.id === gCard.id ? { ...g, power_supply: pVal } : g));
+                                      }}
+                                      style={{
+                                        backgroundColor: '#0f172a',
+                                        color: '#eab308',
+                                        border: '1px solid #eab308',
+                                        padding: '4px 6px',
+                                        borderRadius: '4px',
+                                        fontSize: '12px',
+                                        fontWeight: 'bold',
+                                        cursor: 'pointer'
+                                      }}
+                                    >
+                                      <option value="1φ, 220V, 60Hz">1φ, 220V, 60Hz</option>
+                                      <option value="3φ, 3P, 220V, 60Hz">3φ, 3P, 220V, 60Hz</option>
+                                      <option value="3φ, 4P, 380V, 60Hz">3φ, 4P, 380V, 60Hz</option>
+                                    </select>
+                                  </td>
+                                )}
+
                                 <td
                                   rowSpan={gSpan}
                                   style={{
@@ -4718,20 +5175,23 @@ function App() {
                                   }}
                                 >
                                   <select
-                                    value={gCard.outdoor_model}
+                                    value={isNoModel ? '無此機型' : (isPowerValid ? gCard.outdoor_model : '')}
                                     onChange={(e) => handleOutdoorModelChange(gCard.id, e.target.value)}
                                     style={{
-                                      backgroundColor: '#0f172a',
-                                      color: '#38bdf8',
-                                      border: '1px solid #38bdf8',
+                                      backgroundColor: isNoModel ? '#1e293b' : (isPowerValid ? '#0f172a' : '#451a03'),
+                                      color: isNoModel ? '#ef4444' : (isPowerValid ? '#38bdf8' : '#ef4444'),
+                                      border: isNoModel ? '1px solid #ef4444' : (isPowerValid ? '1px solid #38bdf8' : '1px solid #ef4444'),
                                       padding: '4px 8px',
                                       borderRadius: '4px',
                                       fontSize: '12px',
                                       fontWeight: 'bold',
                                       cursor: 'pointer'
                                     }}
+                                    title={isNoModel ? "無此規格可支援之室外機型號" : (!isPowerValid ? `⚠️ 電源不符！室外機 [${gCard.outdoor_model}] 不支援 [${targetPower}] 電源` : "")}
                                   >
-                                    {getOutdoorModelsForSystem(gCard.system_type, row.series || fastSeries, fastOutdoorType, fastOutdoorPower).map((m, mIdx) => (
+                                    {isNoModel && <option value="無此機型">無此機型</option>}
+                                    {!isNoModel && !isPowerValid && <option value="">⚠️ 電源不符</option>}
+                                    {validCandidateList.map((m, mIdx) => (
                                       <option key={mIdx} value={m.model}>{m.model}</option>
                                     ))}
                                   </select>
@@ -4743,12 +5203,12 @@ function App() {
                                     ...styles.td,
                                     verticalAlign: 'middle',
                                     textAlign: 'center',
-                                    color: '#a855f7',
+                                    color: isPowerValid ? '#a855f7' : '#64748b',
                                     fontWeight: 'bold',
                                     backgroundColor: gCard.color.bg
                                   }}
                                 >
-                                  {outdoorCapKw ? `${parseFloat(outdoorCapKw).toFixed(1)} kW` : '-'}
+                                  {!isNoModel && isPowerValid && outdoorCapKw ? `${parseFloat(outdoorCapKw).toFixed(1)} kW` : '-'}
                                 </td>
 
                                 {isVRV && (
@@ -4758,14 +5218,14 @@ function App() {
                                       ...styles.td,
                                       verticalAlign: 'middle',
                                       textAlign: 'center',
-                                      color: ratioColor,
+                                      color: isNoModel ? '#64748b' : (isPowerValid ? ratioColor : '#ef4444'),
                                       fontWeight: 'bold',
-                                      fontSize: '13px',
+                                      fontSize: (!isNoModel && isPowerValid) ? '13px' : '12px',
                                       backgroundColor: gCard.color.bg
                                     }}
-                                    title={`連結率 = (室內能力指數總和 ${sumIndoorIndex} / 室外能力指數 ${outdoorCapIndex}) * 100% = ${rawRatio.toFixed(1)}%`}
+                                    title={isNoModel ? "無此機型" : (!isPowerValid ? `⚠️ 警示：電源不符` : `連結率 = (室內能力指數總和 ${sumIndoorIndex} / 室外能力指數 ${outdoorCapIndex}) * 100% = ${rawRatio.toFixed(1)}%`)}
                                   >
-                                    {isWarn ? `⚠️ ${connRatio}%` : `${connRatio}%`}
+                                    {isNoModel ? '-' : (isPowerValid ? (isWarn ? `⚠️ ${connRatio}%` : `${connRatio}%`) : '❌ 電源不符')}
                                   </td>
                                 )}
                               </>
@@ -4775,41 +5235,78 @@ function App() {
                           // 獨立單機個體列 (非併機群組)
                           const autoOutdoor = autoMatchOutdoorModelForRow(row.system_type || fastSystem, row.series || fastSeries, (parseFloat(row.cap_kw || lookupModelCapKw(row.best_match_model)) * (row.unit_count || 1)), fastOutdoorType, fastOutdoorPower);
                           const selectedModelStr = row.outdoor_model || autoOutdoor;
+                          const validCandidateList = getOutdoorModelsForSystem(row.system_type || fastSystem, row.series || fastSeries, fastOutdoorType, targetPower);
+                          const isNoModel = !selectedModelStr || selectedModelStr === '無此機型' || validCandidateList.length === 0;
+                          const isPowerValid = isNoModel ? true : isValidOutdoorPower(selectedModelStr, targetPower);
                           const matchedOutdoorObj = OUTDOOR_UNITS_DB.find(m => m.model === selectedModelStr);
-                          const outdoorCapKw = matchedOutdoorObj ? matchedOutdoorObj.cap_kw : 25.0;
-                          const outdoorCapIndex = matchedOutdoorObj ? (matchedOutdoorObj.cap_index || 223.0) : 223.0;
+                          const outdoorCapKw = (!isNoModel && isPowerValid && matchedOutdoorObj) ? matchedOutdoorObj.cap_kw : 0;
+                          const outdoorCapIndex = (!isNoModel && isPowerValid && matchedOutdoorObj) ? (matchedOutdoorObj.cap_index || 223.0) : 0;
 
                           const singleIndoorIdx = lookupIndoorCapIndex(row.best_match_model);
                           const totalIndoorIdx = singleIndoorIdx * (row.unit_count || 1);
-                          const rawRatio = outdoorCapIndex > 0 ? (totalIndoorIdx / outdoorCapIndex) * 100.0 : 0;
+                          const rawRatio = (!isNoModel && isPowerValid && outdoorCapIndex > 0) ? (totalIndoorIdx / outdoorCapIndex) * 100.0 : 0;
                           const connRatio = Math.round(rawRatio);
-                          const isWarn = connRatio < 50 || connRatio > 130;
-                          const ratioColor = isWarn ? '#ef4444' : (connRatio >= 100 && connRatio <= 110 ? '#34d399' : '#f59e0b');
+                          const isWarn = connRatio < 100 || connRatio > 120;
+                          const ratioColor = connRatio < 100 ? '#ef4444' : (connRatio > 120 ? '#f97316' : (connRatio <= 110 ? '#34d399' : '#f59e0b'));
 
                           return (
                             <>
+                              {selectionMode === 'detail' && (
+                                <td style={styles.td}>
+                                  <select
+                                    value={row.power_supply || targetPower}
+                                    onChange={(e) => handleCellChange(index, 'power_supply', e.target.value)}
+                                    style={{
+                                      backgroundColor: '#0f172a',
+                                      color: '#eab308',
+                                      border: '1px solid #eab308',
+                                      padding: '3px 6px',
+                                      borderRadius: '4px',
+                                      fontSize: '12px',
+                                      fontWeight: 'bold',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    <option value="1φ, 220V, 60Hz">1φ, 220V, 60Hz</option>
+                                    <option value="3φ, 3P, 220V, 60Hz">3φ, 3P, 220V, 60Hz</option>
+                                    <option value="3φ, 4P, 380V, 60Hz">3φ, 4P, 380V, 60Hz</option>
+                                  </select>
+                                </td>
+                              )}
+
                               <td style={styles.td}>
                                 <select
-                                  value={selectedModelStr}
+                                  value={isPowerValid ? selectedModelStr : ''}
                                   onChange={(e) => handleCellChange(index, 'outdoor_model', e.target.value)}
-                                  style={{ backgroundColor: '#0f172a', color: '#38bdf8', border: '1px solid #334155', padding: '3px 6px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+                                  style={{
+                                    backgroundColor: isPowerValid ? '#0f172a' : '#451a03',
+                                    color: isPowerValid ? '#38bdf8' : '#ef4444',
+                                    border: isPowerValid ? '1px solid #334155' : '1px solid #ef4444',
+                                    padding: '3px 6px',
+                                    borderRadius: '4px',
+                                    fontSize: '12px',
+                                    fontWeight: 'bold',
+                                    cursor: 'pointer'
+                                  }}
+                                  title={!isPowerValid ? `⚠️ 電源不符！室外機 [${selectedModelStr}] 不支援 [${targetPower}] 電源` : ""}
                                 >
-                                  {getOutdoorModelsForSystem(row.system_type || fastSystem, row.series || fastSeries, fastOutdoorType, fastOutdoorPower).map((m, mIdx) => (
+                                  {!isPowerValid && <option value="">⚠️ 電源不符</option>}
+                                  {validCandidateList.map((m, mIdx) => (
                                     <option key={mIdx} value={m.model}>{m.model}</option>
                                   ))}
                                 </select>
                               </td>
 
-                              <td style={{ ...styles.td, color: '#a855f7', fontWeight: 'bold' }}>
-                                {outdoorCapKw ? `${parseFloat(outdoorCapKw).toFixed(1)} kW` : '-'}
+                              <td style={{ ...styles.td, color: isPowerValid ? '#a855f7' : '#64748b', fontWeight: 'bold' }}>
+                                {isPowerValid && outdoorCapKw ? `${parseFloat(outdoorCapKw).toFixed(1)} kW` : '-'}
                               </td>
 
                               {isVRV && (
                                 <td
-                                  style={{ ...styles.td, color: ratioColor, fontWeight: 'bold', fontSize: '12px' }}
-                                  title={`連結率 = (室內能力指數 ${totalIndoorIdx} / 室外能力指數 ${outdoorCapIndex}) * 100% = ${rawRatio.toFixed(1)}%`}
+                                  style={{ ...styles.td, color: isPowerValid ? ratioColor : '#ef4444', fontWeight: 'bold', fontSize: isPowerValid ? '12px' : '11px' }}
+                                  title={!isPowerValid ? `⚠️ 警示：RXYQ/RXQ 7.1~60HP 上吹室外機固定需使用 3φ, 4P, 380V, 60Hz 電源！` : `連結率 = (室內能力指數 ${totalIndoorIdx} / 室外能力指數 ${outdoorCapIndex}) * 100% = ${rawRatio.toFixed(1)}%`}
                                 >
-                                  {isWarn ? `⚠️ ${connRatio}%` : `${connRatio}%`}
+                                  {isPowerValid ? (isWarn ? `⚠️ ${connRatio}%` : `${connRatio}%`) : '❌ 電源不符'}
                                 </td>
                               )}
                             </>
@@ -4824,6 +5321,126 @@ function App() {
           </div>
         </section>
       </div>
+
+      {/* 🎯 滑鼠右鍵快顯功能功能表 (一鍵將勾選空間併入同一台室外機 / 手動指定室外機型號) */}
+      {contextMenu.show && (
+        <div
+          style={{
+            position: 'fixed',
+            top: Math.min(contextMenu.y, (window.innerHeight || 800) - 280),
+            left: Math.min(contextMenu.x, (window.innerWidth || 1200) - 300),
+            backgroundColor: '#0f172a',
+            border: '1px solid #38bdf8',
+            borderRadius: '8px',
+            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.6)',
+            padding: '8px 0',
+            zIndex: 999999,
+            minWidth: '260px',
+            color: '#f8fafc'
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div style={{ padding: '6px 14px', fontSize: '11px', color: '#94a3b8', borderBottom: '1px solid #334155', fontWeight: 'bold' }}>
+            🎯 室外機系統右鍵選單 ({rows.filter(r => r.selected).length > 0 ? `已勾選 ${rows.filter(r => r.selected).length} 個空間` : `目標：${rows[contextMenu.targetRowIndex]?.space_name || '空間'}`})
+          </div>
+
+          <div
+            onClick={() => handleCreateGroupFromSelection()}
+            style={{
+              padding: '10px 14px',
+              fontSize: '13px',
+              fontWeight: 'bold',
+              color: '#38bdf8',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              transition: 'background-color 0.15s'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1e293b'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+          >
+            🔗 併入同一台室外機 (自動算 ≤115% 型號)
+          </div>
+
+          <div style={{ padding: '8px 14px', borderTop: '1px solid #334155' }}>
+            <div style={{ fontSize: '12px', color: '#a855f7', fontWeight: 'bold', marginBottom: '6px' }}>
+              ⚡ 手動選擇室外機系統型號:
+            </div>
+            <select
+              defaultValue=""
+              onChange={(e) => {
+                if (e.target.value) {
+                  handleCreateGroupWithSpecificModel(e.target.value);
+                }
+              }}
+              style={{
+                width: '100%',
+                backgroundColor: '#1e293b',
+                color: '#38bdf8',
+                border: '1px solid #38bdf8',
+                padding: '6px 10px',
+                borderRadius: '4px',
+                fontSize: '12px',
+                fontWeight: 'bold',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="">-- 請選擇室外機型號 --</option>
+              {getOutdoorModelsForSystem(fastSystem || 'VRV', fastSeries || '中靜壓', fastOutdoorType || '上吹', fastOutdoorPower || '3φ, 4P, 380V, 60Hz').map((m, idx) => (
+                <option key={idx} value={m.model}>
+                  {m.model} ({m.cap_kw} kW / {m.cap_index} 指數)
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {contextMenu.targetRowIndex !== null && rows[contextMenu.targetRowIndex]?.outdoorGroupId && (
+            <div
+              onClick={() => handleRemoveRowFromGroup(contextMenu.targetRowIndex)}
+              style={{
+                padding: '10px 14px',
+                fontSize: '13px',
+                fontWeight: 'bold',
+                color: '#f87171',
+                cursor: 'pointer',
+                borderTop: '1px solid #334155',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1e293b'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+            >
+              ✂️ 將此空間從室外機群組拆分獨立
+            </div>
+          )}
+
+          {userHasCustomGroups && (
+            <div
+              onClick={() => {
+                handleResetAutoGrouping();
+                setContextMenu({ show: false, x: 0, y: 0, targetRowIndex: null });
+              }}
+              style={{
+                padding: '10px 14px',
+                fontSize: '13px',
+                fontWeight: 'bold',
+                color: '#94a3b8',
+                cursor: 'pointer',
+                borderTop: '1px solid #334155',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1e293b'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+            >
+              🧹 重置全場一併智慧併機
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 🎯 全螢幕 / 大視窗互動放樣與面積框選編輯器 Modal */}
       {isCanvasModalOpen && (
