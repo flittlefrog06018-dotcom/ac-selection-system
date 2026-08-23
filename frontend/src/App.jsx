@@ -3550,10 +3550,20 @@ function App() {
         const actualKwPerPing = ping > 0 ? parseFloat((singleCapKw / ping).toFixed(1)) : 0;
         const pingPerUsrt = (qty * singleCapKw > 0) ? parseFloat((ping / ((qty * singleCapKw) / 3.516)).toFixed(1)) : 0;
 
-        const nominalCap = row.nominal_cap || "-";
-        const powerSupply = row.power_supply || "-";
-        const powerConsumption = row.power_consumption_kw || "-";
-        const dimensions = row.dimensions || "-";
+        const sysUpper = (row.system_type || "").toUpperCase();
+        const modUpper = modelStr.toUpperCase();
+        let powerSupply = "-";
+        if (sysUpper.includes("VRV") || modUpper.startsWith("FX") || modUpper.startsWith("FBA")) {
+          powerSupply = "1φ, 220V, 60Hz";
+        }
+
+        let nominalCapVal = row.nominal_cap;
+        if (!nominalCapVal || nominalCapVal === "-") {
+          nominalCapVal = singleCapKw;
+        } else {
+          const parsed = parseFloat(nominalCapVal);
+          if (!isNaN(parsed)) nominalCapVal = parsed;
+        }
 
         const excelRow = ws.getRow(rowIdx);
         excelRow.getCell(1).value = "2F";                                    // Col A: 樓層
@@ -3568,7 +3578,7 @@ function App() {
         excelRow.getCell(15).value = qty;                                     // Col O: 室內機台數
         excelRow.getCell(16).value = singleCapKcal;                           // Col P: 冷房能力 (kcal/hr)
         excelRow.getCell(17).value = singleCapKw;                             // Col Q: 冷房能力 (kW)
-        excelRow.getCell(18).value = nominalCap;                              // Col R: 標稱能力 / 能力指數
+        excelRow.getCell(18).value = nominalCapVal;                           // Col R: 標稱能力 (EQUIPMENT_Data 第6列)
         excelRow.getCell(19).value = powerSupply;                             // Col S: 供應電源
         excelRow.getCell(20).value = powerConsumption;                        // Col T: 單台耗電量 kW
         excelRow.getCell(22).value = dimensions;                              // Col V: 尺寸 mm (H×W×D)
@@ -3673,7 +3683,7 @@ function App() {
       };
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 1000);
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
 
       const res = await fetch("/api/export-excel", {
         method: "POST",

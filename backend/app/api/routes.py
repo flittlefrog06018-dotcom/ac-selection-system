@@ -13,7 +13,13 @@ from PIL import Image
 from google import genai
 from google.genai import types
 
-# 🎯 完美串聯：直接匯入與您 config.env 同步的 settings 物件
+try:
+    from app.services.export_service import ExportService
+except ImportError:
+    try:
+        from services.export_service import ExportService
+    except ImportError:
+        ExportService = None
 try:
     from app.config import settings
 except ImportError:
@@ -73,19 +79,24 @@ def lookup_cap_kw(model_name: str) -> float:
 
 # --- 🎯 精準對齊前端欄位格式的 Export 結構定義 ---
 class ExportRowModel(BaseModel):
-    space_name: str
-    area_m2: float
-    area_ping: float
-    system_type: str
+    space_name: str = ""
+    area_m2: float = 0.0
+    area_ping: float = 0.0
+    system_type: str = "VRV"
     exposures_str: str = ""
     base_suggested_load: float = 0.0
     final_kcal_per_ping: float = 0.0
     special_kw: float = 0.0
     special_heat_kcal: float = 0.0
     total_cooling_load_kcal: float = 0.0
-    recommended_model: str
-    qty: int
+    recommended_model: str = ""
+    indoor_model: str = ""
+    qty: int = 1
     cap_kw: float = 0.0
+    nominal_cap: str = "-"
+    power_supply: str = "-"
+    power_consumption_kw: str = "-"
+    dimensions: str = "-"
 
 class ExportRequest(BaseModel):
     filename: str = ""

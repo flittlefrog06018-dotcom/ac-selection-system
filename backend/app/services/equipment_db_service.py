@@ -87,6 +87,7 @@ class EquipmentDBService:
                 raw_nominal = ws.cell(row=6, column=col).value
                 raw_power_sup = ws.cell(row=7, column=col).value
                 raw_power_con = ws.cell(row=8, column=col).value
+                raw_current = ws.cell(row=9, column=col).value
                 raw_dim = ws.cell(row=11, column=col).value
                 raw_type = ws.cell(row=12, column=col).value
                 
@@ -121,6 +122,7 @@ class EquipmentDBService:
                     "nominal_cap": clean_raw_val(raw_nominal),
                     "power_supply": clean_raw_val(raw_power_sup),
                     "power_consumption_kw": clean_raw_val(raw_power_con),
+                    "mca": clean_raw_val(raw_current),
                     "dimensions": clean_raw_val(raw_dim),
                     "unit_type": unit_type_str,
                     "col_index": col
@@ -128,6 +130,7 @@ class EquipmentDBService:
                 units_list.append(unit_obj)
                 
             self.units = units_list
+            self._indoor_units_map = {u["model"].upper(): u for u in units_list}
             self.load_outdoor_units(target_path)
             self.is_loaded = True
             self.db_path = target_path
@@ -144,37 +147,77 @@ class EquipmentDBService:
             wb = openpyxl.load_workbook(file_path, data_only=True)
             if "outdoor_units" not in wb.sheetnames:
                 self.outdoor_units = []
+                self._outdoor_units_map = {}
                 return
             ws = wb["outdoor_units"]
             cols = list(ws.columns)
             outdoors = []
+            outdoors_map = {}
             for c in range(2, len(cols)):
-                sys_val = cols[c][1].value
-                ser_val = cols[c][2].value
-                mod_val = cols[c][3].value
-                cap_val = cols[c][4].value
-                nom_val = cols[c][5].value
-                pwr_sup = cols[c][6].value
-                pwr_con = cols[c][7].value
-                dim_val = cols[c][11].value
-                ut_val = cols[c][12].value
+                sys_val = cols[c][1].value   # row 2
+                ser_val = cols[c][2].value   # row 3
+                mod_val = cols[c][3].value   # row 4
+                cap_val = cols[c][4].value   # row 5
+                nom_val = cols[c][5].value   # row 6
+                pwr_sup = cols[c][6].value   # row 7
+                pwr_con = cols[c][7].value   # row 8
+                mca_val = cols[c][8].value   # row 9 (電路最大電流 MCA)
+                mfa_val = cols[c][9].value   # row 10 (保險絲最大電流 MFA)
+                dim_val = cols[c][11].value  # row 12 (尺寸 mm HxWxD)
+                ut_val = cols[c][12].value   # row 13 (型式)
                 
                 if sys_val and mod_val and isinstance(cap_val, (int, float)):
-                    outdoors.append({
+                    def clean_val(v):
+                        if v is None:
+                            return "-"
+                        s = str(v).strip()
+                        return s if s else "-"
+
+                    m_str = str(mod_val).strip().upper()
+                    obj = {
                         "system": str(sys_val).strip(),
                         "series": str(ser_val or "").strip(),
-                        "model": str(mod_val).strip(),
+                        "model": m_str,
                         "cap_kw": float(cap_val),
-                        "nominal_cap": str(nom_val or "-"),
-                        "power_supply": str(pwr_sup or "-"),
-                        "power_consumption_kw": str(pwr_con or "-"),
-                        "dimensions": str(dim_val or "-"),
-                        "unit_type": str(ut_val or "-")
-                    })
+                        "nominal_cap": clean_val(nom_val),
+                        "power_supply": clean_val(pwr_sup),
+                        "power_consumption_kw": clean_val(pwr_con),
+                        "mca": clean_val(mca_val),
+                        "mfa": clean_val(mfa_val),
+                        "dimensions": clean_val(dim_val),
+                        "unit_type": clean_val(ut_val)
+                    }
+                    outdoors.append(obj)
+                    outdoors_map[m_str] = obj
             self.outdoor_units = outdoors
+            self._outdoor_units_map = outdoors_map
         except Exception as e:
             logger.error(f"Failed to parse outdoor_units sheet: {e}")
             self.outdoor_units = []
+            self._outdoor_units_map = {}
+
+    def get_indoor_unit_info(self, model_name: str) -> Optional[Dict[str, Any]]:
+        if not self.is_loaded:
+            self.load_equipment_db()
+        if not model_name:
+            return None
+        m_upper = str(model_name).strip().upper()
+        if not hasattr(self, "_indoor_units_map") or not self._indoor_units_map:
+            self._indoor_units_map = {u["model"].upper(): u for u in self.units}
+        return self._indoor_units_map.get(m_upper)
+
+    def get_outdoor_unit_info(self, model_name: str) -> Optional[Dict[str, Any]]:
+        if not self.is_loaded:
+            self.load_equipment_db()
+        if not model_name:
+            return None
+        m_upper = str(model_name).strip().upper()
+        if hasattr(self, "_outdoor_units_map") and m_upper in self._outdoor_units_map:
+            return self._outdoor_units_map[m_upper]
+        for u in getattr(self, "outdoor_units", []):
+            if u["model"].upper() == m_upper:
+                return u
+        return None
 
     def get_systems(self) -> List[str]:
         if not self.is_loaded:
