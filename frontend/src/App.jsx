@@ -4884,10 +4884,10 @@ function App() {
                       style={{ cursor: 'pointer', scale: '1.15' }}
                     />
                   </th>
-                  <th style={{ ...styles.th, position: 'sticky', left: '45px', top: 0, zIndex: 30, backgroundColor: '#1e293b', minWidth: '180px', boxShadow: '6px 0 12px rgba(0,0,0,0.85)' }}>空間名稱</th>
-                  {selectionMode === 'detail' && <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>系統規格</th>}
-                  <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>平方公尺(㎡)</th>
-                  <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>坪數(P)</th>
+                  <th style={{ ...styles.th, position: 'sticky', left: '45px', top: 0, zIndex: 30, backgroundColor: '#1e293b', minWidth: '180px' }}>空間名稱</th>
+                  {selectionMode === 'detail' && <th style={{ ...styles.th, position: 'sticky', left: '225px', top: 0, zIndex: 30, backgroundColor: '#1e293b', minWidth: '100px' }}>系統規格</th>}
+                  <th style={{ ...styles.th, position: 'sticky', left: selectionMode === 'detail' ? '325px' : '225px', top: 0, zIndex: 30, backgroundColor: '#1e293b', minWidth: '95px' }}>平方公尺(㎡)</th>
+                  <th style={{ ...styles.th, position: 'sticky', left: selectionMode === 'detail' ? '420px' : '320px', top: 0, zIndex: 30, backgroundColor: '#1e293b', minWidth: '85px', boxShadow: '6px 0 12px rgba(0,0,0,0.85)' }}>坪數(P)</th>
                   <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>基準(kcal/h/坪)</th>
                   <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>環境加成百分比偏置</th>
                   <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>特殊熱源</th>
@@ -4970,7 +4970,7 @@ function App() {
                           />
                         </td>
 
-                        <td style={{ ...styles.td, position: 'sticky', left: '45px', zIndex: 15, backgroundColor: solidRowBg, minWidth: '180px', boxShadow: '6px 0 12px rgba(0,0,0,0.85)', fontWeight: 'bold', color: '#34d399' }}>
+                        <td style={{ ...styles.td, position: 'sticky', left: '45px', zIndex: 15, backgroundColor: solidRowBg, minWidth: '180px', fontWeight: 'bold', color: '#34d399' }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
                             <input
                               type="text"
@@ -5027,7 +5027,7 @@ function App() {
                         </td>
 
                         {selectionMode === 'detail' && (
-                          <td style={styles.td}>
+                          <td style={{ ...styles.td, position: 'sticky', left: '225px', zIndex: 15, backgroundColor: solidRowBg, minWidth: '100px' }}>
                             <select
                               value={row.system_type || 'VRV'}
                               onChange={(e) => handleCellChange(index, 'system_type', e.target.value)}
@@ -5040,8 +5040,8 @@ function App() {
                           </td>
                         )}
 
-                        <td style={{ ...styles.td, color: '#a7f3d0' }}>{row.area_m2}</td>
-                        <td style={{ ...styles.td, color: '#38bdf8' }}>{row.area_ping}</td>
+                        <td style={{ ...styles.td, position: 'sticky', left: selectionMode === 'detail' ? '325px' : '225px', zIndex: 15, backgroundColor: solidRowBg, minWidth: '95px', color: '#a7f3d0' }}>{row.area_m2}</td>
+                        <td style={{ ...styles.td, position: 'sticky', left: selectionMode === 'detail' ? '420px' : '320px', zIndex: 15, backgroundColor: solidRowBg, minWidth: '85px', boxShadow: '6px 0 12px rgba(0,0,0,0.85)', color: '#38bdf8' }}>{row.area_ping}</td>
 
                         <td style={styles.td}>
                           <input
