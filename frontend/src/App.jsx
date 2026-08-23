@@ -3521,7 +3521,73 @@ function App() {
       const ws = wb.getWorksheet("選機") || wb.worksheets[0] || wb.addWorksheet("選機表");
       const startRow = 9;
 
-      filteredRows.forEach((row, i) => {
+      // 1. 先建立平鋪的渲染資料結構與併機群組跨列（rowspan）對應關係
+      const flatRowsToRender = [];
+      const groupSpans = []; // 儲存室外機群組縱向合併區間描述
+
+      if (outdoorGroups && outdoorGroups.length > 0) {
+        let currentIdx = 0;
+        outdoorGroups.forEach((g) => {
+          const gSpaces = g.space_indices
+            .map((idx) => rows[idx])
+            .filter((r) => r && r.selected);
+          if (gSpaces.length === 0) return;
+
+          const gStart = startRow + currentIdx;
+          const gEnd = gStart + gSpaces.length - 1;
+
+          let sumIndoorKw = 0;
+          let sumIndoorIndex = 0;
+          gSpaces.forEach((s) => {
+            const singleCap = parseFloat(s.cap_kw) || lookupModelCapKw(s.best_match_model);
+            const qty = parseInt(s.unit_count) || 1;
+            const singleIdx = lookupIndoorCapIndex(s.best_match_model);
+            sumIndoorKw += singleCap * qty;
+            sumIndoorIndex += singleIdx * qty;
+          });
+
+          const outModel = g.outdoor_model || autoMatchOutdoorModelForRow(g.system_type || fastSystem, g.series || fastSeries, sumIndoorKw, fastOutdoorType, fastOutdoorPower);
+          const matchedOutObj = OUTDOOR_UNITS_DB.find((m) => m.model === outModel);
+          const outCapKw = matchedOutObj ? matchedOutObj.cap_kw : (g.outdoor_cap_kw || 0);
+          const outCapIndex = matchedOutObj ? (matchedOutObj.cap_index || 223.0) : (g.outdoor_cap_index || 223.0);
+
+          const rawRatio = (outCapIndex > 0 && sumIndoorIndex > 0) ? (sumIndoorIndex / outCapIndex) * 100.0 : 0;
+          const connRatioStr = outCapKw > 0 ? `${Math.round(rawRatio)}%` : "-";
+
+          groupSpans.push({
+            startRow: gStart,
+            endRow: gEnd,
+            outdoor_model: outModel,
+            outdoor_qty: 1,
+            conn_ratio_str: connRatioStr,
+            outdoor_info: matchedOutObj,
+            fallback_cap_kw: outCapKw
+          });
+
+          gSpaces.forEach((s) => {
+            s._inGroup = true;
+            flatRowsToRender.push(s);
+            currentIdx++;
+          });
+        });
+
+        // 處理未被併入群組的獨立空間
+        filteredRows.forEach((r) => {
+          if (!flatRowsToRender.includes(r)) {
+            r._inGroup = false;
+            flatRowsToRender.push(r);
+            currentIdx++;
+          }
+        });
+      } else {
+        filteredRows.forEach((r) => {
+          r._inGroup = false;
+          flatRowsToRender.push(r);
+        });
+      }
+
+      // 2. 寫入室內機與空間基礎數據 (Col A ~ Col AD)
+      flatRowsToRender.forEach((row, i) => {
         const rowIdx = startRow + i;
 
         let displayName = row.space_name || `空間 ${i + 1}`;
@@ -3540,7 +3606,7 @@ function App() {
         const demandKcal = parseFloat(row.total_cooling_demand) || Math.round(ping * basis);
 
         const modelStr = row.best_match_model || "";
-        const singleCapKw = parseFloat(row.cap_kw) || 0;
+        const singleCapKw = parseFloat(row.cap_kw) || lookupModelCapKw(modelStr);
         const singleCapKcal = parseFloat((singleCapKw * 860.0).toFixed(1));
 
         const qty = parseInt(row.unit_count) || 1;
@@ -3551,7 +3617,7 @@ function App() {
         const actualKwPerPing = ping > 0 ? parseFloat((singleCapKw / ping).toFixed(1)) : 0;
         const pingPerUsrt = (qty * singleCapKw > 0) ? parseFloat((ping / ((qty * singleCapKw) / 3.516)).toFixed(1)) : 0;
 
-        const sysUpper = (row.system_type || "").toUpperCase();
+        const sysUpper = (row.system_type || fastSystem || "").toUpperCase();
         const modUpper = modelStr.toUpperCase();
         let powerSupply = "-";
         if (sysUpper.includes("VRV") || modUpper.startsWith("FX") || modUpper.startsWith("FBA")) {
@@ -3593,7 +3659,68 @@ function App() {
         excelRow.getCell(28).value = actualKcalPerPing;                       // Col AB
         excelRow.getCell(29).value = actualKwPerPing;                         // Col AC
         excelRow.getCell(30).value = pingPerUsrt;                             // Col AD
+
+        // 3. 獨立單機/未分組空間之室外機欄位填入 (Col AE ~ Col AO)
+        if (!row._inGroup) {
+          const autoOutdoor = autoMatchOutdoorModelForRow(row.system_type || fastSystem, row.series || fastSeries, (singleCapKw * qty), fastOutdoorType, fastOutdoorPower);
+          const outModelStr = row.outdoor_model || autoOutdoor;
+          const outObj = OUTDOOR_UNITS_DB.find((m) => m.model === outModelStr);
+
+          const outCapKw = outObj ? outObj.cap_kw : singleCapKw;
+          const outCapKcal = outCapKw > 0 ? parseFloat((outCapKw * 860.0).toFixed(1)) : "-";
+          const outNominal = outObj ? (outObj.nominal_cap || "-") : "-";
+          const outPwrCon = outObj ? (outObj.power_consumption_kw || "-") : "-";
+          const outPwrSup = outObj ? (outObj.power_supply || "-") : "-";
+          const outMca = outObj ? (outObj.mca || "-") : "-";
+          const outMfa = outObj ? (outObj.mfa || "-") : "-";
+          const outDim = outObj ? (outObj.dimensions || "-") : "-";
+
+          excelRow.getCell(31).value = outModelStr || "-";                   // Col AE (31): 室外機型號
+          excelRow.getCell(32).value = 1;                                     // Col AF (32): 室外機台數
+          excelRow.getCell(33).value = outCapKcal;                            // Col AG (33): 冷房能力 (kcal/hr)
+          excelRow.getCell(34).value = outCapKw;                              // Col AH (34): 冷房能力 (kW)
+          excelRow.getCell(35).value = outNominal;                            // Col AI (35): 標稱能力
+          excelRow.getCell(36).value = "100%";                                // Col AJ (36): 連結率 %
+          excelRow.getCell(37).value = outPwrCon;                             // Col AK (37): 耗電量 (kW)
+          excelRow.getCell(38).value = outPwrSup;                             // Col AL (38): 電源
+          excelRow.getCell(39).value = outMca;                                // Col AM (39): 電路最大電流 (A)
+          excelRow.getCell(40).value = outMfa;                                // Col AN (40): 保險絲最大電流 (A)
+          excelRow.getCell(41).value = outDim;                                // Col AO (41): 尺寸 mm (H×W×D)
+        }
+
         excelRow.commit();
+      });
+
+      // 4. 併機群組室外機欄位填入與 ExcelJS 縱向跨列合併 (Merge Cells Col 31 ~ Col 41)
+      groupSpans.forEach((span) => {
+        const sR = span.startRow;
+        const eR = span.endRow;
+        const outInfo = span.outdoor_info;
+        const outCapKw = span.fallback_cap_kw;
+        const outCapKcal = outCapKw > 0 ? parseFloat((outCapKw * 860.0).toFixed(1)) : "-";
+
+        const topRow = ws.getRow(sR);
+        topRow.getCell(31).value = span.outdoor_model || "-";
+        topRow.getCell(32).value = span.outdoor_qty || 1;
+        topRow.getCell(33).value = outCapKcal;
+        topRow.getCell(34).value = outCapKw;
+        topRow.getCell(35).value = outInfo ? (outInfo.nominal_cap || "-") : "-";
+        topRow.getCell(36).value = span.conn_ratio_str;
+        topRow.getCell(37).value = outInfo ? (outInfo.power_consumption_kw || "-") : "-";
+        topRow.getCell(38).value = outInfo ? (outInfo.power_supply || "-") : "-";
+        topRow.getCell(39).value = outInfo ? (outInfo.mca || "-") : "-";
+        topRow.getCell(40).value = outInfo ? (outInfo.mfa || "-") : "-";
+        topRow.getCell(41).value = outInfo ? (outInfo.dimensions || "-") : "-";
+        topRow.commit();
+
+        // 若群組包含 2 個以上空間，執行 ExcelJS 跨列合併與居中對齊
+        if (eR > sR) {
+          for (let col = 31; col <= 41; col++) {
+            ws.mergeCells(sR, col, eR, col);
+            const cell = ws.getCell(sR, col);
+            cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+          }
+        }
       });
 
       const outBuffer = await wb.xlsx.writeBuffer();
