@@ -4884,10 +4884,10 @@ function App() {
                       style={{ cursor: 'pointer', scale: '1.15' }}
                     />
                   </th>
-                  <th style={{ ...styles.th, position: 'sticky', left: '45px', top: 0, zIndex: 30, backgroundColor: '#1e293b', minWidth: '180px', boxShadow: '4px 0 8px rgba(0,0,0,0.5)' }}>空間名稱</th>
-                  {selectionMode === 'detail' && <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>系統規格</th>}
-                  <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>平方公尺(㎡)</th>
-                  <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>坪數(P)</th>
+                  <th style={{ ...styles.th, position: 'sticky', left: '45px', top: 0, zIndex: 30, backgroundColor: '#1e293b', minWidth: '180px' }}>空間名稱</th>
+                  {selectionMode === 'detail' && <th style={{ ...styles.th, position: 'sticky', left: '225px', top: 0, zIndex: 30, backgroundColor: '#1e293b', minWidth: '100px' }}>系統規格</th>}
+                  <th style={{ ...styles.th, position: 'sticky', left: selectionMode === 'detail' ? '325px' : '225px', top: 0, zIndex: 30, backgroundColor: '#1e293b', minWidth: '95px' }}>平方公尺(㎡)</th>
+                  <th style={{ ...styles.th, position: 'sticky', left: selectionMode === 'detail' ? '420px' : '320px', top: 0, zIndex: 30, backgroundColor: '#1e293b', minWidth: '85px', boxShadow: '4px 0 8px rgba(0,0,0,0.5)' }}>坪數(P)</th>
                   <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>基準(kcal/h/坪)</th>
                   <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>環境加成百分比偏置</th>
                   <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>特殊熱源</th>
@@ -4903,13 +4903,12 @@ function App() {
                   {selectionMode === 'detail' && (
                     <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#eab308', backgroundColor: '#1e293b' }}>供應電源</th>
                   )}
-                  {/* 🎯 凍結右側關鍵欄位 1: 室外機型號 (選用機型) */}
-                  <th style={{ ...styles.th, position: 'sticky', top: 0, right: (fastSystem === 'VRV' || selectionMode === 'detail') ? '105px' : 0, zIndex: 30, color: '#38bdf8', backgroundColor: '#1e293b', minWidth: '160px', boxShadow: (fastSystem === 'VRV' || selectionMode === 'detail') ? 'none' : '-4px 0 8px rgba(0,0,0,0.5)' }}>室外機型號</th>
+                  {/* 🎯 室外機型號與連結率 (標準動態橫向滾動) */}
+                  <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#38bdf8', backgroundColor: '#1e293b', minWidth: '160px' }}>室外機型號</th>
                   <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#34d399', backgroundColor: '#1e293b' }}>室外機台數</th>
                   <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#a855f7', backgroundColor: '#1e293b' }}>室外機冷房能力(kW)</th>
-                  {/* 🎯 凍結右側關鍵欄位 2: 連結率 (%) */}
                   {(fastSystem === 'VRV' || selectionMode === 'detail') && (
-                    <th style={{ ...styles.th, position: 'sticky', top: 0, right: 0, zIndex: 30, color: '#34d399', backgroundColor: '#1e293b', minWidth: '105px', boxShadow: '-4px 0 8px rgba(0,0,0,0.5)', textAlign: 'center' }}>連結率 (%)</th>
+                    <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#34d399', backgroundColor: '#1e293b', minWidth: '105px', textAlign: 'center' }}>連結率 (%)</th>
                   )}
                 </tr>
               </thead>
@@ -4961,7 +4960,7 @@ function App() {
                           />
                         </td>
 
-                        <td style={{ ...styles.td, position: 'sticky', left: '45px', zIndex: 10, backgroundColor: rowBgColor, minWidth: '180px', boxShadow: '4px 0 8px rgba(0,0,0,0.5)', fontWeight: 'bold', color: '#34d399' }}>
+                        <td style={{ ...styles.td, position: 'sticky', left: '45px', zIndex: 10, backgroundColor: rowBgColor, minWidth: '180px', fontWeight: 'bold', color: '#34d399' }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
                             <input
                               type="text"
@@ -5018,7 +5017,7 @@ function App() {
                         </td>
 
                         {selectionMode === 'detail' && (
-                          <td style={styles.td}>
+                          <td style={{ ...styles.td, position: 'sticky', left: '225px', zIndex: 10, backgroundColor: rowBgColor, minWidth: '100px' }}>
                             <select
                               value={row.system_type || 'VRV'}
                               onChange={(e) => handleCellChange(index, 'system_type', e.target.value)}
@@ -5031,8 +5030,8 @@ function App() {
                           </td>
                         )}
 
-                        <td style={{ ...styles.td, color: '#a7f3d0' }}>{row.area_m2}</td>
-                        <td style={{ ...styles.td, color: '#38bdf8' }}>{row.area_ping}</td>
+                        <td style={{ ...styles.td, position: 'sticky', left: selectionMode === 'detail' ? '325px' : '225px', zIndex: 10, backgroundColor: rowBgColor, minWidth: '95px', color: '#a7f3d0' }}>{row.area_m2}</td>
+                        <td style={{ ...styles.td, position: 'sticky', left: selectionMode === 'detail' ? '420px' : '320px', zIndex: 10, backgroundColor: rowBgColor, minWidth: '85px', boxShadow: '4px 0 8px rgba(0,0,0,0.5)', color: '#38bdf8' }}>{row.area_ping}</td>
 
                         <td style={styles.td}>
                           <input
@@ -5272,15 +5271,11 @@ function App() {
                                   rowSpan={gSpan}
                                   style={{
                                     ...styles.td,
-                                    position: 'sticky',
-                                    right: isVRV ? '105px' : 0,
-                                    zIndex: 15,
                                     verticalAlign: 'middle',
                                     textAlign: 'center',
                                     backgroundColor: gCard.color.bg,
                                     borderLeft: `4px solid ${gCard.color.border}`,
-                                    minWidth: '160px',
-                                    boxShadow: isVRV ? 'none' : '-4px 0 8px rgba(0,0,0,0.5)'
+                                    minWidth: '160px'
                                   }}
                                 >
                                   <select
@@ -5326,17 +5321,13 @@ function App() {
                                     rowSpan={gSpan}
                                     style={{
                                       ...styles.td,
-                                      position: 'sticky',
-                                      right: 0,
-                                      zIndex: 15,
                                       verticalAlign: 'middle',
                                       textAlign: 'center',
                                       color: isNoModel ? '#64748b' : (isPowerValid ? ratioColor : '#ef4444'),
                                       fontWeight: 'bold',
                                       fontSize: '15px',
                                       backgroundColor: gCard.color.bg,
-                                      minWidth: '105px',
-                                      boxShadow: '-4px 0 8px rgba(0,0,0,0.5)'
+                                      minWidth: '105px'
                                     }}
                                     title={isNoModel ? "無此機型" : (!isPowerValid ? `⚠️ 警示：電源不符` : `連結率 = (室內能力指數總和 ${sumIndoorIndex} / 室外能力指數 ${outdoorCapIndex}) * 100% = ${rawRatio.toFixed(1)}%`)}
                                   >
@@ -5389,15 +5380,7 @@ function App() {
                                 </td>
                               )}
 
-                              <td style={{
-                                ...styles.td,
-                                position: 'sticky',
-                                right: isVRV ? '105px' : 0,
-                                zIndex: 15,
-                                backgroundColor: rowBgColor,
-                                minWidth: '160px',
-                                boxShadow: isVRV ? 'none' : '-4px 0 8px rgba(0,0,0,0.5)'
-                              }}>
+                              <td style={styles.td}>
                                 <select
                                   value={isPowerValid ? selectedModelStr : ''}
                                   onChange={(e) => handleCellChange(index, 'outdoor_model', e.target.value)}
@@ -5428,15 +5411,10 @@ function App() {
                                 <td
                                   style={{
                                     ...styles.td,
-                                    position: 'sticky',
-                                    right: 0,
-                                    zIndex: 15,
                                     color: isPowerValid ? ratioColor : '#ef4444',
                                     fontWeight: 'bold',
                                     fontSize: '15px',
-                                    backgroundColor: rowBgColor,
-                                    minWidth: '105px',
-                                    boxShadow: '-4px 0 8px rgba(0,0,0,0.5)'
+                                    minWidth: '105px'
                                   }}
                                   title={!isPowerValid ? `⚠️ 警示：RXYQ/RXQ 7.1~60HP 上吹室外機固定需使用 3φ, 4P, 380V, 60Hz 電源！` : `連結率 = (室內能力指數 ${totalIndoorIdx} / 室外能力指數 ${outdoorCapIndex}) * 100% = ${rawRatio.toFixed(1)}%`}
                                 >
