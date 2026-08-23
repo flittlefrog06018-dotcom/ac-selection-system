@@ -3,6 +3,7 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import * as XLSX from 'xlsx';
 import ExcelJS from 'exceljs';
+import EQUIPMENT_FULL_DB from './equipment_db.json';
 
 // 🎯 同步黃經理 Python 原廠內建的大金規格資料庫
 // 🎯 大金全系列實體型號與冷房能力資料庫 (含系列別與型式對應)
@@ -3521,7 +3522,7 @@ function App() {
       const ws = wb.getWorksheet("選機") || wb.worksheets[0] || wb.addWorksheet("選機表");
       const startRow = 9;
 
-      // 1. 先建立平鋪的渲染資料結構與併機群組跨列（rowspan）對應關係
+      // 1. 平鋪渲染資料列與併機群組縱向跨列（rowspan）對應關係
       const flatRowsToRender = [];
       const groupSpans = []; // 儲存室外機群組縱向合併區間描述
 
@@ -3547,9 +3548,12 @@ function App() {
           });
 
           const outModel = g.outdoor_model || autoMatchOutdoorModelForRow(g.system_type || fastSystem, g.series || fastSeries, sumIndoorKw, fastOutdoorType, fastOutdoorPower);
-          const matchedOutObj = OUTDOOR_UNITS_DB.find((m) => m.model === outModel);
-          const outCapKw = matchedOutObj ? matchedOutObj.cap_kw : (g.outdoor_cap_kw || 0);
-          const outCapIndex = matchedOutObj ? (matchedOutObj.cap_index || 223.0) : (g.outdoor_cap_index || 223.0);
+          const outUpper = (outModel || "").trim().toUpperCase();
+          const matchedOutObj = (EQUIPMENT_FULL_DB.outdoor_units && EQUIPMENT_FULL_DB.outdoor_units[outUpper])
+            || OUTDOOR_UNITS_DB.find((m) => m.model === outModel);
+
+          const outCapKw = matchedOutObj ? parseFloat(matchedOutObj.cap_kw) : (g.outdoor_cap_kw || 0);
+          const outCapIndex = (matchedOutObj && matchedOutObj.cap_index) ? parseFloat(matchedOutObj.cap_index) : (g.outdoor_cap_index || 223.0);
 
           const rawRatio = (outCapIndex > 0 && sumIndoorIndex > 0) ? (sumIndoorIndex / outCapIndex) * 100.0 : 0;
           const connRatioStr = outCapKw > 0 ? `${Math.round(rawRatio)}%` : "-";
@@ -3606,7 +3610,10 @@ function App() {
         const demandKcal = parseFloat(row.total_cooling_demand) || Math.round(ping * basis);
 
         const modelStr = row.best_match_model || "";
-        const singleCapKw = parseFloat(row.cap_kw) || lookupModelCapKw(modelStr);
+        const mUpper = modelStr.trim().toUpperCase();
+        const indoorInfo = EQUIPMENT_FULL_DB.indoor_units ? EQUIPMENT_FULL_DB.indoor_units[mUpper] : null;
+
+        const singleCapKw = parseFloat(row.cap_kw) || (indoorInfo ? indoorInfo.cap_kw : lookupModelCapKw(modelStr));
         const singleCapKcal = parseFloat((singleCapKw * 860.0).toFixed(1));
 
         const qty = parseInt(row.unit_count) || 1;
@@ -3618,22 +3625,31 @@ function App() {
         const pingPerUsrt = (qty * singleCapKw > 0) ? parseFloat((ping / ((qty * singleCapKw) / 3.516)).toFixed(1)) : 0;
 
         const sysUpper = (row.system_type || fastSystem || "").toUpperCase();
-        const modUpper = modelStr.toUpperCase();
         let powerSupply = "-";
-        if (sysUpper.includes("VRV") || modUpper.startsWith("FX") || modUpper.startsWith("FBA")) {
+        if (sysUpper.includes("VRV") || mUpper.startsWith("FX") || mUpper.startsWith("FBA")) {
           powerSupply = "1φ, 220V, 60Hz";
         }
 
-        const powerConsumption = row.power_consumption_kw || "-";
-        const maxCurrent = row.max_current_a || "-";
-        const dimensions = row.dimensions || "-";
+        let rawNominal = indoorInfo ? indoorInfo.nominal_cap : row.nominal_cap;
+        let nominalCapVal = singleCapKw;
+        if (rawNominal && String(rawNominal).trim() !== "-" && String(rawNominal).trim() !== "None") {
+          const parsed = parseFloat(rawNominal);
+          nominalCapVal = isNaN(parsed) ? String(rawNominal).trim() : parsed;
+        }
 
-        let nominalCapVal = row.nominal_cap;
-        if (!nominalCapVal || nominalCapVal === "-") {
-          nominalCapVal = singleCapKw;
-        } else {
-          const parsed = parseFloat(nominalCapVal);
-          if (!isNaN(parsed)) nominalCapVal = parsed;
+        const powerConsumption = (indoorInfo && indoorInfo.power_consumption_kw !== "-") ? indoorInfo.power_consumption_kw : (row.power_consumption_kw || "-");
+        const maxCurrent = (indoorInfo && indoorInfo.mca !== "-") ? indoorInfo.mca : (row.max_current_a || "-");
+        const dimensions = (indoorInfo && indoorInfo.dimensions !== "-") ? indoorInfo.dimensions : (row.dimensions || "-");
+
+        let nominalSubtotal = "-";
+        if (typeof nominalCapVal === "number" && !isNaN(nominalCapVal)) {
+          nominalSubtotal = parseFloat((qty * nominalCapVal).toFixed(1));
+        }
+
+        let pwrConSubtotal = "-";
+        if (powerConsumption !== "-") {
+          const pVal = parseFloat(powerConsumption);
+          if (!isNaN(pVal)) pwrConSubtotal = parseFloat((qty * pVal).toFixed(2));
         }
 
         const excelRow = ws.getRow(rowIdx);
@@ -3649,13 +3665,15 @@ function App() {
         excelRow.getCell(15).value = qty;                                     // Col O: 室內機台數
         excelRow.getCell(16).value = singleCapKcal;                           // Col P: 冷房能力 (kcal/hr)
         excelRow.getCell(17).value = singleCapKw;                             // Col Q: 冷房能力 (kW)
-        excelRow.getCell(18).value = nominalCapVal;                           // Col R: 標稱能力 (EQUIPMENT_Data 第6列)
+        excelRow.getCell(18).value = nominalCapVal;                           // Col R: 標稱能力
         excelRow.getCell(19).value = powerSupply;                             // Col S: 供應電源
         excelRow.getCell(20).value = powerConsumption;                        // Col T: 單台耗電量 kW
         excelRow.getCell(21).value = maxCurrent;                              // Col U: 單台最大電流 A
         excelRow.getCell(22).value = dimensions;                              // Col V: 尺寸 mm (H×W×D)
         excelRow.getCell(23).value = totalCapKcal;                           // Col W: 室內冷房總能力 (kcal/hr)
         excelRow.getCell(24).value = totalCapKw;                             // Col X: 室內冷房總能力 (kW)
+        excelRow.getCell(25).value = nominalSubtotal;                         // Col Y (25): 標稱能力小計
+        excelRow.getCell(26).value = pwrConSubtotal;                          // Col Z (26): 耗電量小計 kW
         excelRow.getCell(28).value = actualKcalPerPing;                       // Col AB
         excelRow.getCell(29).value = actualKwPerPing;                         // Col AC
         excelRow.getCell(30).value = pingPerUsrt;                             // Col AD
@@ -3664,9 +3682,11 @@ function App() {
         if (!row._inGroup) {
           const autoOutdoor = autoMatchOutdoorModelForRow(row.system_type || fastSystem, row.series || fastSeries, (singleCapKw * qty), fastOutdoorType, fastOutdoorPower);
           const outModelStr = row.outdoor_model || autoOutdoor;
-          const outObj = OUTDOOR_UNITS_DB.find((m) => m.model === outModelStr);
+          const outUpper = (outModelStr || "").trim().toUpperCase();
+          const outObj = (EQUIPMENT_FULL_DB.outdoor_units && EQUIPMENT_FULL_DB.outdoor_units[outUpper])
+            || OUTDOOR_UNITS_DB.find((m) => m.model === outModelStr);
 
-          const outCapKw = outObj ? outObj.cap_kw : singleCapKw;
+          const outCapKw = outObj ? parseFloat(outObj.cap_kw) : singleCapKw;
           const outCapKcal = outCapKw > 0 ? parseFloat((outCapKw * 860.0).toFixed(1)) : "-";
           const outNominal = outObj ? (outObj.nominal_cap || "-") : "-";
           const outPwrCon = outObj ? (outObj.power_consumption_kw || "-") : "-";
