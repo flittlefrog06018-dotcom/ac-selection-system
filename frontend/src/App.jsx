@@ -4884,10 +4884,10 @@ function App() {
                       style={{ cursor: 'pointer', scale: '1.15' }}
                     />
                   </th>
-                  <th style={{ ...styles.th, position: 'sticky', left: '45px', top: 0, zIndex: 30, backgroundColor: '#1e293b', minWidth: '180px' }}>空間名稱</th>
-                  {selectionMode === 'detail' && <th style={{ ...styles.th, position: 'sticky', left: '225px', top: 0, zIndex: 30, backgroundColor: '#1e293b', minWidth: '100px' }}>系統規格</th>}
-                  <th style={{ ...styles.th, position: 'sticky', left: selectionMode === 'detail' ? '325px' : '225px', top: 0, zIndex: 30, backgroundColor: '#1e293b', minWidth: '95px' }}>平方公尺(㎡)</th>
-                  <th style={{ ...styles.th, position: 'sticky', left: selectionMode === 'detail' ? '420px' : '320px', top: 0, zIndex: 30, backgroundColor: '#1e293b', minWidth: '85px', boxShadow: '4px 0 8px rgba(0,0,0,0.5)' }}>坪數(P)</th>
+                  <th style={{ ...styles.th, position: 'sticky', left: '45px', top: 0, zIndex: 30, backgroundColor: '#1e293b', minWidth: '180px', boxShadow: '6px 0 12px rgba(0,0,0,0.85)' }}>空間名稱</th>
+                  {selectionMode === 'detail' && <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>系統規格</th>}
+                  <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>平方公尺(㎡)</th>
+                  <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>坪數(P)</th>
                   <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>基準(kcal/h/坪)</th>
                   <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>環境加成百分比偏置</th>
                   <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>特殊熱源</th>
@@ -4920,7 +4920,17 @@ function App() {
                 ) : (
                   rows.map((row, index) => {
                     const gCard = outdoorGroups.find(g => g.id === row.outdoorGroupId);
-                    const rowBgColor = gCard ? gCard.color.bg : '#0b1329';
+                    const SOLID_GROUP_BGS = {
+                      'rgba(59, 130, 246, 0.32)': '#132247',
+                      'rgba(16, 185, 129, 0.32)': '#0c2e24',
+                      'rgba(245, 158, 11, 0.32)': '#33240d',
+                      'rgba(236, 72, 153, 0.32)': '#331326',
+                      'rgba(139, 92, 246, 0.32)': '#22153b',
+                      'rgba(6, 182, 212, 0.32)':  '#092933',
+                      'rgba(249, 115, 22, 0.32)': '#331a0c',
+                      'rgba(168, 85, 247, 0.32)': '#28143b',
+                    };
+                    const solidRowBg = gCard ? (SOLID_GROUP_BGS[gCard.color.bg] || '#111e38') : (index % 2 === 1 ? '#0f172a' : '#0b1329');
                     const rowColorStyle = gCard ? {
                       backgroundColor: gCard.color.bg,
                       borderLeft: `4px solid ${gCard.color.border}`
@@ -4951,7 +4961,7 @@ function App() {
                           ...rowColorStyle
                         }}
                       >
-                        <td style={{ ...styles.td, position: 'sticky', left: 0, zIndex: 10, backgroundColor: rowBgColor, width: '45px', minWidth: '45px', textAlign: 'center' }}>
+                        <td style={{ ...styles.td, position: 'sticky', left: 0, zIndex: 15, backgroundColor: solidRowBg, width: '45px', minWidth: '45px', textAlign: 'center' }}>
                           <input
                             type="checkbox"
                             checked={row.selected}
@@ -4960,7 +4970,7 @@ function App() {
                           />
                         </td>
 
-                        <td style={{ ...styles.td, position: 'sticky', left: '45px', zIndex: 10, backgroundColor: rowBgColor, minWidth: '180px', fontWeight: 'bold', color: '#34d399' }}>
+                        <td style={{ ...styles.td, position: 'sticky', left: '45px', zIndex: 15, backgroundColor: solidRowBg, minWidth: '180px', boxShadow: '6px 0 12px rgba(0,0,0,0.85)', fontWeight: 'bold', color: '#34d399' }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
                             <input
                               type="text"
@@ -5017,7 +5027,7 @@ function App() {
                         </td>
 
                         {selectionMode === 'detail' && (
-                          <td style={{ ...styles.td, position: 'sticky', left: '225px', zIndex: 10, backgroundColor: rowBgColor, minWidth: '100px' }}>
+                          <td style={styles.td}>
                             <select
                               value={row.system_type || 'VRV'}
                               onChange={(e) => handleCellChange(index, 'system_type', e.target.value)}
@@ -5030,8 +5040,8 @@ function App() {
                           </td>
                         )}
 
-                        <td style={{ ...styles.td, position: 'sticky', left: selectionMode === 'detail' ? '325px' : '225px', zIndex: 10, backgroundColor: rowBgColor, minWidth: '95px', color: '#a7f3d0' }}>{row.area_m2}</td>
-                        <td style={{ ...styles.td, position: 'sticky', left: selectionMode === 'detail' ? '420px' : '320px', zIndex: 10, backgroundColor: rowBgColor, minWidth: '85px', boxShadow: '4px 0 8px rgba(0,0,0,0.5)', color: '#38bdf8' }}>{row.area_ping}</td>
+                        <td style={{ ...styles.td, color: '#a7f3d0' }}>{row.area_m2}</td>
+                        <td style={{ ...styles.td, color: '#38bdf8' }}>{row.area_ping}</td>
 
                         <td style={styles.td}>
                           <input
