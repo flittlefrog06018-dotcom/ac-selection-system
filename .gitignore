@@ -18,3 +18,4 @@ config.env
 backend/config.env
 backend/temp_merged_selection_report.xlsx
 assets/
+.vercel

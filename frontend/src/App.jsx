@@ -4451,7 +4451,7 @@ function App() {
         </section>
         )}
 
-        <section style={styles.card}>
+        <section style={{ ...styles.card, minWidth: 0, overflow: 'hidden' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '14px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
               <div style={styles.cardTitle}>📈 工程負荷試算與大金配機建議表</div>
