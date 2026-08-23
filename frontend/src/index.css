@@ -468,3 +468,29 @@ body {
   margin-bottom: 1rem;
   opacity: 0.5;
 }
+
+/* 🎯 凍結視圖與流暢橫向滾動條樣式 */
+.table-scroll-container {
+  scrollbar-width: thin;
+  scrollbar-color: #38bdf8 #0f172a;
+}
+
+.table-scroll-container::-webkit-scrollbar {
+  height: 10px;
+  width: 10px;
+}
+
+.table-scroll-container::-webkit-scrollbar-track {
+  background: #0f172a;
+  border-radius: 6px;
+}
+
+.table-scroll-container::-webkit-scrollbar-thumb {
+  background: #38bdf8;
+  border-radius: 6px;
+  border: 2px solid #0f172a;
+}
+
+.table-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: #0ea5e9;
+}

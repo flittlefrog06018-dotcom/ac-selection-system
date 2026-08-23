@@ -2630,6 +2630,7 @@ function App() {
   const [draggingVertex, setDraggingVertex] = useState(null); // { rowIdx, ptIdx }
   const [draggingBox, setDraggingBox] = useState(null); // { rowIdx, startPos: [x,y], initialPoly: [...] }
   const [isSnapshotBaked, setIsSnapshotBaked] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // 🎯 新增圖面實體紙張與比例標定 (A3 / A4 / 1:100 / 1:200 自圖面設定)
   const [paperSize, setPaperSize] = useState('A3'); // Options: 'A3', 'A4', 'A2', '自訂'
@@ -3747,14 +3748,14 @@ function App() {
     card: { backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '20px' },
     cardTitle: { fontSize: '15px', fontWeight: 'bold', color: '#cbd5e1', marginBottom: '15px', borderBottom: '1px solid #334155', paddingBottom: '8px' },
     previewBox: { width: '100%', height: '540px', backgroundColor: '#020617', borderRadius: '8px', border: '1px dashed #475569', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-    table: { width: '100%', borderCollapse: 'collapse', textAlign: 'left' },
-    th: { backgroundColor: '#0f172a', color: '#94a3b8', padding: '10px', fontSize: '13px', borderBottom: '2px solid #334155' },
-    td: { padding: '10px', borderBottom: '1px solid #334155', color: '#e2e8f0', fontSize: '13px' },
-    selectSys: { backgroundColor: '#0f172a', border: '1px solid #475569', color: '#34d399', padding: '4px', borderRadius: '4px', width: '90px', textAlign: 'center', fontWeight: 'bold', cursor: 'pointer' },
-    inputNum: { backgroundColor: '#0f172a', border: '1px solid #475569', color: '#f8fafc', padding: '4px', borderRadius: '4px', width: '60px', textAlign: 'center' },
-    inputModel: { backgroundColor: '#0f172a', border: '1px solid #047857', color: '#34d399', padding: '4px 6px', borderRadius: '4px', width: '120px', fontSize: '13px', fontWeight: 'bold', textAlign: 'center' },
-    inputQty: { backgroundColor: '#0f172a', border: '1px solid #475569', color: '#38bdf8', padding: '4px', borderRadius: '4px', width: '45px', textAlign: 'center', fontWeight: 'bold' },
-    chkLabel: { display: 'inline-flex', alignItems: 'center', gap: '2px', marginRight: '6px', fontSize: '11px', color: '#cbd5e1', cursor: 'pointer' }
+    table: { width: '100%', borderCollapse: 'separate', borderSpacing: 0, textAlign: 'left', fontSize: '15px' },
+    th: { backgroundColor: '#1e293b', color: '#cbd5e1', padding: '14px 12px', fontSize: '16px', fontWeight: 'bold', borderBottom: '2px solid #334155', whiteSpace: 'nowrap' },
+    td: { padding: '12px 10px', borderBottom: '1px solid #1e293b', color: '#f8fafc', fontSize: '15px', whiteSpace: 'nowrap' },
+    selectSys: { backgroundColor: '#0f172a', border: '1px solid #475569', color: '#34d399', padding: '6px 8px', borderRadius: '4px', width: '100px', fontSize: '14.5px', textAlign: 'center', fontWeight: 'bold', cursor: 'pointer' },
+    inputNum: { backgroundColor: '#0f172a', border: '1px solid #475569', color: '#f8fafc', padding: '6px 8px', borderRadius: '4px', width: '75px', fontSize: '15px', textAlign: 'center', fontWeight: 'bold' },
+    inputModel: { backgroundColor: '#0f172a', border: '1px solid #047857', color: '#34d399', padding: '6px 8px', borderRadius: '4px', width: '140px', fontSize: '15px', fontWeight: 'bold', textAlign: 'center' },
+    inputQty: { backgroundColor: '#0f172a', border: '1px solid #475569', color: '#38bdf8', padding: '6px 8px', borderRadius: '4px', width: '55px', fontSize: '15px', textAlign: 'center', fontWeight: 'bold' },
+    chkLabel: { display: 'inline-flex', alignItems: 'center', gap: '3px', marginRight: '6px', fontSize: '13px', color: '#cbd5e1', cursor: 'pointer' }
   };
 
   const OVERLAY_COLORS = [
@@ -3948,28 +3949,117 @@ function App() {
         </button>
       </section>
 
-      <div style={styles.mainGrid}>
-        <section style={styles.card}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', ...styles.cardTitle, flexWrap: 'wrap', gap: '8px' }}>
-            <span>🖼️ 實時圖面比對核對視窗</span>
-            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-              <button
-                onClick={triggerFileSelect}
-                style={{
-                  backgroundColor: '#334155',
-                  color: '#38bdf8',
-                  border: '1px solid #475569',
-                  padding: '4px 10px',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  cursor: 'pointer',
-                  fontWeight: 'bold'
-                }}
-              >
-                📁 {file ? "更換圖面" : "選擇圖檔"}
-              </button>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: isSidebarCollapsed ? '52px 1fr' : '450px 1fr',
+        gap: '15px',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+      }}>
+        {isSidebarCollapsed ? (
+          /* 🎯 收折狀態：極簡立體選單與展開按鈕 */
+          <section
+            style={{
+              backgroundColor: '#1e293b',
+              border: '1px solid #334155',
+              borderRadius: '12px',
+              padding: '12px 6px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+              userSelect: 'none'
+            }}
+            onClick={() => setIsSidebarCollapsed(false)}
+            title="點擊展開圖面比對視窗"
+          >
+            <button
+              onClick={(e) => { e.stopPropagation(); setIsSidebarCollapsed(false); }}
+              style={{
+                backgroundColor: '#3b82f6',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '8px 4px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                fontSize: '13px',
+                width: '100%',
+                marginBottom: '15px',
+                boxShadow: '0 2px 8px rgba(59, 130, 246, 0.4)'
+              }}
+              title="展開圖面比對視視圖"
+            >
+              ▶
+            </button>
+            <div style={{
+              writingMode: 'vertical-rl',
+              letterSpacing: '4px',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              color: '#38bdf8',
+              margin: '10px 0'
+            }}>
+              🖼️ 實時圖面比對 (已收折)
             </div>
-          </div>
+            {previewUrl && (
+              <img
+                src={previewUrl}
+                alt="圖面縮圖"
+                style={{
+                  width: '36px',
+                  height: '48px',
+                  objectFit: 'cover',
+                  borderRadius: '4px',
+                  border: '1px solid #38bdf8',
+                  marginTop: 'auto'
+                }}
+              />
+            )}
+          </section>
+        ) : (
+          /* 🎯 正常展開狀態：完整獨立視圖與收折按鈕 */
+          <section style={styles.card}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', ...styles.cardTitle, flexWrap: 'wrap', gap: '8px' }}>
+              <span>🖼️ 實時圖面比對核對視窗</span>
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => setIsSidebarCollapsed(true)}
+                  style={{
+                    backgroundColor: '#1e293b',
+                    color: '#f59e0b',
+                    border: '1px solid #f59e0b',
+                    padding: '4px 10px',
+                    borderRadius: '4px',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                  title="點擊收折圖面視窗，讓右側配對表格擴展至全螢幕"
+                >
+                  ◀ 收折圖面
+                </button>
+                <button
+                  onClick={triggerFileSelect}
+                  style={{
+                    backgroundColor: '#334155',
+                    color: '#38bdf8',
+                    border: '1px solid #475569',
+                    padding: '4px 10px',
+                    borderRadius: '4px',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  📁 {file ? "更換圖面" : "選擇圖檔"}
+                </button>
+              </div>
+            </div>
           <div
             style={{
               ...styles.previewBox,
@@ -4359,6 +4449,7 @@ function App() {
             )}
           </div>
         </section>
+        )}
 
         <section style={styles.card}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '14px' }}>
@@ -4779,45 +4870,46 @@ function App() {
             </div>
           )}
 
-          <div style={{ overflowX: 'auto' }}>
+          <div className="table-scroll-container" style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '72vh', borderRadius: '8px', border: '1px solid #334155', backgroundColor: '#0b1329', position: 'relative' }}>
             <table style={styles.table}>
               <thead>
                 <tr>
-                  <th style={{ ...styles.th, width: '40px', textAlign: 'center' }}>
+                  <th style={{ ...styles.th, position: 'sticky', left: 0, top: 0, zIndex: 30, backgroundColor: '#1e293b', width: '45px', minWidth: '45px', textAlign: 'center' }}>
                     <input
                       type="checkbox"
                       checked={rows.length > 0 && rows.every(r => r.selected)}
                       onChange={(e) => toggleAllSelections(e.target.checked)}
                       disabled={rows.length === 0}
                       title="全選 / 全不選"
-                      style={{ cursor: 'pointer' }}
+                      style={{ cursor: 'pointer', scale: '1.15' }}
                     />
                   </th>
-                  <th style={styles.th}>空間名稱</th>
-                  {selectionMode === 'detail' && <th style={styles.th}>系統規格</th>}
-                  <th style={styles.th}>平方公尺(㎡)</th>
-                  <th style={styles.th}>坪數(P)</th>
-                  <th style={styles.th}>基準(kcal/h/坪)</th>
-                  <th style={styles.th}>環境加成百分比偏置</th>
-                  <th style={styles.th}>特殊熱源</th>
-                  <th style={styles.th}>總需求(kcal/h)</th>
-                  <th style={{ ...styles.th, color: '#f59e0b' }}>總需求(kW)</th>
-                  {selectionMode === 'detail' && <th style={{ ...styles.th, color: '#f59e0b' }}>室內機系列別</th>}
-                  {selectionMode === 'detail' && <th style={{ ...styles.th, color: '#34d399' }}>室內機型式</th>}
-                  <th style={styles.th}>大金室內機型號</th>
-                  <th style={{ ...styles.th, color: '#38bdf8' }}>單機能力(kW)</th>
-                  <th style={styles.th}>台數</th>
-                  <th style={{ ...styles.th, color: '#a855f7' }}>總冷房能力(kW)</th>
+                  <th style={{ ...styles.th, position: 'sticky', left: '45px', top: 0, zIndex: 30, backgroundColor: '#1e293b', minWidth: '180px', boxShadow: '4px 0 8px rgba(0,0,0,0.5)' }}>空間名稱</th>
+                  {selectionMode === 'detail' && <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>系統規格</th>}
+                  <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>平方公尺(㎡)</th>
+                  <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>坪數(P)</th>
+                  <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>基準(kcal/h/坪)</th>
+                  <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>環境加成百分比偏置</th>
+                  <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>特殊熱源</th>
+                  <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>總需求(kcal/h)</th>
+                  <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#f59e0b' }}>總需求(kW)</th>
+                  {selectionMode === 'detail' && <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#f59e0b' }}>室內機系列別</th>}
+                  {selectionMode === 'detail' && <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#34d399' }}>室內機型式</th>}
+                  <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>大金室內機型號</th>
+                  <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#38bdf8', backgroundColor: '#1e293b' }}>單機能力(kW)</th>
+                  <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>台數</th>
+                  <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#a855f7' }}>總冷房能力(kW)</th>
                   {/* 🎯 向後擴充室外機配對欄位 */}
                   {selectionMode === 'detail' && (
-                    <th style={{ ...styles.th, color: '#eab308', backgroundColor: '#1e293b' }}>供應電源</th>
+                    <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#eab308', backgroundColor: '#1e293b' }}>供應電源</th>
                   )}
-                  <th style={{ ...styles.th, color: '#38bdf8', backgroundColor: '#1e293b' }}>室外機型號</th>
-                  <th style={{ ...styles.th, color: '#34d399', backgroundColor: '#1e293b' }}>室外機台數</th>
-                  <th style={{ ...styles.th, color: '#a855f7', backgroundColor: '#1e293b' }}>室外機冷房能力(kW)</th>
-                  {/* 🎯 連結率 (%) 僅在 VRV 系統時顯示 */}
+                  {/* 🎯 凍結右側關鍵欄位 1: 室外機型號 (選用機型) */}
+                  <th style={{ ...styles.th, position: 'sticky', top: 0, right: (fastSystem === 'VRV' || selectionMode === 'detail') ? '105px' : 0, zIndex: 30, color: '#38bdf8', backgroundColor: '#1e293b', minWidth: '160px', boxShadow: (fastSystem === 'VRV' || selectionMode === 'detail') ? 'none' : '-4px 0 8px rgba(0,0,0,0.5)' }}>室外機型號</th>
+                  <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#34d399', backgroundColor: '#1e293b' }}>室外機台數</th>
+                  <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#a855f7', backgroundColor: '#1e293b' }}>室外機冷房能力(kW)</th>
+                  {/* 🎯 凍結右側關鍵欄位 2: 連結率 (%) */}
                   {(fastSystem === 'VRV' || selectionMode === 'detail') && (
-                    <th style={{ ...styles.th, color: '#34d399', backgroundColor: '#1e293b' }}>連結率 (%)</th>
+                    <th style={{ ...styles.th, position: 'sticky', top: 0, right: 0, zIndex: 30, color: '#34d399', backgroundColor: '#1e293b', minWidth: '105px', boxShadow: '-4px 0 8px rgba(0,0,0,0.5)', textAlign: 'center' }}>連結率 (%)</th>
                   )}
                 </tr>
               </thead>
@@ -4829,6 +4921,7 @@ function App() {
                 ) : (
                   rows.map((row, index) => {
                     const gCard = outdoorGroups.find(g => g.id === row.outdoorGroupId);
+                    const rowBgColor = gCard ? gCard.color.bg : '#0b1329';
                     const rowColorStyle = gCard ? {
                       backgroundColor: gCard.color.bg,
                       borderLeft: `4px solid ${gCard.color.border}`
@@ -4859,16 +4952,16 @@ function App() {
                           ...rowColorStyle
                         }}
                       >
-                        <td style={{ ...styles.td, textAlign: 'center' }}>
+                        <td style={{ ...styles.td, position: 'sticky', left: 0, zIndex: 10, backgroundColor: rowBgColor, width: '45px', minWidth: '45px', textAlign: 'center' }}>
                           <input
                             type="checkbox"
                             checked={row.selected}
                             onChange={(e) => handleCellChange(index, 'selected', e.target.checked)}
-                            style={{ cursor: 'pointer', scale: '1.1' }}
+                            style={{ cursor: 'pointer', scale: '1.15' }}
                           />
                         </td>
 
-                        <td style={{ ...styles.td, fontWeight: 'bold', color: '#34d399' }}>
+                        <td style={{ ...styles.td, position: 'sticky', left: '45px', zIndex: 10, backgroundColor: rowBgColor, minWidth: '180px', boxShadow: '4px 0 8px rgba(0,0,0,0.5)', fontWeight: 'bold', color: '#34d399' }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
                             <input
                               type="text"
@@ -4879,11 +4972,11 @@ function App() {
                                 backgroundColor: '#0f172a',
                                 border: '1px solid #34d399',
                                 color: '#34d399',
-                                padding: '4px 6px',
+                                padding: '5px 8px',
                                 borderRadius: '4px',
-                                fontSize: '13px',
+                                fontSize: '14px',
                                 fontWeight: 'bold',
-                                width: '110px'
+                                width: '115px'
                               }}
                               disabled={!row.selected && !row.outdoorGroupId}
                               title="可自由編輯空間名稱"
@@ -4971,14 +5064,15 @@ function App() {
                                   style={{
                                     display: 'inline-flex',
                                     alignItems: 'center',
-                                    gap: '3px',
-                                    fontSize: '11px',
+                                    gap: '4px',
+                                    fontSize: '13.5px',
                                     backgroundColor: isChecked ? '#1e293b' : '#0f172a',
                                     border: isChecked ? '1px solid #38bdf8' : '1px solid #334155',
-                                    color: isChecked ? '#38bdf8' : '#64748b',
-                                    padding: '2px 6px',
+                                    color: isChecked ? '#38bdf8' : '#94a3b8',
+                                    padding: '4px 8px',
                                     borderRadius: '4px',
-                                    cursor: 'pointer'
+                                    cursor: 'pointer',
+                                    fontWeight: isChecked ? 'bold' : 'normal'
                                   }}
                                 >
                                   <input
@@ -4994,21 +5088,21 @@ function App() {
                         </td>
 
                         <td style={styles.td}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <input
                               type="number"
                               step="0.5"
                               value={row.special_kw || 0}
                               onChange={(e) => handleCellChange(index, 'special_kw', e.target.value)}
-                              style={{ ...styles.inputNum, width: '50px' }}
+                              style={{ ...styles.inputNum, width: '60px' }}
                             />
-                            <span style={{ fontSize: '11px', color: '#64748b' }}>kW</span>
+                            <span style={{ fontSize: '14px', color: '#94a3b8', fontWeight: 'bold' }}>kW</span>
                           </div>
                         </td>
 
-                        <td style={{ ...styles.td, fontWeight: 'bold' }}>{row.total_cooling_demand}</td>
+                        <td style={{ ...styles.td, fontWeight: 'bold', fontSize: '15px' }}>{row.total_cooling_demand}</td>
 
-                        <td style={{ ...styles.td, color: '#f59e0b', fontWeight: 'bold' }}>
+                        <td style={{ ...styles.td, color: '#f59e0b', fontWeight: 'bold', fontSize: '15px' }}>
                           {((row.total_cooling_demand || 0) / 860.0).toFixed(1)} kW
                         </td>
 
@@ -5017,7 +5111,7 @@ function App() {
                             <select
                               value={row.series || ''}
                               onChange={(e) => handleCellChange(index, 'series', e.target.value)}
-                              style={{ ...styles.selectSys, color: '#f59e0b', border: '1px solid #f59e0b' }}
+                              style={{ ...styles.selectSys, color: '#f59e0b', border: '1px solid #f59e0b', fontSize: '14.5px' }}
                             >
                               <option value="">--請選擇系列--</option>
                               {(DYNAMIC_EQUIPMENT_CASCADE[row.system_type || 'VRV'] || []).map((sItem, sIdx) => (
@@ -5036,7 +5130,7 @@ function App() {
                               <select
                                 value={row.unit_type || ''}
                                 onChange={(e) => handleCellChange(index, 'unit_type', e.target.value)}
-                                style={{ ...styles.selectSys, color: '#34d399', border: '1px solid #34d399' }}
+                                style={{ ...styles.selectSys, color: '#34d399', border: '1px solid #34d399', fontSize: '14.5px' }}
                               >
                                 <option value="">--請選擇型式--</option>
                                 {validTypes.map((t, idx) => (
@@ -5053,9 +5147,9 @@ function App() {
                               backgroundColor: '#334155',
                               color: '#cbd5e1',
                               border: '1px solid #475569',
-                              padding: '3px 8px',
+                              padding: '5px 10px',
                               borderRadius: '4px',
-                              fontSize: '12px',
+                              fontSize: '15px',
                               fontWeight: 'bold',
                               display: 'inline-block',
                               userSelect: 'none'
@@ -5066,7 +5160,7 @@ function App() {
                             <select
                               value={row.best_match_model || ''}
                               onChange={(e) => handleCellChange(index, 'best_match_model', e.target.value)}
-                              style={{ ...styles.selectSys, width: '130px', color: '#34d399', fontWeight: 'bold' }}
+                              style={{ ...styles.selectSys, width: '155px', color: '#34d399', fontWeight: 'bold', fontSize: '15px' }}
                             >
                               {getDynamicModelCandidates(
                                 (row.total_cooling_demand || 0) / 860.0,
@@ -5080,12 +5174,12 @@ function App() {
                           )}
                         </td>
 
-                        <td style={{ ...styles.td, color: '#38bdf8', fontWeight: 'bold' }}>
+                        <td style={{ ...styles.td, color: '#38bdf8', fontWeight: 'bold', fontSize: '15px' }}>
                           {parseFloat(row.cap_kw || lookupModelCapKw(row.best_match_model)).toFixed(1)} kW
                         </td>
 
                         <td style={styles.td}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <input
                               type="number"
                               min="1"
@@ -5094,7 +5188,7 @@ function App() {
                               onChange={(e) => handleCellChange(index, 'unit_count', parseInt(e.target.value) || 1)}
                               style={styles.inputQty}
                             />
-                            <span style={{ fontSize: '12px', color: '#64748b' }}>台</span>
+                            <span style={{ fontSize: '14px', color: '#94a3b8', fontWeight: 'bold' }}>台</span>
                           </div>
                         </td>
 
@@ -5160,9 +5254,9 @@ function App() {
                                         backgroundColor: '#0f172a',
                                         color: '#eab308',
                                         border: '1px solid #eab308',
-                                        padding: '4px 6px',
+                                        padding: '5px 8px',
                                         borderRadius: '4px',
-                                        fontSize: '12px',
+                                        fontSize: '14.5px',
                                         fontWeight: 'bold',
                                         cursor: 'pointer'
                                       }}
@@ -5178,10 +5272,15 @@ function App() {
                                   rowSpan={gSpan}
                                   style={{
                                     ...styles.td,
+                                    position: 'sticky',
+                                    right: isVRV ? '105px' : 0,
+                                    zIndex: 15,
                                     verticalAlign: 'middle',
                                     textAlign: 'center',
                                     backgroundColor: gCard.color.bg,
-                                    borderLeft: `4px solid ${gCard.color.border}`
+                                    borderLeft: `4px solid ${gCard.color.border}`,
+                                    minWidth: '160px',
+                                    boxShadow: isVRV ? 'none' : '-4px 0 8px rgba(0,0,0,0.5)'
                                   }}
                                 >
                                   <select
@@ -5191,9 +5290,9 @@ function App() {
                                       backgroundColor: isNoModel ? '#1e293b' : (isPowerValid ? '#0f172a' : '#451a03'),
                                       color: isNoModel ? '#ef4444' : (isPowerValid ? '#38bdf8' : '#ef4444'),
                                       border: isNoModel ? '1px solid #ef4444' : (isPowerValid ? '1px solid #38bdf8' : '1px solid #ef4444'),
-                                      padding: '4px 8px',
+                                      padding: '5px 10px',
                                       borderRadius: '4px',
-                                      fontSize: '12px',
+                                      fontSize: '15px',
                                       fontWeight: 'bold',
                                       cursor: 'pointer'
                                     }}
@@ -5215,6 +5314,7 @@ function App() {
                                     textAlign: 'center',
                                     color: isPowerValid ? '#a855f7' : '#64748b',
                                     fontWeight: 'bold',
+                                    fontSize: '15px',
                                     backgroundColor: gCard.color.bg
                                   }}
                                 >
@@ -5226,12 +5326,17 @@ function App() {
                                     rowSpan={gSpan}
                                     style={{
                                       ...styles.td,
+                                      position: 'sticky',
+                                      right: 0,
+                                      zIndex: 15,
                                       verticalAlign: 'middle',
                                       textAlign: 'center',
                                       color: isNoModel ? '#64748b' : (isPowerValid ? ratioColor : '#ef4444'),
                                       fontWeight: 'bold',
-                                      fontSize: (!isNoModel && isPowerValid) ? '13px' : '12px',
-                                      backgroundColor: gCard.color.bg
+                                      fontSize: '15px',
+                                      backgroundColor: gCard.color.bg,
+                                      minWidth: '105px',
+                                      boxShadow: '-4px 0 8px rgba(0,0,0,0.5)'
                                     }}
                                     title={isNoModel ? "無此機型" : (!isPowerValid ? `⚠️ 警示：電源不符` : `連結率 = (室內能力指數總和 ${sumIndoorIndex} / 室外能力指數 ${outdoorCapIndex}) * 100% = ${rawRatio.toFixed(1)}%`)}
                                   >
@@ -5270,9 +5375,9 @@ function App() {
                                       backgroundColor: '#0f172a',
                                       color: '#eab308',
                                       border: '1px solid #eab308',
-                                      padding: '3px 6px',
+                                      padding: '5px 8px',
                                       borderRadius: '4px',
-                                      fontSize: '12px',
+                                      fontSize: '14.5px',
                                       fontWeight: 'bold',
                                       cursor: 'pointer'
                                     }}
@@ -5284,7 +5389,15 @@ function App() {
                                 </td>
                               )}
 
-                              <td style={styles.td}>
+                              <td style={{
+                                ...styles.td,
+                                position: 'sticky',
+                                right: isVRV ? '105px' : 0,
+                                zIndex: 15,
+                                backgroundColor: rowBgColor,
+                                minWidth: '160px',
+                                boxShadow: isVRV ? 'none' : '-4px 0 8px rgba(0,0,0,0.5)'
+                              }}>
                                 <select
                                   value={isPowerValid ? selectedModelStr : ''}
                                   onChange={(e) => handleCellChange(index, 'outdoor_model', e.target.value)}
@@ -5292,9 +5405,9 @@ function App() {
                                     backgroundColor: isPowerValid ? '#0f172a' : '#451a03',
                                     color: isPowerValid ? '#38bdf8' : '#ef4444',
                                     border: isPowerValid ? '1px solid #334155' : '1px solid #ef4444',
-                                    padding: '3px 6px',
+                                    padding: '5px 10px',
                                     borderRadius: '4px',
-                                    fontSize: '12px',
+                                    fontSize: '15px',
                                     fontWeight: 'bold',
                                     cursor: 'pointer'
                                   }}
@@ -5307,13 +5420,24 @@ function App() {
                                 </select>
                               </td>
 
-                              <td style={{ ...styles.td, color: isPowerValid ? '#a855f7' : '#64748b', fontWeight: 'bold' }}>
+                              <td style={{ ...styles.td, color: isPowerValid ? '#a855f7' : '#64748b', fontWeight: 'bold', fontSize: '15px' }}>
                                 {isPowerValid && outdoorCapKw ? `${parseFloat(outdoorCapKw).toFixed(1)} kW` : '-'}
                               </td>
 
                               {isVRV && (
                                 <td
-                                  style={{ ...styles.td, color: isPowerValid ? ratioColor : '#ef4444', fontWeight: 'bold', fontSize: isPowerValid ? '12px' : '11px' }}
+                                  style={{
+                                    ...styles.td,
+                                    position: 'sticky',
+                                    right: 0,
+                                    zIndex: 15,
+                                    color: isPowerValid ? ratioColor : '#ef4444',
+                                    fontWeight: 'bold',
+                                    fontSize: '15px',
+                                    backgroundColor: rowBgColor,
+                                    minWidth: '105px',
+                                    boxShadow: '-4px 0 8px rgba(0,0,0,0.5)'
+                                  }}
                                   title={!isPowerValid ? `⚠️ 警示：RXYQ/RXQ 7.1~60HP 上吹室外機固定需使用 3φ, 4P, 380V, 60Hz 電源！` : `連結率 = (室內能力指數 ${totalIndoorIdx} / 室外能力指數 ${outdoorCapIndex}) * 100% = ${rawRatio.toFixed(1)}%`}
                                 >
                                   {isPowerValid ? (isWarn ? `⚠️ ${connRatio}%` : `${connRatio}%`) : '❌ 電源不符'}
@@ -6153,57 +6277,61 @@ const styles = {
   },
   table: {
     width: '100%',
-    borderCollapse: 'collapse',
-    fontSize: '12px'
+    borderCollapse: 'separate',
+    borderSpacing: 0,
+    fontSize: '14px'
   },
   th: {
     backgroundColor: '#1e293b',
-    color: '#94a3b8',
-    padding: '8px 6px',
+    color: '#cbd5e1',
+    padding: '12px 10px',
     textAlign: 'left',
-    borderBottom: '1px solid #334155',
-    whiteSpace: 'nowrap'
+    borderBottom: '2px solid #334155',
+    whiteSpace: 'nowrap',
+    fontSize: '14px',
+    fontWeight: '600'
   },
   td: {
-    padding: '8px 6px',
+    padding: '10px 10px',
     borderBottom: '1px solid #1e293b',
-    color: '#e2e8f0',
-    whiteSpace: 'nowrap'
+    color: '#f8fafc',
+    whiteSpace: 'nowrap',
+    fontSize: '14px'
   },
   inputNum: {
     backgroundColor: '#1e293b',
     border: '1px solid #475569',
     color: '#ffffff',
-    padding: '3px 6px',
+    padding: '5px 8px',
     borderRadius: '4px',
-    width: '55px',
-    fontSize: '12px'
+    width: '70px',
+    fontSize: '13.5px'
   },
   inputModel: {
     backgroundColor: '#1e293b',
     border: '1px solid #475569',
     color: '#ffffff',
-    padding: '3px 6px',
+    padding: '5px 8px',
     borderRadius: '4px',
-    width: '110px',
-    fontSize: '12px'
+    width: '135px',
+    fontSize: '13.5px'
   },
   inputQty: {
     backgroundColor: '#1e293b',
     border: '1px solid #475569',
     color: '#ffffff',
-    padding: '3px 6px',
+    padding: '5px 8px',
     borderRadius: '4px',
-    width: '40px',
-    fontSize: '12px'
+    width: '55px',
+    fontSize: '13.5px'
   },
   selectSys: {
     backgroundColor: '#1e293b',
     border: '1px solid #475569',
     color: '#ffffff',
-    padding: '3px 6px',
+    padding: '5px 8px',
     borderRadius: '4px',
-    fontSize: '12px'
+    fontSize: '13.5px'
   },
   chkLabel: {
     display: 'inline-flex',
