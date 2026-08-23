@@ -3558,6 +3558,10 @@ function App() {
           powerSupply = "1φ, 220V, 60Hz";
         }
 
+        const powerConsumption = row.power_consumption_kw || "-";
+        const maxCurrent = row.max_current_a || "-";
+        const dimensions = row.dimensions || "-";
+
         let nominalCapVal = row.nominal_cap;
         if (!nominalCapVal || nominalCapVal === "-") {
           nominalCapVal = singleCapKw;
@@ -3582,6 +3586,7 @@ function App() {
         excelRow.getCell(18).value = nominalCapVal;                           // Col R: 標稱能力 (EQUIPMENT_Data 第6列)
         excelRow.getCell(19).value = powerSupply;                             // Col S: 供應電源
         excelRow.getCell(20).value = powerConsumption;                        // Col T: 單台耗電量 kW
+        excelRow.getCell(21).value = maxCurrent;                              // Col U: 單台最大電流 A
         excelRow.getCell(22).value = dimensions;                              // Col V: 尺寸 mm (H×W×D)
         excelRow.getCell(23).value = totalCapKcal;                           // Col W: 室內冷房總能力 (kcal/hr)
         excelRow.getCell(24).value = totalCapKw;                             // Col X: 室內冷房總能力 (kW)
