@@ -1689,7 +1689,17 @@ function App() {
     { system: "RA", series: "SUPER MULTI系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "2MXP50ZVLT", cap_kw: 5.0 },
     { system: "RA", series: "SUPER MULTI系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "2MXP85ZVLT", cap_kw: 8.5 },
 
-    // RA - 橫綱Z/Y, 大關X 系列 (1φ, 220V, 60Hz)
+    // RA - 橫綱X/Z/Y, 大關X/U/Z, 經典VA, 豪菁Z, 隱藏風管 系列 (1φ, 220V, 60Hz)
+    { system: "RA", series: "橫綱X系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXV22XVLT", cap_kw: 2.2 },
+    { system: "RA", series: "橫綱X系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXV28XVLT", cap_kw: 2.8 },
+    { system: "RA", series: "橫綱X系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXV36XVLT", cap_kw: 3.5 },
+    { system: "RA", series: "橫綱X系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXV41XVLT", cap_kw: 4.1 },
+    { system: "RA", series: "橫綱X系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXV50XVLT", cap_kw: 5.0 },
+    { system: "RA", series: "橫綱X系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXV60XVLT", cap_kw: 6.0 },
+    { system: "RA", series: "橫綱X系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXV71XVLT", cap_kw: 7.2 },
+    { system: "RA", series: "橫綱X系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXV80XVLT", cap_kw: 8.0 },
+    { system: "RA", series: "橫綱X系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXV90XVLT", cap_kw: 8.7 },
+
     { system: "RA", series: "橫綱Z系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXM22ZVLT", cap_kw: 2.2 },
     { system: "RA", series: "橫綱Z系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXM28ZVLT", cap_kw: 2.8 },
     { system: "RA", series: "橫綱Z系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXM36ZVLT", cap_kw: 3.5 },
@@ -1708,13 +1718,47 @@ function App() {
     { system: "RA", series: "橫綱Y系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXM60YVLT", cap_kw: 6.3 },
     { system: "RA", series: "橫綱Y系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXM71YVLT", cap_kw: 7.2 },
 
-    { system: "RA", series: "大關X系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXV22ZVLT", cap_kw: 2.2 },
-    { system: "RA", series: "大關X系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXV28ZVLT", cap_kw: 2.8 },
-    { system: "RA", series: "大關X系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXV36ZVLT", cap_kw: 3.5 },
-    { system: "RA", series: "大關X系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXV41ZVLT", cap_kw: 4.1 },
-    { system: "RA", series: "大關X系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXV50ZVLT", cap_kw: 5.0 },
-    { system: "RA", series: "大關X系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXV60ZVLT", cap_kw: 6.0 },
-    { system: "RA", series: "大關X系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXV71ZVLT", cap_kw: 7.2 },
+    { system: "RA", series: "大關U系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXV22UVLT", cap_kw: 2.2 },
+    { system: "RA", series: "大關U系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXV28UVLT", cap_kw: 2.8 },
+    { system: "RA", series: "大關U系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXV36UVLT", cap_kw: 3.5 },
+    { system: "RA", series: "大關U系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXV41UVLT", cap_kw: 4.1 },
+    { system: "RA", series: "大關U系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXV50UVLT", cap_kw: 5.0 },
+    { system: "RA", series: "大關U系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXV60UVLT", cap_kw: 6.0 },
+    { system: "RA", series: "大關U系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXV71UVLT", cap_kw: 7.2 },
+
+    { system: "RA", series: "大關Z系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXV22ZVLT", cap_kw: 2.2 },
+    { system: "RA", series: "大關Z系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXV28ZVLT", cap_kw: 2.8 },
+    { system: "RA", series: "大關Z系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXV36ZVLT", cap_kw: 3.5 },
+    { system: "RA", series: "大關Z系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXV41ZVLT", cap_kw: 4.1 },
+    { system: "RA", series: "大關Z系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXV50ZVLT", cap_kw: 5.0 },
+    { system: "RA", series: "大關Z系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXV60ZVLT", cap_kw: 6.0 },
+    { system: "RA", series: "大關Z系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXV71ZVLT", cap_kw: 7.2 },
+
+    { system: "RA", series: "經典VA系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RTHF20VAVLT", cap_kw: 2.2 },
+    { system: "RA", series: "經典VA系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RTHF25VAVLT", cap_kw: 2.5 },
+    { system: "RA", series: "經典VA系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RTHF30VAVLT", cap_kw: 3.0 },
+    { system: "RA", series: "經典VA系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RTHF40VVLT", cap_kw: 4.0 },
+    { system: "RA", series: "經典VA系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RTHF50VVLT", cap_kw: 5.0 },
+    { system: "RA", series: "經典VA系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RTHF60VVLT", cap_kw: 6.0 },
+    { system: "RA", series: "經典VA系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RTHF71VVLT", cap_kw: 7.2 },
+
+    { system: "RA", series: "豪菁Z系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RTHF20ZVLT", cap_kw: 2.2 },
+    { system: "RA", series: "豪菁Z系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RTHF25ZVLT", cap_kw: 2.5 },
+    { system: "RA", series: "豪菁Z系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RTHF30ZVLT", cap_kw: 3.0 },
+    { system: "RA", series: "豪菁Z系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RTHF40ZVLT", cap_kw: 4.1 },
+    { system: "RA", series: "豪菁Z系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RTHF50ZVLT", cap_kw: 5.0 },
+    { system: "RA", series: "豪菁Z系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RTHF60ZVLT", cap_kw: 6.0 },
+    { system: "RA", series: "豪菁Z系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RTHF71ZVLT", cap_kw: 7.2 },
+
+    { system: "RA", series: "隱藏風管系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXM22ZVLT", cap_kw: 2.2 },
+    { system: "RA", series: "隱藏風管系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXM28ZVLT", cap_kw: 2.8 },
+    { system: "RA", series: "隱藏風管系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXM36ZVLT", cap_kw: 3.5 },
+    { system: "RA", series: "隱藏風管系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXM41ZVLT", cap_kw: 4.1 },
+    { system: "RA", series: "隱藏風管系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXM50ZVLT", cap_kw: 5.0 },
+    { system: "RA", series: "隱藏風管系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXM60ZVLT", cap_kw: 6.0 },
+    { system: "RA", series: "隱藏風管系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXM71ZVLT", cap_kw: 7.2 },
+    { system: "RA", series: "隱藏風管系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXM80ZVLT", cap_kw: 8.0 },
+    { system: "RA", series: "隱藏風管系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RXM90ZVLT", cap_kw: 8.7 },
 
     // SA - 商用系列 (1φ, 220V / 3φ, 220V / 3φ, 380V)
     { system: "SA", series: "商用冷專系列", outdoor_type: "側吹單風扇", power_supply: "1φ, 220V, 60Hz", model: "RZFC50AVLT", cap_kw: 5.0 },
@@ -1766,6 +1810,11 @@ function App() {
       const multiMatches = matched.filter(m => m.series.includes('MULTI') || m.model.includes('MXM') || m.model.includes('MXP'));
       if (multiMatches.length > 0) {
         matched = multiMatches;
+      }
+    } else if (seriesVal) {
+      const seriesMatches = matched.filter(m => m.series === seriesVal);
+      if (seriesMatches.length > 0) {
+        matched = seriesMatches;
       }
     }
 
@@ -1828,15 +1877,243 @@ function App() {
 
   // 🎯 核心智慧配對演算法：快速選機模式下自動將全場空間併入 VRV 系統，自動計算 115% 內之 HP 數；
   // 當 60HP (RXYQ60ANYLT, 1500指數) 連結率超過 116% 時，自動拆分成兩套平衡 VRV 系統 (如 30HP + 32HP)
-  const autoGroupAllRowsForVRV = (targetRows, sysVal, seriesVal, outTypeVal, outPowerVal) => {
+  // 🎯 核心智慧配對演算法 (支援 VRV 併機、RA 家用MULTI 限制最多4連機分組、RA/SA 1對1 獨立選配)
+  const autoGroupAllRows = (targetRows, sysVal, seriesVal, outTypeVal, outPowerVal) => {
     if (!targetRows || targetRows.length === 0) return { updatedRows: targetRows, groups: [] };
 
     const activeSys = sysVal || fastSystem || 'VRV';
-    const activeSeries = seriesVal || fastSeries || '中靜壓';
-    const activeOutType = outTypeVal || fastOutdoorType || '上吹';
-    const activeOutPower = outPowerVal || fastOutdoorPower || '3φ, 4P, 380V, 60Hz';
+    const activeSeries = seriesVal || fastSeries || '';
+    const activeOutType = outTypeVal || fastOutdoorType || '側吹單風扇';
+    const activeOutPower = outPowerVal || fastOutdoorPower || (activeSys === 'RA' ? '1φ, 220V, 60Hz' : '3φ, 4P, 380V, 60Hz');
 
-    // 1. 計算所有空間的室內機能力指數總和 (Total Indoor Index)
+    const isMultiSeries = activeSys === 'RA' && (activeSeries === '家用MULTI系列' || activeSeries === 'SUPER MULTI系列' || activeSeries.includes('MULTI'));
+
+    // 1. 如果是 SA 商用 或 RA 的 1 對 1 系列 (如 橫綱Z, 橫綱Y, 橫綱X, 大關U, 大關Z, 經典VA, 豪菁Z, 隱藏風管)
+    if (activeSys === 'SA' || (activeSys === 'RA' && !isMultiSeries)) {
+      const updatedRows = targetRows.map(r => {
+        const demandKcal = r.total_cooling_demand || (r.area_ping * (r.calc_basis || 500));
+        let autoUnitType = r.unit_type || fastUnitType;
+        if (activeSys === 'RA') {
+          autoUnitType = activeSeries === '隱藏風管系列' ? '吊隱式' : (activeSeries ? '壁掛式' : (r.unit_type || '壁掛式'));
+        }
+        const autoMatch = clientSideSelectEquipment(demandKcal, activeSys, activeSeries, autoUnitType);
+        const indoorKw = autoMatch.cap * autoMatch.qty;
+        const autoOutdoor = autoMatchOutdoorModelForRow(activeSys, activeSeries, indoorKw, activeOutType, activeOutPower);
+
+        return {
+          ...r,
+          system_type: activeSys,
+          series: activeSeries,
+          unit_type: autoMatch.unit_type || autoUnitType || '壁掛式',
+          best_match_model: autoMatch.model,
+          unit_count: autoMatch.qty,
+          cap_kw: autoMatch.cap,
+          outdoor_type: activeOutType,
+          power_supply: activeOutPower,
+          outdoor_model: autoOutdoor,
+          outdoorGroupId: null
+        };
+      });
+
+      return { updatedRows, groups: [] };
+    }
+
+    // 2. 如果是 RA 家用 MULTI / SUPER MULTI 系列 (限制單台室外機最多連 4 台室內機)
+    if (activeSys === 'RA' && isMultiSeries) {
+      const processedRows = targetRows.map(r => {
+        const demandKcal = r.total_cooling_demand || (r.area_ping * (r.calc_basis || 500));
+        const autoMatch = clientSideSelectEquipment(demandKcal, activeSys, activeSeries, r.unit_type || fastUnitType || '壁掛式');
+        return {
+          ...r,
+          system_type: activeSys,
+          series: activeSeries,
+          unit_type: autoMatch.unit_type || r.unit_type || fastUnitType || '壁掛式',
+          best_match_model: autoMatch.model,
+          unit_count: autoMatch.qty,
+          cap_kw: autoMatch.cap,
+          outdoor_type: activeOutType,
+          power_supply: activeOutPower
+        };
+      });
+
+      const maxUnitsPerGroup = activeSeries === 'SUPER MULTI系列' ? 2 : 4;
+      const candidates = getOutdoorModelsForSystem(activeSys, activeSeries, activeOutType, activeOutPower);
+      const sortedCandidates = [...candidates].sort((a, b) => a.cap_kw - b.cap_kw);
+
+      const newGroups = [];
+      const finalRows = [...processedRows];
+
+      for (let i = 0; i < finalRows.length; i += maxUnitsPerGroup) {
+        const chunkIndices = [];
+        let chunkIndoorKwSum = 0;
+        const groupNum = newGroups.length + 1;
+        const gId = `group-multi-${groupNum}`;
+
+        for (let j = i; j < Math.min(i + maxUnitsPerGroup, finalRows.length); j++) {
+          chunkIndices.push(j);
+          chunkIndoorKwSum += (finalRows[j].cap_kw * (finalRows[j].unit_count || 1));
+        }
+
+        const chunkLen = chunkIndices.length;
+        const hasUnitOver30 = chunkIndices.some(idx => (finalRows[idx].cap_kw || 0) > 3.0);
+
+        const validCandidates = sortedCandidates.filter(m => {
+          if (m.model === '2MXP50ZVLT') {
+            // 🎯 2MXP50ZVLT 限制：必須連接 2 台室內機，且單台室內機容量不可超過 30 級 (<= 3.0kW, FTHF20-30ZVLT)
+            if (chunkLen !== 2 || hasUnitOver30) return false;
+          }
+          if (m.model === '2MXP85ZVLT') {
+            // 🎯 2MXP85ZVLT 限制：必須連接 2 台室內機，單台室內機為 20~71 級 (<=7.2kW)，雙機最大組合為 50+60 (總容量 <= 11.0kW)
+            const hasUnitOver71 = chunkIndices.some(idx => (finalRows[idx].cap_kw || 0) > 7.2);
+            if (chunkLen !== 2 || hasUnitOver71 || chunkIndoorKwSum > 11.0) return false;
+          }
+          if (m.model === '2MXM56YVLT') {
+            // 🎯 2MXM56YVLT 官方型錄建議組合：必須連接 2 台室內機 (22+22, 22+28, 22+36, 28+28, 28+36, 最大級數和 28+36 6.4kW)
+            if (chunkLen !== 2) return false;
+            const caps = chunkIndices.map(idx => finalRows[idx].cap_kw || 0).sort((a, b) => a - b);
+            if (caps[1] > 3.6 || (caps[0] + caps[1]) > 6.4) return false;
+          }
+          if (m.model === '2MXM75YVLT') {
+            // 🎯 2MXM75YVLT 官方型錄建議組合：必須連接 2 台室內機 (最大組合 41+41 或 36+50，搭配 50 級時另台最高為 36 級)
+            if (chunkLen !== 2) return false;
+            const caps = chunkIndices.map(idx => finalRows[idx].cap_kw || 0).sort((a, b) => a - b);
+            if (caps[1] > 5.0 || caps[0] > 4.1) return false;
+            if (caps[1] > 4.1 && caps[0] > 3.6) return false; // 自動排除非建議之 41+50 / 50+50 組合
+          }
+          if (m.model === '3MXM90YVLT') {
+            // 🎯 3MXM90YVLT 官方型錄建議組合 (可連接 2~3 台室內機)
+            if (chunkLen < 2 || chunkLen > 3) return false;
+            
+            // 檢查隱藏風管型單機上限 60 級 (6.0kW)
+            const hasInvalidDuct = chunkIndices.some(idx => {
+              const cap = finalRows[idx].cap_kw || 0;
+              const type = finalRows[idx].unit_type || '';
+              return (type === '吊隱式' || type.includes('風管')) && cap > 6.0;
+            });
+            if (hasInvalidDuct) return false;
+
+            if (chunkLen === 3) {
+              const kwToClass = (kw) => {
+                if (kw <= 2.3) return 22;
+                if (kw <= 3.0) return 28;
+                if (kw <= 3.8) return 36;
+                if (kw <= 4.5) return 41;
+                if (kw <= 5.5) return 50;
+                if (kw <= 6.5) return 60;
+                return 71;
+              };
+              const classes = chunkIndices.map(idx => kwToClass(finalRows[idx].cap_kw || 0)).sort((a, b) => a - b);
+              const comboKey = classes.join('+');
+
+              const valid3Combos = new Set([
+                '22+22+22', '22+22+28', '22+22+36', '22+22+41', '22+22+50', '22+22+60', '22+22+71',
+                '22+28+28', '22+28+36', '22+28+41', '22+28+50', '22+28+60', '22+28+71',
+                '22+36+36', '22+36+41', '22+36+50', '22+36+60', '22+36+71',
+                '22+41+41', '22+41+50', '22+41+60', '22+41+71',
+                '22+50+50', '22+50+60', '22+50+71',
+                '22+60+60', '22+60+71',
+                '28+28+28', '28+28+36', '28+28+41', '28+28+50', '28+28+60', '28+28+71',
+                '28+36+36', '28+36+41', '28+36+50', '28+36+60', '28+36+71',
+                '28+41+41', '28+41+50', '28+41+60', '28+41+71',
+                '28+50+50', '28+50+60', '28+50+71',
+                '28+60+60',
+                '36+36+36', '36+36+41', '36+36+50', '36+36+60', '36+36+71',
+                '36+41+41', '36+41+50', '36+41+60', '36+41+71',
+                '36+50+50', '36+50+60'
+              ]);
+
+              if (!valid3Combos.has(comboKey)) return false;
+            }
+          }
+          if (m.model === '4MXM110YVLT') {
+            // 🎯 4MXM110YVLT 官方型錄建議組合 (可連接 2~4 台室內機)
+            if (chunkLen < 2 || chunkLen > 4) return false;
+            
+            // 檢查隱藏風管型單機上限 71 級 (7.2kW)
+            const hasInvalidDuct = chunkIndices.some(idx => {
+              const cap = finalRows[idx].cap_kw || 0;
+              const type = finalRows[idx].unit_type || '';
+              return (type === '吊隱式' || type.includes('風管')) && cap > 7.2;
+            });
+            if (hasInvalidDuct) return false;
+
+            if (chunkLen === 4) {
+              const kwToClass = (kw) => {
+                if (kw <= 2.3) return 22;
+                if (kw <= 3.0) return 28;
+                if (kw <= 3.8) return 36;
+                if (kw <= 4.5) return 41;
+                if (kw <= 5.5) return 50;
+                if (kw <= 6.5) return 60;
+                if (kw <= 7.5) return 71;
+                if (kw <= 8.3) return 80;
+                return 90;
+              };
+              const classes = chunkIndices.map(idx => kwToClass(finalRows[idx].cap_kw || 0)).sort((a, b) => a - b);
+              const comboKey = classes.join('+');
+
+              const valid4Combos = new Set([
+                '22+22+22+22', '22+22+22+28', '22+22+22+36', '22+22+22+41', '22+22+22+50', '22+22+22+60', '22+22+22+71', '22+22+22+80', '22+22+22+90',
+                '22+22+28+28', '22+22+28+36', '22+22+28+41', '22+22+28+50', '22+22+28+60', '22+22+28+71', '22+22+28+80',
+                '22+22+36+36', '22+22+36+41', '22+22+36+50', '22+22+36+60', '22+22+36+71',
+                '22+22+41+41', '22+22+41+50', '22+22+41+60', '22+22+41+71',
+                '22+22+50+50',
+                '22+28+28+28', '22+28+28+36', '22+28+28+41', '22+28+28+50', '22+28+28+60', '22+28+28+71',
+                '22+28+36+36', '22+28+36+41', '22+28+36+50', '22+28+36+60',
+                '22+28+41+41', '22+28+41+50', '22+28+41+60',
+                '22+28+50+50',
+                '22+36+36+36', '22+36+36+41', '22+36+36+50',
+                '22+36+41+41', '22+36+41+50',
+                '22+41+41+41', '22+41+41+50',
+                '28+28+28+28', '28+28+28+36', '28+28+28+41', '28+28+28+50', '28+28+28+60', '28+28+28+71',
+                '28+28+36+36', '28+28+36+41', '28+28+36+50', '28+28+36+60',
+                '28+28+41+41', '28+28+41+50',
+                '28+28+50+50',
+                '28+36+36+36', '28+36+36+41', '28+36+36+50',
+                '28+36+41+41', '28+36+41+50',
+                '28+41+41+41',
+                '36+36+36+36', '36+36+36+41',
+                '36+36+41+41'
+              ]);
+
+              if (!valid4Combos.has(comboKey)) return false;
+            }
+          }
+          if (m.model.startsWith('4MXM')) return chunkLen <= 4;
+          if (m.model.startsWith('3MXM')) return chunkLen <= 3;
+          if (m.model.startsWith('2MXM') || m.model.startsWith('2MXP')) return chunkLen <= 2;
+          return true;
+        });
+
+        const pool = validCandidates.length > 0 ? validCandidates : sortedCandidates;
+        const matchedOutdoor = pool.find(m => m.cap_kw >= chunkIndoorKwSum) || pool[pool.length - 1] || { model: '4MXM110YVLT', cap_kw: 10.5 };
+
+        const colorObj = GROUP_COLOR_PALETTE[(groupNum - 1) % GROUP_COLOR_PALETTE.length];
+        const newGroup = {
+          id: gId,
+          name: `家用MULTI 系統 #${groupNum} (${matchedOutdoor.model})`,
+          system_type: activeSys,
+          outdoor_model: matchedOutdoor.model,
+          outdoor_cap_kw: matchedOutdoor.cap_kw,
+          power_supply: activeOutPower,
+          color: colorObj,
+          space_indices: chunkIndices
+        };
+        newGroups.push(newGroup);
+
+        chunkIndices.forEach(idx => {
+          finalRows[idx] = {
+            ...finalRows[idx],
+            outdoorGroupId: gId,
+            outdoor_model: matchedOutdoor.model
+          };
+        });
+      }
+
+      return { updatedRows: finalRows, groups: newGroups };
+    }
+
+    // 3. 如果是 VRV 系統
     let totalIndoorIndex = 0;
     const processedRows = targetRows.map(r => {
       const demandKcal = r.total_cooling_demand || (r.area_ping * (r.calc_basis || 500));
@@ -1858,7 +2135,6 @@ function App() {
       };
     });
 
-    // 2. 取得所有對應條件之 VRV 室外機型態備選清單，依 cap_index 升冪排序
     const candidates = getOutdoorModelsForSystem(activeSys, activeSeries, activeOutType, activeOutPower);
     if (!candidates || candidates.length === 0) {
       const singleGroupId = `group-auto-1`;
@@ -1883,12 +2159,10 @@ function App() {
 
     const sortedCandidates = [...candidates].sort((a, b) => (a.cap_index || a.cap_kw * 10) - (b.cap_index || b.cap_kw * 10));
 
-    // 3. 判斷是否需要自動拆分成 2 套 VRV 系統：
-    // 當 60HP (RXYQ60ANYLT, cap_index=1500) 連結率超過 116% (總指數 > 1500 * 1.16 = 1740) 時自動拆分成兩套 (如 30HP + 32HP)
+    // 當 60HP (RXYQ60ANYLT, cap_index=1500) 連結率超過 116% (總指數 > 1500 * 1.16 = 1740) 時自動拆分成兩套
     const maxSingleSystemIndexLimit = 1500 * 1.16; // 1740
 
     if (totalIndoorIndex > maxSingleSystemIndexLimit) {
-      // 🎯 拆分成 2 套平均系統
       const halfTarget = totalIndoorIndex / 2.0;
       let accumulated = 0;
       const g1Indices = [];
@@ -1908,7 +2182,6 @@ function App() {
       const sumIdx1 = g1Indices.reduce((acc, i) => acc + lookupIndoorCapIndex(processedRows[i].best_match_model) * (processedRows[i].unit_count || 1), 0);
       const sumIdx2 = g2Indices.reduce((acc, i) => acc + lookupIndoorCapIndex(processedRows[i].best_match_model) * (processedRows[i].unit_count || 1), 0);
 
-      // 尋找連結率 <= 115% 之最小室外機
       const matchOutdoor1 = sortedCandidates.find(m => ((sumIdx1 / (m.cap_index || m.cap_kw * 10)) * 100.0) <= 115.0) || sortedCandidates[sortedCandidates.length - 1];
       const matchOutdoor2 = sortedCandidates.find(m => ((sumIdx2 / (m.cap_index || m.cap_kw * 10)) * 100.0) <= 115.0) || sortedCandidates[sortedCandidates.length - 1];
 
@@ -1948,7 +2221,6 @@ function App() {
 
       return { updatedRows: finalRows, groups: newGroups };
     } else {
-      // 🎯 併入同一套 VRV 室外機系統，自動帶入連結率 <= 115% 的室外機 HP
       const matchedOutdoor = sortedCandidates.find(m => ((totalIndoorIndex / (m.cap_index || m.cap_kw * 10)) * 100.0) <= 115.0) || sortedCandidates[sortedCandidates.length - 1];
       const singleGroupId = `group-auto-1`;
 
@@ -1974,9 +2246,9 @@ function App() {
     }
   };
 
-  // 🎯 在快速選機 VRV 模式下，當資料變動時自動執行全場配對與動態調整
+  // 🎯 在快速選機模式下，當資料變動時自動執行全場配對與動態調整
   useEffect(() => {
-    if (selectionMode === 'fast' && fastSystem === 'VRV' && rows.length > 0) {
+    if (selectionMode === 'fast' && rows.length > 0) {
       // 若使用者已經手動拆分群組且群組數量 > 1，則僅針對各個別群組動態更新配對的室外機型號，不重置合併為全場單一系統
       if (userHasCustomGroups && outdoorGroups.length > 1) {
         const activeSys = fastSystem || 'VRV';
@@ -1992,7 +2264,7 @@ function App() {
           if (gSpaces.length === 0) return g;
           const sumIdx = gSpaces.reduce((acc, sp) => acc + (lookupIndoorCapIndex(sp.best_match_model) * (sp.unit_count || 1)), 0);
           const matched = sortedCandidates.find(m => ((sumIdx / (m.cap_index || m.cap_kw * 10)) * 100.0) <= 115.0) || sortedCandidates[sortedCandidates.length - 1];
-          if (matched.model !== g.outdoor_model || activeOutPower !== g.power_supply) {
+          if (matched && (matched.model !== g.outdoor_model || activeOutPower !== g.power_supply)) {
             hasGroupChange = true;
             return {
               ...g,
@@ -2011,8 +2283,8 @@ function App() {
         return;
       }
 
-      // 未進行手動拆分時，執行預設的全場併機與 116% 自動拆分
-      const { updatedRows, groups } = autoGroupAllRowsForVRV(rows, fastSystem, fastSeries, fastOutdoorType, fastOutdoorPower);
+      // 未進行手動拆分時，執行預設的智慧自動配對
+      const { updatedRows, groups } = autoGroupAllRows(rows, fastSystem, fastSeries, fastOutdoorType, fastOutdoorPower);
       
       const needUpdate = groups.length !== outdoorGroups.length || 
         outdoorGroups.some((g, i) => g.outdoor_model !== groups[i]?.outdoor_model || g.power_supply !== groups[i]?.power_supply) ||
@@ -2023,7 +2295,7 @@ function App() {
         setRows(updatedRows);
       }
     }
-  }, [selectionMode, fastSystem, fastSeries, fastOutdoorType, fastOutdoorPower, rows, userHasCustomGroups]);
+  }, [selectionMode, fastSystem, fastSeries, fastOutdoorType, fastOutdoorPower, userHasCustomGroups]);
 
   const handleTableContextMenu = (e, index) => {
     e.preventDefault();
@@ -3630,11 +3902,15 @@ function App() {
           powerSupply = "1φ, 220V, 60Hz";
         }
 
-        let rawNominal = indoorInfo ? indoorInfo.nominal_cap : row.nominal_cap;
-        let nominalCapVal = singleCapKw;
-        if (rawNominal && String(rawNominal).trim() !== "-" && String(rawNominal).trim() !== "None") {
-          const parsed = parseFloat(rawNominal);
-          nominalCapVal = isNaN(parsed) ? String(rawNominal).trim() : parsed;
+        let nominalCapVal = "-";
+        if (sysUpper.includes("VRV")) {
+          let rawNominal = indoorInfo ? indoorInfo.nominal_cap : row.nominal_cap;
+          if (rawNominal && String(rawNominal).trim() !== "-" && String(rawNominal).trim() !== "None") {
+            const parsed = parseFloat(rawNominal);
+            nominalCapVal = isNaN(parsed) ? String(rawNominal).trim() : parsed;
+          } else {
+            nominalCapVal = singleCapKw;
+          }
         }
 
         const powerConsumption = (indoorInfo && indoorInfo.power_consumption_kw !== "-") ? indoorInfo.power_consumption_kw : (row.power_consumption_kw || "-");
@@ -3642,7 +3918,7 @@ function App() {
         const dimensions = (indoorInfo && indoorInfo.dimensions !== "-") ? indoorInfo.dimensions : (row.dimensions || "-");
 
         let nominalSubtotal = "-";
-        if (typeof nominalCapVal === "number" && !isNaN(nominalCapVal)) {
+        if (sysUpper.includes("VRV") && typeof nominalCapVal === "number" && !isNaN(nominalCapVal)) {
           nominalSubtotal = parseFloat((qty * nominalCapVal).toFixed(1));
         }
 
@@ -3665,14 +3941,14 @@ function App() {
         excelRow.getCell(15).value = qty;                                     // Col O: 室內機台數
         excelRow.getCell(16).value = singleCapKcal;                           // Col P: 冷房能力 (kcal/hr)
         excelRow.getCell(17).value = singleCapKw;                             // Col Q: 冷房能力 (kW)
-        excelRow.getCell(18).value = nominalCapVal;                           // Col R: 標稱能力
+        excelRow.getCell(18).value = nominalCapVal;                           // Col R: 標稱能力 (僅 VRV 填寫能力指數，RA/SA 為 -)
         excelRow.getCell(19).value = powerSupply;                             // Col S: 供應電源
         excelRow.getCell(20).value = powerConsumption;                        // Col T: 單台耗電量 kW
         excelRow.getCell(21).value = maxCurrent;                              // Col U: 單台最大電流 A
         excelRow.getCell(22).value = dimensions;                              // Col V: 尺寸 mm (H×W×D)
         excelRow.getCell(23).value = totalCapKcal;                           // Col W: 室內冷房總能力 (kcal/hr)
         excelRow.getCell(24).value = totalCapKw;                             // Col X: 室內冷房總能力 (kW)
-        excelRow.getCell(25).value = nominalSubtotal;                         // Col Y (25): 標稱能力小計
+        excelRow.getCell(25).value = nominalSubtotal;                         // Col Y (25): 標稱能力小計 (僅 VRV 為小計，RA/SA 為 -)
         excelRow.getCell(26).value = pwrConSubtotal;                          // Col Z (26): 耗電量小計 kW
         excelRow.getCell(28).value = actualKcalPerPing;                       // Col AB
         excelRow.getCell(29).value = actualKwPerPing;                         // Col AC
@@ -3688,7 +3964,7 @@ function App() {
 
           const outCapKw = outObj ? parseFloat(outObj.cap_kw) : singleCapKw;
           const outCapKcal = outCapKw > 0 ? parseFloat((outCapKw * 860.0).toFixed(1)) : "-";
-          const outNominal = outObj ? (outObj.nominal_cap || "-") : "-";
+          const outNominal = sysUpper.includes("VRV") ? (outObj ? (outObj.nominal_cap || "-") : "-") : "-";
           const outPwrCon = outObj ? (outObj.power_consumption_kw || "-") : "-";
           const outPwrSup = outObj ? (outObj.power_supply || "-") : "-";
           const outMca = outObj ? (outObj.mca || "-") : "-";
@@ -3699,7 +3975,7 @@ function App() {
           excelRow.getCell(32).value = 1;                                     // Col AF (32): 室外機台數
           excelRow.getCell(33).value = outCapKcal;                            // Col AG (33): 冷房能力 (kcal/hr)
           excelRow.getCell(34).value = outCapKw;                              // Col AH (34): 冷房能力 (kW)
-          excelRow.getCell(35).value = outNominal;                            // Col AI (35): 標稱能力
+          excelRow.getCell(35).value = outNominal;                            // Col AI (35): 標稱能力 (僅 VRV 為能力指數，RA/SA 為 -)
           excelRow.getCell(36).value = "100%";                                // Col AJ (36): 連結率 %
           excelRow.getCell(37).value = outPwrCon;                             // Col AK (37): 耗電量 (kW)
           excelRow.getCell(38).value = outPwrSup;                             // Col AL (38): 電源
@@ -3718,13 +3994,15 @@ function App() {
         const outInfo = span.outdoor_info;
         const outCapKw = span.fallback_cap_kw;
         const outCapKcal = outCapKw > 0 ? parseFloat((outCapKw * 860.0).toFixed(1)) : "-";
+        const outSysUpper = (span.system_type || fastSystem || "").toUpperCase();
+        const outNominal = outSysUpper.includes("VRV") ? (outInfo ? (outInfo.nominal_cap || "-") : "-") : "-";
 
         const topRow = ws.getRow(sR);
         topRow.getCell(31).value = span.outdoor_model || "-";
         topRow.getCell(32).value = span.outdoor_qty || 1;
         topRow.getCell(33).value = outCapKcal;
         topRow.getCell(34).value = outCapKw;
-        topRow.getCell(35).value = outInfo ? (outInfo.nominal_cap || "-") : "-";
+        topRow.getCell(35).value = outNominal;
         topRow.getCell(36).value = span.conn_ratio_str;
         topRow.getCell(37).value = outInfo ? (outInfo.power_consumption_kw || "-") : "-";
         topRow.getCell(38).value = outInfo ? (outInfo.power_supply || "-") : "-";
@@ -3888,38 +4166,6 @@ function App() {
     const updatedRows = rows.map(r => ({ ...r, selected: checked }));
     setRows(updatedRows);
   };
-
-  const styles = {
-    container: { minHeight: '100vh', backgroundColor: '#0b1329', color: '#f8fafc', fontFamily: 'sans-serif', padding: '15px' },
-    header: { borderBottom: '1px solid #1e293b', paddingBottom: '15px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-    logoBox: { backgroundColor: '#10b981', color: '#0f172a', padding: '6px 12px', borderRadius: '6px', fontWeight: 'bold', marginRight: '10px' },
-    panel: { backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '15px', marginBottom: '20px', display: 'flex', gap: '15px', alignItems: 'center' },
-    btnPrimary: { backgroundColor: '#059669', color: '#ffffff', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' },
-    btnSecondary: { backgroundColor: '#1e293b', color: '#34d399', border: '1px solid #34d399', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', marginLeft: 'auto' },
-    mainGrid: { display: 'grid', gridTemplateColumns: '1fr 3.5fr', gap: '15px' },
-    card: { backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '20px' },
-    cardTitle: { fontSize: '15px', fontWeight: 'bold', color: '#cbd5e1', marginBottom: '15px', borderBottom: '1px solid #334155', paddingBottom: '8px' },
-    previewBox: { width: '100%', height: '540px', backgroundColor: '#020617', borderRadius: '8px', border: '1px dashed #475569', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-    table: { width: '100%', borderCollapse: 'separate', borderSpacing: 0, textAlign: 'left', fontSize: '15px' },
-    th: { backgroundColor: '#1e293b', color: '#cbd5e1', padding: '14px 12px', fontSize: '16px', fontWeight: 'bold', borderBottom: '2px solid #334155', whiteSpace: 'nowrap' },
-    td: { padding: '12px 10px', borderBottom: '1px solid #1e293b', color: '#f8fafc', fontSize: '15px', whiteSpace: 'nowrap' },
-    selectSys: { backgroundColor: '#0f172a', border: '1px solid #475569', color: '#34d399', padding: '6px 8px', borderRadius: '4px', width: '100px', fontSize: '14.5px', textAlign: 'center', fontWeight: 'bold', cursor: 'pointer' },
-    inputNum: { backgroundColor: '#0f172a', border: '1px solid #475569', color: '#f8fafc', padding: '6px 8px', borderRadius: '4px', width: '75px', fontSize: '15px', textAlign: 'center', fontWeight: 'bold' },
-    inputModel: { backgroundColor: '#0f172a', border: '1px solid #047857', color: '#34d399', padding: '6px 8px', borderRadius: '4px', width: '140px', fontSize: '15px', fontWeight: 'bold', textAlign: 'center' },
-    inputQty: { backgroundColor: '#0f172a', border: '1px solid #475569', color: '#38bdf8', padding: '6px 8px', borderRadius: '4px', width: '55px', fontSize: '15px', textAlign: 'center', fontWeight: 'bold' },
-    chkLabel: { display: 'inline-flex', alignItems: 'center', gap: '3px', marginRight: '6px', fontSize: '13px', color: '#cbd5e1', cursor: 'pointer' }
-  };
-
-  const OVERLAY_COLORS = [
-    { bg: 'rgba(59, 130, 246, 0.32)', border: '#3b82f6', badgeBg: '#1d4ed8', badgeText: '#ffffff' },
-    { bg: 'rgba(16, 185, 129, 0.32)', border: '#10b981', badgeBg: '#047857', badgeText: '#ffffff' },
-    { bg: 'rgba(245, 158, 11, 0.32)', border: '#f59e0b', badgeBg: '#b45309', badgeText: '#ffffff' },
-    { bg: 'rgba(236, 72, 153, 0.32)', border: '#ec4899', badgeBg: '#be185d', badgeText: '#ffffff' },
-    { bg: 'rgba(139, 92, 246, 0.32)', border: '#8b5cf6', badgeBg: '#6d28d9', badgeText: '#ffffff' },
-    { bg: 'rgba(6, 182, 212, 0.32)',  border: '#06b6d4', badgeBg: '#0e7490', badgeText: '#ffffff' },
-    { bg: 'rgba(249, 115, 22, 0.32)', border: '#f97316', badgeBg: '#c2410c', badgeText: '#ffffff' },
-    { bg: 'rgba(168, 85, 247, 0.32)', border: '#a855f7', badgeBg: '#7e22ce', badgeText: '#ffffff' },
-  ];
 
   if (!isAuthenticated) {
     return (
@@ -4731,7 +4977,6 @@ function App() {
                     setFastSeries('');
                     setFastUnitType('');
 
-                    // 🎯 規則 1 & 規則 3: RA 系統室外機電源自動帶入 1φ, 220V, 60Hz；SA / VRV 系統保持空白
                     let newPower = '';
                     if (sysVal === 'RA') {
                       newPower = '1φ, 220V, 60Hz';
@@ -4742,35 +4987,9 @@ function App() {
                     const newOutdoor = isOutdoorLocked ? '側吹單風扇' : '';
                     setFastOutdoorType(newOutdoor);
 
-                    setRows(prev => prev.map(r => {
-                      const demandKcal = r.total_cooling_demand || (r.area_ping * (r.calc_basis || 500));
-                      const autoMatch = clientSideSelectEquipment(demandKcal, sysVal, '', '');
-                      const indoorKw = autoMatch.cap * autoMatch.qty;
-                      const autoOutdoor = autoMatchOutdoorModelForRow(sysVal, '', indoorKw, newOutdoor, newPower);
-                      return {
-                        ...r,
-                        system_type: sysVal,
-                        series: '',
-                        unit_type: '',
-                        outdoor_type: newOutdoor,
-                        power_supply: newPower,
-                        best_match_model: autoMatch.model,
-                        unit_count: autoMatch.qty,
-                        cap_kw: autoMatch.cap,
-                        outdoor_model: autoOutdoor
-                      };
-                    }));
-                    setOutdoorGroups(prev => prev.map(g => {
-                      const candidates = getOutdoorModelsForSystem(sysVal, '', newOutdoor, newPower);
-                      const matched = candidates[0] || { model: 'RXYCQ4BVLT', cap_kw: 11.2 };
-                      return {
-                        ...g,
-                        system_type: sysVal,
-                        outdoor_model: matched.model,
-                        outdoor_cap_kw: matched.cap_kw,
-                        power_supply: newPower
-                      };
-                    }));
+                    const { updatedRows, groups } = autoGroupAllRows(rows, sysVal, '', newOutdoor, newPower);
+                    setRows(updatedRows);
+                    setOutdoorGroups(groups);
                   }}
                   style={{ backgroundColor: '#1e293b', color: fastSystem ? '#38bdf8' : '#94a3b8', border: '1px solid #334155', padding: '6px 12px', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
                 >
@@ -4790,10 +5009,6 @@ function App() {
                     const seriesVal = e.target.value;
                     setFastSeries(seriesVal);
 
-                    // 🎯 判定自動帶入室內機型式：
-                    // 規則 2: RA 系統且非「隱藏風管系列」、「家用MULTI系列」、「SUPER MULTI系列」時自動帶入「壁掛式」
-                    // 規則 3: SA 系統（商用冷專 / 商用冷暖）保持空白
-                    // 規則 4: VRV 系統依系列別自動帶入對應型式（如：低靜壓 -> 吊隱式；全方吹 -> 嵌入式）
                     let autoUnitType = '';
 
                     if (fastSystem === 'RA') {
@@ -4816,21 +5031,9 @@ function App() {
 
                     setFastUnitType(autoUnitType);
 
-                    setRows(prev => prev.map(r => {
-                      const demandKcal = r.total_cooling_demand || (r.area_ping * (r.calc_basis || 500));
-                      const autoMatch = clientSideSelectEquipment(demandKcal, fastSystem, seriesVal, autoUnitType);
-                      const indoorKw = autoMatch.cap * autoMatch.qty;
-                      const autoOutdoor = autoMatchOutdoorModelForRow(fastSystem, seriesVal, indoorKw, fastOutdoorType, fastOutdoorPower);
-                      return {
-                        ...r,
-                        series: seriesVal,
-                        unit_type: autoUnitType,
-                        best_match_model: autoMatch.model,
-                        unit_count: autoMatch.qty,
-                        cap_kw: autoMatch.cap,
-                        outdoor_model: autoOutdoor
-                      };
-                    }));
+                    const { updatedRows, groups } = autoGroupAllRows(rows, fastSystem, seriesVal, fastOutdoorType, fastOutdoorPower);
+                    setRows(updatedRows);
+                    setOutdoorGroups(groups);
                   }}
                   style={{ backgroundColor: '#1e293b', color: fastSeries ? '#f59e0b' : '#94a3b8', border: '1px solid #334155', padding: '6px 12px', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
                 >
@@ -4862,20 +5065,9 @@ function App() {
                       onChange={(e) => {
                         const unitVal = e.target.value;
                         setFastUnitType(unitVal);
-                        setRows(prev => prev.map(r => {
-                          const demandKcal = r.total_cooling_demand || (r.area_ping * (r.calc_basis || 500));
-                          const autoMatch = clientSideSelectEquipment(demandKcal, fastSystem, fastSeries, unitVal);
-                          const indoorKw = autoMatch.cap * autoMatch.qty;
-                          const autoOutdoor = autoMatchOutdoorModelForRow(fastSystem, fastSeries, indoorKw);
-                          return {
-                            ...r,
-                            unit_type: unitVal,
-                            best_match_model: autoMatch.model,
-                            unit_count: autoMatch.qty,
-                            cap_kw: autoMatch.cap,
-                            outdoor_model: autoOutdoor
-                          };
-                        }));
+                        const { updatedRows, groups } = autoGroupAllRows(rows, fastSystem, fastSeries, fastOutdoorType, fastOutdoorPower);
+                        setRows(updatedRows);
+                        setOutdoorGroups(groups);
                       }}
                       title={isUnitTypeLocked ? `此系列型式已確定為 [${fastUnitType}] (自動鎖定，不可編輯)` : "請選擇室內機型式"}
                       style={{

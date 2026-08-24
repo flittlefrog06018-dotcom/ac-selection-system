@@ -146,18 +146,21 @@ class ExportService:
                 else:
                     power_supply = "-"
                     
-                # 🎯 標稱能力：帶入 EQUIPMENT_Data 的 indoor_units 第 6 列
-                raw_nom = indoor_info.get("nominal_cap") if indoor_info else None
-                if raw_nom is not None and str(raw_nom).strip() not in ["-", "None", ""]:
-                    try:
-                        if "." in str(raw_nom):
-                            nominal_cap_val = float(raw_nom)
-                        else:
-                            nominal_cap_val = int(raw_nom)
-                    except (ValueError, TypeError):
-                        nominal_cap_val = str(raw_nom).strip()
+                # 🎯 標稱能力 (能力指數)：僅在 VRV 系統時存在與填寫，RA (家用) / SA (商用) 系統統一為 "-"
+                if "VRV" in system_type:
+                    raw_nom = indoor_info.get("nominal_cap") if indoor_info else None
+                    if raw_nom is not None and str(raw_nom).strip() not in ["-", "None", ""]:
+                        try:
+                            if "." in str(raw_nom):
+                                nominal_cap_val = float(raw_nom)
+                            else:
+                                nominal_cap_val = int(raw_nom)
+                        except (ValueError, TypeError):
+                            nominal_cap_val = str(raw_nom).strip()
+                    else:
+                        nominal_cap_val = cap_kw
                 else:
-                    nominal_cap_val = cap_kw
+                    nominal_cap_val = "-"
 
                 power_consumption_kw = room.get("power_consumption_kw") if room.get("power_consumption_kw") and room.get("power_consumption_kw") != "-" else (indoor_info.get("power_consumption_kw", "-") if indoor_info else "-")
                 indoor_current_a = indoor_info.get("mca", "-") if indoor_info else "-"
@@ -181,7 +184,7 @@ class ExportService:
                 ws.cell(row=row_idx, column=15).value = qty                      # O: 室內機台數
                 ws.cell(row=row_idx, column=16).value = cap_kcal                 # P: 冷房能力 (kcal/hr)
                 ws.cell(row=row_idx, column=17).value = cap_kw                   # Q: 冷房能力 (kW)
-                ws.cell(row=row_idx, column=18).value = nominal_cap_val          # R: 標稱能力 (EQUIPMENT_Data 第6列)
+                ws.cell(row=row_idx, column=18).value = nominal_cap_val          # R: 標稱能力 (僅 VRV 填寫能力指數，RA/SA 為 -)
                 ws.cell(row=row_idx, column=19).value = power_supply             # S: 電源
                 ws.cell(row=row_idx, column=20).value = power_consumption_kw     # T: 單台耗電量 (kW)
                 ws.cell(row=row_idx, column=21).value = indoor_current_a         # U: 單台最大電流 (A)
@@ -214,7 +217,7 @@ class ExportService:
                     out_info = db_service.get_outdoor_unit_info(out_model)
                     out_cap_kw = float(out_info.get("cap_kw", cap_kw)) if out_info else cap_kw
                     out_cap_kcal = round(out_cap_kw * 860.0, 1) if out_cap_kw > 0 else "-"
-                    out_nominal = out_info.get("nominal_cap", "-") if out_info else "-"
+                    out_nominal = out_info.get("nominal_cap", "-") if (out_info and "VRV" in system_type) else "-"
                     out_pwr_con = out_info.get("power_consumption_kw", "-") if out_info else "-"
                     out_pwr_sup = out_info.get("power_supply", "-") if out_info else "-"
                     out_mca = out_info.get("mca", "-") if out_info else "-"
@@ -225,7 +228,7 @@ class ExportService:
                     ws.cell(row=row_idx, column=32).value = int(room.get("outdoor_qty", 1))   # AF: 室外機台數 (以選型台數為主)
                     ws.cell(row=row_idx, column=33).value = out_cap_kcal                     # AG: 冷房能力 (kcal/hr)
                     ws.cell(row=row_idx, column=34).value = out_cap_kw                       # AH: 冷房能力 (kW) (第5列)
-                    ws.cell(row=row_idx, column=35).value = out_nominal                      # AI: 標稱能力 (第6列)
+                    ws.cell(row=row_idx, column=35).value = out_nominal                      # AI: 標稱能力 (僅 VRV 填寫能力指數，RA/SA 為 -)
                     ws.cell(row=row_idx, column=36).value = "100%"                           # AJ: 連結率 % (以選型計算結果為主)
                     ws.cell(row=row_idx, column=37).value = out_pwr_con                      # AK: 耗電量 (kW) (第8列)
                     ws.cell(row=row_idx, column=38).value = out_pwr_sup                      # AL: 電源 (第7列)
@@ -242,10 +245,11 @@ class ExportService:
                 out_model = span["outdoor_model"]
                 out_qty = span["outdoor_qty"]
                 conn_ratio_str = span["conn_ratio_str"]
+                group_sys = str(span.get("system_type", "VRV")).upper()
                 
                 out_cap_kw = float(out_info.get("cap_kw", span["fallback_cap_kw"])) if out_info else span["fallback_cap_kw"]
                 out_cap_kcal = round(out_cap_kw * 860.0, 1) if out_cap_kw > 0 else "-"
-                out_nominal = out_info.get("nominal_cap", "-") if out_info else "-"
+                out_nominal = out_info.get("nominal_cap", "-") if (out_info and "VRV" in group_sys) else "-"
                 out_pwr_con = out_info.get("power_consumption_kw", "-") if out_info else "-"
                 out_pwr_sup = out_info.get("power_supply", "-") if out_info else "-"
                 out_mca = out_info.get("mca", "-") if out_info else "-"
