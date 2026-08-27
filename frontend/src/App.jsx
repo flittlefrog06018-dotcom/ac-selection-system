@@ -2254,6 +2254,15 @@ function App() {
   // 🎯 在快速選機模式下，當資料變動時自動執行全場配對與動態調整
   useEffect(() => {
     if (selectionMode === 'fast' && rows.length > 0) {
+      const is1to1RA = fastSystem === 'RA' && (!fastSeries || (!['家用MULTI系列', 'SUPER MULTI系列'].includes(fastSeries) && !fastSeries.includes('MULTI')));
+      if (is1to1RA && (outdoorGroups.length > 0 || userHasCustomGroups)) {
+        setUserHasCustomGroups(false);
+        const { updatedRows, groups } = autoGroupAllRows(rows, fastSystem, fastSeries, fastOutdoorType, fastOutdoorPower);
+        setOutdoorGroups(groups);
+        setRows(updatedRows);
+        return;
+      }
+
       // 若使用者已經手動拆分群組且群組數量 > 1，則僅針對各個別群組動態更新配對的室外機型號，不重置合併為全場單一系統
       if (userHasCustomGroups && outdoorGroups.length > 1) {
         const activeSys = fastSystem || 'VRV';
@@ -5076,6 +5085,7 @@ function App() {
                   onChange={(e) => {
                     const seriesVal = e.target.value;
                     setFastSeries(seriesVal);
+                    setUserHasCustomGroups(false);
 
                     let autoUnitType = '';
 
