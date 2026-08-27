@@ -48,72 +48,71 @@ class ExportService:
             
             start_row = settings.START_ROW
             
-            # Flatten rooms based on outdoor_groups if provided, else use rooms_data directly
-            flat_rows_to_render = []
-            group_spans = [] # List of outdoor group render descriptors
-            
             from app.services.equipment_db_service import EquipmentDBService
             db_service = EquipmentDBService.get_instance()
 
-            if outdoor_groups and len(outdoor_groups) > 0:
-                current_idx = 0
-                for group in outdoor_groups:
-                    group_spaces = group.get("spaces", [])
-                    if not group_spaces:
-                        continue
-                    g_start = start_row + current_idx
-                    g_end = g_start + len(group_spaces) - 1
-                    
-                    sum_indoor_kw = sum(float(s.get("indoor_capacity_kw", s.get("cap_kw", 0.0))) * int(s.get("qty", s.get("unit_count", 1))) for s in group_spaces)
-                    outdoor_model = str(group.get("outdoor_model", "室外機")).strip()
-                    outdoor_qty = int(group.get("outdoor_qty", 1))
-                    
-                    # Look up outdoor unit specs from EQUIPMENT_Data (outdoor_units sheet)
-                    outdoor_info = db_service.get_outdoor_unit_info(outdoor_model)
-                    
-                    outdoor_kw = float(group.get("outdoor_cap_kw", 0.0))
-                    if outdoor_kw <= 0 and outdoor_info:
-                        outdoor_kw = float(outdoor_info.get("cap_kw", 0.0))
-                        
-                    conn_ratio = round((sum_indoor_kw / outdoor_kw) * 100, 1) if outdoor_kw > 0 else 0.0
-                    conn_ratio_str = f"{conn_ratio}%" if outdoor_kw > 0 else "-"
-                    
-                    group_spans.append({
-                        "start_row": g_start,
-                        "end_row": g_end,
-                        "outdoor_model": outdoor_model,
-                        "outdoor_qty": outdoor_qty,
-                        "conn_ratio_str": conn_ratio_str,
-                        "outdoor_info": outdoor_info,
-                        "fallback_cap_kw": outdoor_kw
-                    })
-                    
-                    for s in group_spaces:
-                        s["_in_group"] = True
-                        flat_rows_to_render.append(s)
-                        current_idx += 1
-                        
-                # Add any remaining ungrouped spaces
-                if rooms_data:
-                    rendered_names = {s.get("room_name", s.get("space_name", "")) for s in flat_rows_to_render}
-                    for r in rooms_data:
-                        r_name = r.get("room_name", r.get("space_name", ""))
-                        if r_name not in rendered_names:
-                            r["_in_group"] = False
-                            flat_rows_to_render.append(r)
-                            current_idx += 1
-            else:
-                flat_rows_to_render = rooms_data or []
-                for r in flat_rows_to_render:
-                    r["_in_group"] = False
+            # 🎯 核心規格：flat_rows_to_render 嚴格為全場勾選之選定空間 (rooms_data)，不重複，不上贅列！
+            flat_rows_to_render = rooms_data or []
+            group_spans = [] # 室外機併機縱向跨列合併描述
 
-            # If the number of spaces exceeds the template placeholder rows, insert rows dynamically
+            # 🎯 掃描連續具備相同 outdoorGroupId 之列進行縱向跨列合併
+            i = 0
+            while i < len(flat_rows_to_render):
+                room = flat_rows_to_render[i]
+                g_id = room.get("outdoorGroupId") or room.get("outdoor_group_id") or room.get("group_id")
+                
+                if g_id:
+                    j = i
+                    while j + 1 < len(flat_rows_to_render) and (flat_rows_to_render[j + 1].get("outdoorGroupId") or flat_rows_to_render[j + 1].get("outdoor_group_id") or flat_rows_to_render[j + 1].get("group_id")) == g_id:
+                        j += 1
+                    
+                    s_r = start_row + i
+                    e_r = start_row + j
+                    group_spaces = flat_rows_to_render[i:j+1]
+                    
+                    if e_r > s_r: # 2 台以上空間合併
+                        for s in group_spaces:
+                            s["_in_group"] = True
+                            
+                        matched_g = next((g for g in (outdoor_groups or []) if g.get("id") == g_id or g.get("group_id") == g_id), None)
+                        out_model = str(matched_g.get("outdoor_model") if matched_g else room.get("outdoor_model", "")).strip()
+                        out_qty = int(matched_g.get("outdoor_qty", 1) if matched_g else room.get("outdoor_qty", 1))
+                        
+                        sum_indoor_kw = sum(float(s.get("indoor_capacity_kw", s.get("cap_kw", 0.0))) * int(s.get("qty", s.get("unit_count", 1))) for s in group_spaces)
+                        outdoor_info = db_service.get_outdoor_unit_info(out_model)
+                        out_kw = float(matched_g.get("outdoor_cap_kw", 0.0)) if matched_g else (float(outdoor_info.get("cap_kw", 0.0)) if outdoor_info else 0.0)
+                        
+                        conn_ratio = round((sum_indoor_kw / out_kw) * 100, 1) if out_kw > 0 else 0.0
+                        conn_ratio_str = f"{conn_ratio}%" if out_kw > 0 else "-"
+                        
+                        group_spans.append({
+                            "start_row": s_r,
+                            "end_row": e_r,
+                            "outdoor_model": out_model,
+                            "outdoor_qty": out_qty,
+                            "conn_ratio_str": conn_ratio_str,
+                            "outdoor_info": outdoor_info,
+                            "fallback_cap_kw": out_kw,
+                            "system_type": room.get("system_type", "VRV")
+                        })
+                        i = j + 1
+                    else:
+                        room["_in_group"] = False
+                        i += 1
+                else:
+                    room["_in_group"] = False
+                    i += 1
+
+            # 🎯 依據實際勾選空間數量動態調整模板列，多退少補，精準防呆！
             template_rows = settings.TEMPLATE_ROWS
             if len(flat_rows_to_render) > template_rows:
                 for _ in range(len(flat_rows_to_render) - template_rows):
                     ws.insert_rows(start_row + template_rows - 1)
                     for c in range(1, ws.max_column + 1):
                         ws.cell(row=start_row + template_rows - 1, column=c)._style = ws.cell(row=start_row, column=c)._style
+            elif len(flat_rows_to_render) < template_rows:
+                extra_rows = template_rows - len(flat_rows_to_render)
+                ws.delete_rows(start_row + len(flat_rows_to_render), extra_rows)
                         
             # Write rooms data
             for i, room in enumerate(flat_rows_to_render):
@@ -128,7 +127,8 @@ class ExportService:
                 total_load_kcal = float(room.get("total_load_kcal", room.get("total_cooling_demand", round(ping_val * final_suggested_kcal_per_ping))))
                 total_load_kw = float(room.get("total_load_kw", round(total_load_kcal / 860.0, 2)))
                 
-                matched_model = room.get("indoor_model", room.get("best_match_model", "")).strip()
+                matched_model = room.get("recommended_model") or room.get("indoor_model") or room.get("best_match_model") or ""
+                matched_model = str(matched_model).strip()
                 system_type = str(room.get("system_type", room.get("system", "VRV"))).strip().upper()
                 qty = int(room.get("qty", room.get("unit_count", 1)))
                 cap_kw = float(room.get("indoor_capacity_kw", room.get("cap_kw", 0.0)))
