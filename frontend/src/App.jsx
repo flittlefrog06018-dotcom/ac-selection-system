@@ -1793,19 +1793,21 @@ function App() {
   ];
 
   const getOutdoorModelsForSystem = (sysType, seriesVal, outdoorTypeVal, powerSupplyVal) => {
-    const targetOutdoorType = outdoorTypeVal || fastOutdoorType;
-    const targetPower = powerSupplyVal || fastOutdoorPower;
+    const activeSys = sysType || fastSystem || 'VRV';
+    const targetOutdoorType = (activeSys === 'RA' || activeSys === 'SA') ? '側吹單風扇' : (outdoorTypeVal || fastOutdoorType);
+    const targetPower = activeSys === 'RA' ? '1φ, 220V, 60Hz' : (powerSupplyVal || fastOutdoorPower || '3φ, 4P, 380V, 60Hz');
     let matched = OUTDOOR_UNITS_DB;
 
-    if (sysType) {
-      matched = matched.filter(m => m.system === sysType);
+    if (activeSys) {
+      matched = matched.filter(m => m.system === activeSys);
     }
-    if (targetOutdoorType) {
+    if (targetOutdoorType && activeSys !== 'RA') {
       matched = matched.filter(m => m.outdoor_type === targetOutdoorType);
     }
-    if (targetPower) {
+    if (targetPower && activeSys !== 'RA') {
       matched = matched.filter(m => m.power_supply === targetPower);
     }
+
     if (seriesVal && (seriesVal.includes('MULTI') || seriesVal.includes('多聯'))) {
       const multiMatches = matched.filter(m => m.series.includes('MULTI') || m.model.includes('MXM') || m.model.includes('MXP'));
       if (multiMatches.length > 0) {
