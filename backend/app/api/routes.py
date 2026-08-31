@@ -54,7 +54,7 @@ EQUIPMENT_DB = {
         {"model": "FTXM22ZVLT", "cap": 2.2}, {"model": "FTXM28ZVLT", "cap": 2.8},
         {"model": "FTXM36ZVLT", "cap": 3.5}, {"model": "FTXM41ZVLT", "cap": 4.1},
         {"model": "FTXM50ZVLT", "cap": 5.0}, {"model": "FTXM60ZVLT", "cap": 6.0},
-        {"model": "FTXM71ZVLT", "cap": 7.2}, {"model": "FTXM80ZVLT", "cap": 8.0},
+        {"model": "FTXM71YVLT", "cap": 7.2}, {"model": "FTXM71ZVLT", "cap": 7.2}, {"model": "FTXM80ZVLT", "cap": 8.0},
         {"model": "FTXM90ZVLT", "cap": 8.7}
     ],
     "SA": [

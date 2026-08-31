@@ -540,9 +540,9 @@
       "mca": "-",
       "dimensions": "200×1100×620"
     },
-    "FTXM71TVLT": {
-      "model": "FTXM71TVLT",
-      "cap_kw": 7.1,
+    "FTXM71YVLT": {
+      "model": "FTXM71YVLT",
+      "cap_kw": 7.2,
       "nominal_cap": "-",
       "power_supply": "室外機供電",
       "power_consumption_kw": "-",
