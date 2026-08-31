@@ -4214,7 +4214,7 @@ function App() {
                               return cap >= 7.8 || modelName.includes('80') || modelName.includes('90');
                             });
                             const isModelDisallowed = hasOver80Indoor && gCard?.outdoor_model && (gCard.outdoor_model.startsWith('2MXM') || gCard.outdoor_model.startsWith('2MXP') || gCard.outdoor_model.startsWith('3MXM'));
-                            const isSelectionError = isNoModel || !isPowerValid || isMinUnitsViolated || isMaxUnitsExceeded || isModelDisallowed;
+                            const isSelectionError = isNoModel || !isPowerValid || isMinUnitsViolated || isMaxUnitsExceeded || isModelDisallowed || isExceed15Percent;
 
                             // 🎯 3. 連結率 (%) 樣式與警示規範：
                             const rawRatio = (!isNoModel && isPowerValid && outdoorCapIndex > 0) ? (sumIndoorIndex / outdoorCapIndex) * 100.0 : 0;
@@ -4296,14 +4296,24 @@ function App() {
                                      ))}
                                    </select>
 
-                                   {(isMinUnitsViolated || isMaxUnitsExceeded) && (
-                                     <div
-                                       style={{ color: '#ef4444', fontSize: '13px', fontWeight: 'bold', marginTop: '4px', lineHeight: '1.2' }}
-                                       title={isMinUnitsViolated ? `⚠️ 選型錯誤：Multi 多聯室外機 [${gCard.outdoor_model}] 最少需連接 2 台室內機！` : `⚠️ 選型錯誤：此室外機型號 [${gCard.outdoor_model}] 最多僅能連接 ${maxAllowedUnits} 台室內機！`}
-                                     >
-                                       ⚠️ 選型錯誤
-                                     </div>
-                                   )}
+                                    {isSelectionError && (
+                                      <div
+                                        style={{
+                                          color: '#ef4444',
+                                          fontSize: '12.5px',
+                                          fontWeight: 'bold',
+                                          marginTop: '6px',
+                                          lineHeight: '1.3',
+                                          backgroundColor: 'rgba(239, 68, 68, 0.18)',
+                                          padding: '4px 6px',
+                                          borderRadius: '4px',
+                                          border: '1px solid #ef4444'
+                                        }}
+                                        title={isNoModel ? "無此機型" : (!isPowerValid ? "電源不符" : (isMinUnitsViolated ? `少於 ${minAllowedUnits} 台連線下限` : (isMaxUnitsExceeded ? `超過 ${maxAllowedUnits} 台連線上限` : (isModelDisallowed ? "包含大級數機型" : (isExceed15Percent ? "超過能力 115%" : "型號錯誤")))))}
+                                      >
+                                        ⚠️ 型號錯誤
+                                      </div>
+                                    )}
                                  </td>
 
                                  <td
@@ -4385,7 +4395,7 @@ function App() {
                             return 1;
                           };
                           const isSingleMinViolated = (selectionMode === 'detail' && !row.series) ? false : (!isNoModel && singleUnitCount < getModelMinUnitsSingle(selectedModelStr));
-                          const isSingleSelectionError = (selectionMode === 'detail' && !row.series) ? false : (isNoModel || !isPowerValid || isSingleMinViolated);
+                          const isSingleSelectionError = (selectionMode === 'detail' && !row.series) ? false : (isNoModel || !isPowerValid || isSingleMinViolated || isExceed15Percent);
 
                           const singleIndoorKw = (parseFloat(row.cap_kw || lookupModelCapKw(row.best_match_model)) || 0) * singleUnitCount;
                           const isExceed15Percent = (!isNoModel && isPowerValid && outdoorCapKw > 0) ? (singleIndoorKw > outdoorCapKw * 1.15) : false;
@@ -4451,14 +4461,24 @@ function App() {
                                   ))}
                                 </select>
 
-                                {isSingleMinViolated && (
-                                  <div
-                                    style={{ color: '#ef4444', fontSize: '13px', fontWeight: 'bold', marginTop: '4px', lineHeight: '1.2' }}
-                                    title={`⚠️ 選型錯誤：Multi 多聯室外機 [${selectedModelStr}] 最少必須連接 2 台室內機！`}
-                                  >
-                                    ⚠️ 選型錯誤
-                                  </div>
-                                )}
+                                 {isSingleSelectionError && (
+                                   <div
+                                     style={{
+                                       color: '#ef4444',
+                                       fontSize: '12.5px',
+                                       fontWeight: 'bold',
+                                       marginTop: '6px',
+                                       lineHeight: '1.3',
+                                       backgroundColor: 'rgba(239, 68, 68, 0.18)',
+                                       padding: '4px 6px',
+                                       borderRadius: '4px',
+                                       border: '1px solid #ef4444'
+                                     }}
+                                     title={isNoModel ? "無此機型" : (!isPowerValid ? "電源不符" : (isSingleMinViolated ? "少於 2 台連線下限" : (isExceed15Percent ? "超過能力 115%" : "型號錯誤")))}
+                                   >
+                                     ⚠️ 型號錯誤
+                                   </div>
+                                 )}
                               </td>
 
                               <td style={{ ...styles.td, textAlign: 'center', color: '#34d399', fontWeight: 'bold', fontSize: '15px', backgroundColor: isSingleSelectionError ? '#450a0a' : undefined }}>
