@@ -4394,11 +4394,10 @@ function App() {
                             }
                             return 1;
                           };
-                          const isSingleMinViolated = (selectionMode === 'detail' && !row.series) ? false : (!isNoModel && singleUnitCount < getModelMinUnitsSingle(selectedModelStr));
-                          const isSingleSelectionError = (selectionMode === 'detail' && !row.series) ? false : (isNoModel || !isPowerValid || isSingleMinViolated || isExceed15Percent);
-
                           const singleIndoorKw = (parseFloat(row.cap_kw || lookupModelCapKw(row.best_match_model)) || 0) * singleUnitCount;
                           const isExceed15Percent = (!isNoModel && isPowerValid && outdoorCapKw > 0) ? (singleIndoorKw > outdoorCapKw * 1.15) : false;
+                          const isSingleMinViolated = (selectionMode === 'detail' && !row.series) ? false : (!isNoModel && singleUnitCount < getModelMinUnitsSingle(selectedModelStr));
+                          const isSingleSelectionError = (selectionMode === 'detail' && !row.series) ? false : (isNoModel || !isPowerValid || isSingleMinViolated || isExceed15Percent);
 
                           const singleIndoorIdx = lookupIndoorCapIndex(row.best_match_model);
                           const totalIndoorIdx = singleIndoorIdx * singleUnitCount;
