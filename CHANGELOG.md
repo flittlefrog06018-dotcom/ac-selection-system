@@ -1,5 +1,27 @@
 # 空調選機自動化系統 (AC Selection System) - 版本變更日誌
 
+## [v2.4.1] - 2026-08-31
+
+### 🚀 今日完成重點功能與修復摘要
+
+#### 1. 前端 `App.jsx` 兩階段安全模組化抽離重構 (Refactoring)
+- **常數模組化 (`acConstants.js`)**：將 `EQUIPMENT_DB`、`MODIFIER_VALUES`、`OVERLAY_COLORS`、`CROSSHAIR_CURSOR_STYLE`、`DYNAMIC_LOAD_RULES`、`SYSTEM_ACCESS_PASSWORD` 靜態常數完整抽離移至 `frontend/src/constants/acConstants.js`。
+- **純計算與選機演算法獨立 (`selectionUtils.js`)**：將熱負載計算、冷房能力比對、動態選機與鞋帶定理面積計算等 7 個純 JavaScript 工具函式抽離至 `frontend/src/utils/selectionUtils.js`。
+- **瘦身與維護性提升**：`App.jsx` 代碼由 6,866 行精簡減少約 1,500 行，100% 保持既有計算公式與 API 邏輯。
+
+#### 2. 室內機型式（壁掛式/吊隱式）全域自動連動選機修正
+- 修正快速選機模式下 `autoGroupAllRows` 未將 `fastUnitType` 精準傳遞與更新之問題。
+- 修正選用「壁掛式」時會誤匹配吊隱風管型（`FDXV` 系列）之狀況，選配家用 MULTI 系列壁掛型時 100% 精準匹配壁掛機種（如 `FTXM22YVLT`）。
+
+#### 3. 室外機選型錯誤與能力超載紅字警示標籤 UI
+- 於選錯型號、超過能力 115% 負荷、電源不符、少於連線下限或超過上限時，室外機下拉選單呈現**紅框與深紅底色**。
+- 於選單正下方新增醒目 **`⚠️ 型號錯誤`** 紅字警示標籤，滑鼠移至標籤可顯示具體錯誤原因與建議說明。
+
+#### 4. 變數宣告順序 (TDZ ReferenceError) 防錯修復
+- 修復單機個體列渲染時 `isExceed15Percent` 宣告順序導致 Temporal Dead Zone `ReferenceError` 之問題，確保全場切換系統時畫面順暢穩定。
+
+---
+
 ## [v2.3.0] - 2026-08-24
 
 ### 🚀 今日完成重點功能與修復摘要
