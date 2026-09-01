@@ -4485,8 +4485,8 @@ function App() {
                                   }}
                                   title={!isPowerValid ? `⚠️ 電源不符！室外機 [${selectedModelStr}] 不支援 [${targetPower}] 電源` : (isSingleMinViolated ? `⚠️ 選型錯誤：Multi 多聯室外機 [${selectedModelStr}] 最少必須連接 2 台室內機！單台室內機不可選用 Multi 室外機。` : "")}
                                 >
-                                  {!hasActiveSys && <option value="">--請選擇系統--</option>}
-                                  {(selectionMode === 'detail' && !row.series && hasActiveSys) && <option value="">--請選擇系列--</option>}
+                                  {!hasActiveSys && <option value="">--請選擇型號--</option>}
+                                  {(selectionMode === 'detail' && !row.series && hasActiveSys) && <option value="">--請選擇型號--</option>}
                                   {!isPowerValid && <option value="">⚠️ 電源不符</option>}
                                   {isSingleMinViolated && <option value="選型錯誤">⚠️ 選型錯誤 ({selectedModelStr})</option>}
                                   {validCandidateList.map((m, mIdx) => (
