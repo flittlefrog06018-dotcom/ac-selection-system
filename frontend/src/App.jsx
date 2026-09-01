@@ -3860,7 +3860,7 @@ function App() {
                   <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#f59e0b' }}>總需求(kW)</th>
                   {selectionMode === 'detail' && <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#f59e0b' }}>室內機系列別</th>}
                   {selectionMode === 'detail' && <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#34d399' }}>室內機型式</th>}
-                  <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>大金室內機型號</th>
+                  <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>室內機型號</th>
                   <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#38bdf8', backgroundColor: '#1e293b' }}>單機能力(kW)</th>
                   <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>台數</th>
                   <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#a855f7' }}>總冷房能力(kW)</th>
