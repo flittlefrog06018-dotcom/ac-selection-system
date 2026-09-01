@@ -1341,3 +1341,45 @@ export const DYNAMIC_LOAD_RULES = [
 
 // 🎯 測試存取保護密碼 (預設為 daikin2026，可改為任意密碼或改為 "" 取消密碼)
 export const SYSTEM_ACCESS_PASSWORD = "daikin2026";
+
+// 🎯 依據最新上傳之 EQUIPMENT_Data.xlsx 建立之 系統 -> 系列別 -> 室內機型式 嚴格對應表
+export const DYNAMIC_EQUIPMENT_CASCADE = {
+  RA: [
+    { series: "橫綱X系列", types: ["壁掛式"] },
+    { series: "橫綱Y系列", types: ["壁掛式"] },
+    { series: "橫綱Z系列", types: ["壁掛式"] },
+    { series: "大關U系列", types: ["壁掛式"] },
+    { series: "大關Z系列", types: ["壁掛式"] },
+    { series: "經典VA系列", types: ["壁掛式"] },
+    { series: "豪菁Z系列", types: ["壁掛式"] },
+    { series: "隱藏風管系列", types: ["吊隱式"] },
+    { series: "家用MULTI系列", types: ["壁掛式", "吊隱式"] },
+    { series: "SUPER MULTI系列", types: ["壁掛式"] }
+  ],
+  SA: [
+    { series: "商用冷專系列", types: ["壁掛式", "全方吹", "吊隱式"] },
+    { series: "商用冷暖系列", types: ["全方吹", "吊隱式"] }
+  ],
+  VRV: [
+    { series: "低靜壓(無排水泵)", types: ["吊隱式"] },
+    { series: "低靜壓(有排水泵)", types: ["吊隱式"] },
+    { series: "中靜壓", types: ["吊隱式"] },
+    { series: "中高靜壓", types: ["吊隱式"] },
+    { series: "高靜壓", types: ["吊隱式"] },
+    { series: "高靜壓(DC)", types: ["吊隱式"] },
+    { series: "外氣處理(出風溫度控制)", types: ["吊隱式"] },
+    { series: "外氣處理(回風溫度控制)", types: ["吊隱式"] },
+    { series: "單點式空調", types: ["單點式"] },
+    { series: "全方吹(一般型)", types: ["嵌入式"] },
+    { series: "全方吹(智慧感應型)", types: ["嵌入式"] },
+    { series: "壁掛式", types: ["壁掛式"] },
+    { series: "天吊式", types: ["天吊式"] },
+    { series: "落地箱型機", types: ["箱型機"] },
+    { series: "小型四方吹", types: ["嵌入式"] },
+    { series: "雙向氣流", types: ["嵌入式"] },
+    { series: "家用系列(小型多方吹)", types: ["嵌入式"] },
+    { series: "家用系列(吊隱式)", types: ["吊隱式"] },
+    { series: "家用系列(壁掛式)", types: ["壁掛式"] },
+    { series: "家用系列(歐風壁掛式)", types: ["壁掛式"] }
+  ]
+};

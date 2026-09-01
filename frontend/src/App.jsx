@@ -10,7 +10,8 @@ import {
   OVERLAY_COLORS,
   CROSSHAIR_CURSOR_STYLE,
   DYNAMIC_LOAD_RULES,
-  SYSTEM_ACCESS_PASSWORD
+  SYSTEM_ACCESS_PASSWORD,
+  DYNAMIC_EQUIPMENT_CASCADE
 } from './constants/acConstants';
 import {
   clientSideSelectEquipment,
@@ -1706,24 +1707,25 @@ function App() {
 ];
 
   const getOutdoorModelsForSystem = (sysType, seriesVal, outdoorTypeVal, powerSupplyVal) => {
-    const targetOutdoorType = outdoorTypeVal || fastOutdoorType;
+    const isMultiSeries = (seriesVal && (seriesVal.includes('MULTI') || seriesVal.includes('多聯')));
+    const targetOutdoorType = isMultiSeries ? null : (outdoorTypeVal || fastOutdoorType);
     const targetPower = powerSupplyVal || fastOutdoorPower;
     let matched = OUTDOOR_UNITS_DB;
 
     if (sysType) {
       matched = matched.filter(m => m.system === sysType);
     }
-    if (targetOutdoorType) {
-      matched = matched.filter(m => m.outdoor_type === targetOutdoorType);
-    }
-    if (targetPower) {
-      matched = matched.filter(m => m.power_supply === targetPower);
-    }
     if (seriesVal) {
       const seriesMatches = matched.filter(m => m.series === seriesVal);
       if (seriesMatches.length > 0) {
         matched = seriesMatches;
       }
+    }
+    if (targetOutdoorType) {
+      matched = matched.filter(m => m.outdoor_type === targetOutdoorType);
+    }
+    if (targetPower) {
+      matched = matched.filter(m => m.power_supply === targetPower);
     }
 
     return matched;
@@ -3541,7 +3543,7 @@ function App() {
         row.cap_kw = 0;
         row.outdoor_model = '';
       } else {
-        const sysCascade = (window.DYNAMIC_EQUIPMENT_CASCADE && window.DYNAMIC_EQUIPMENT_CASCADE[value]) || [];
+        const sysCascade = (DYNAMIC_EQUIPMENT_CASCADE && DYNAMIC_EQUIPMENT_CASCADE[value]) || [];
         const defaultSeries = sysCascade[0]?.series || '低靜壓(無排水泵)';
         const defaultType = sysCascade[0]?.types[0] || '吊隱式';
         row.series = defaultSeries;
@@ -3560,7 +3562,7 @@ function App() {
         row.outdoor_model = '';
       } else {
         const curSys = row.system_type || 'VRV';
-        const sysCascade = (window.DYNAMIC_EQUIPMENT_CASCADE && window.DYNAMIC_EQUIPMENT_CASCADE[curSys]) || [];
+        const sysCascade = (DYNAMIC_EQUIPMENT_CASCADE && DYNAMIC_EQUIPMENT_CASCADE[curSys]) || [];
         const serObj = sysCascade.find(s => s.series === value);
         row.unit_type = serObj?.types[0] || '壁掛式';
         const { model, qty, cap } = clientSideSelectEquipment(newDemand, curSys, value, row.unit_type);
@@ -4954,51 +4956,6 @@ function App() {
             )}
           </div>
 
-          {/* 🎯 依據最新上傳之 EQUIPMENT_Data.xlsx 建立之 系統 -> 系列別 -> 室內機型式 嚴格對應表 */}
-          {(() => {
-            window.DYNAMIC_EQUIPMENT_CASCADE = {
-              RA: [
-                { series: "橫綱X系列", types: ["壁掛式"] },
-                { series: "橫綱Y系列", types: ["壁掛式"] },
-                { series: "橫綱Z系列", types: ["壁掛式"] },
-                { series: "大關U系列", types: ["壁掛式"] },
-                { series: "大關Z系列", types: ["壁掛式"] },
-                { series: "經典VA系列", types: ["壁掛式"] },
-                { series: "豪菁Z系列", types: ["壁掛式"] },
-                { series: "隱藏風管系列", types: ["吊隱式"] },
-                { series: "家用MULTI系列", types: ["壁掛式", "吊隱式"] },
-                { series: "SUPER MULTI系列", types: ["壁掛式"] }
-              ],
-              SA: [
-                { series: "商用冷專系列", types: ["壁掛式", "全方吹", "吊隱式"] },
-                { series: "商用冷暖系列", types: ["全方吹", "吊隱式"] }
-              ],
-              VRV: [
-                { series: "低靜壓(無排水泵)", types: ["吊隱式"] },
-                { series: "低靜壓(有排水泵)", types: ["吊隱式"] },
-                { series: "中靜壓", types: ["吊隱式"] },
-                { series: "中高靜壓", types: ["吊隱式"] },
-                { series: "高靜壓", types: ["吊隱式"] },
-                { series: "高靜壓(DC)", types: ["吊隱式"] },
-                { series: "外氣處理(出風溫度控制)", types: ["吊隱式"] },
-                { series: "外氣處理(回風溫度控制)", types: ["吊隱式"] },
-                { series: "單點式空調", types: ["單點式"] },
-                { series: "全方吹(一般型)", types: ["嵌入式"] },
-                { series: "全方吹(智慧感應型)", types: ["嵌入式"] },
-                { series: "壁掛式", types: ["壁掛式"] },
-                { series: "天吊式", types: ["天吊式"] },
-                { series: "落地箱型機", types: ["箱型機"] },
-                { series: "小型四方吹", types: ["嵌入式"] },
-                { series: "雙向氣流", types: ["嵌入式"] },
-                { series: "家用系列(小型多方吹)", types: ["嵌入式"] },
-                { series: "家用系列(吊隱式)", types: ["吊隱式"] },
-                { series: "家用系列(壁掛式)", types: ["壁掛式"] },
-                { series: "家用系列(歐風壁掛式)", types: ["壁掛式"] }
-              ]
-            };
-            return null;
-          })()}
-
           {/* 🎯 當選擇「快速選機」時出現之嚴格層級連動選單面板 */}
           {selectionMode === 'fast' && (
             <div style={{
@@ -5344,10 +5301,10 @@ function App() {
                       'rgba(249, 115, 22, 0.32)': '#331a0c',
                       'rgba(168, 85, 247, 0.32)': '#28143b',
                     };
-                    const solidRowBg = gCard ? (SOLID_GROUP_BGS[gCard.color.bg] || '#111e38') : (index % 2 === 1 ? '#0f172a' : '#0b1329');
-                    const rowColorStyle = gCard ? {
-                      backgroundColor: gCard.color.bg,
-                      borderLeft: `4px solid ${gCard.color.border}`
+                    const solidRowBg = (gCard && gCard.color) ? (SOLID_GROUP_BGS[gCard.color.bg] || '#111e38') : (index % 2 === 1 ? '#0f172a' : '#0b1329');
+                    const rowColorStyle = (gCard && gCard.color) ? {
+                      backgroundColor: gCard.color.bg || 'transparent',
+                      borderLeft: `4px solid ${gCard.color.border || '#3b82f6'}`
                     } : {};
                     const isVRV = (selectionMode === 'detail' ? row.system_type === 'VRV' : fastSystem === 'VRV');
 
