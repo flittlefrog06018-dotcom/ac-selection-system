@@ -791,9 +791,25 @@ function App() {
   // 🎯 在快速選機模式下，當資料變動時自動執行全場配對與動態調整
   useEffect(() => {
     if (selectionMode === 'fast' && rows.length > 0) {
+      if (!fastSystem) {
+        if (outdoorGroups.length > 0 || rows.some(r => r.best_match_model || r.outdoor_model || r.outdoorGroupId)) {
+          setOutdoorGroups([]);
+          setRows(prev => prev.map(r => ({
+            ...r,
+            system_type: '',
+            series: '',
+            unit_type: '',
+            best_match_model: '',
+            cap_kw: 0,
+            outdoor_model: '',
+            outdoorGroupId: null
+          })));
+        }
+        return;
+      }
       // 若使用者已經手動拆分群組且群組數量 > 1，則僅針對各個別群組動態更新配對的室外機型號，不重置合併為全場單一系統
       if (userHasCustomGroups && outdoorGroups.length > 1) {
-        const activeSys = fastSystem || 'VRV';
+        const activeSys = fastSystem;
         const activeSeries = fastSeries || '中靜壓';
         const activeOutType = fastOutdoorType || '上吹';
         const activeOutPower = fastOutdoorPower || '3φ, 4P, 380V, 60Hz';
@@ -867,7 +883,7 @@ function App() {
       return;
     }
 
-    const activeSys = fastSystem || 'VRV';
+    const activeSys = fastSystem;
     const activeSeries = fastSeries || '中靜壓';
     const activeOutType = fastOutdoorType || '上吹';
     const activeOutPower = fastOutdoorPower || '3φ, 4P, 380V, 60Hz';
@@ -927,7 +943,7 @@ function App() {
       return;
     }
 
-    const activeSys = fastSystem || 'VRV';
+    const activeSys = fastSystem;
     const activeOutPower = fastOutdoorPower || '3φ, 4P, 380V, 60Hz';
     const matchedOutdoor = OUTDOOR_UNITS_DB.find(m => m.model === chosenModelStr) || { model: chosenModelStr, cap_kw: 28.0, cap_index: 250.0 };
 
