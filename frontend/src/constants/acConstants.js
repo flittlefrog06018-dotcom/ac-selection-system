@@ -805,9 +805,21 @@ export const EQUIPMENT_DB = {
       "unit_type": "吊隱式"
     },
     {
+      "model": "FXMQ20PAVT",
+      "cap": 2.2,
+      "series": "中高靜壓",
+      "unit_type": "吊隱式"
+    },
+    {
       "model": "FXMQ25PAVT",
       "cap": 2.8,
       "series": "高靜壓",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXMQ25PAVT",
+      "cap": 2.8,
+      "series": "中高靜壓",
       "unit_type": "吊隱式"
     },
     {
@@ -817,9 +829,21 @@ export const EQUIPMENT_DB = {
       "unit_type": "吊隱式"
     },
     {
+      "model": "FXMQ32PAVT",
+      "cap": 3.6,
+      "series": "中高靜壓",
+      "unit_type": "吊隱式"
+    },
+    {
       "model": "FXMQ40PAVT",
       "cap": 4.5,
       "series": "高靜壓",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXMQ40PAVT",
+      "cap": 4.5,
+      "series": "中高靜壓",
       "unit_type": "吊隱式"
     },
     {
@@ -829,9 +853,21 @@ export const EQUIPMENT_DB = {
       "unit_type": "吊隱式"
     },
     {
+      "model": "FXMQ50PAVT",
+      "cap": 5.6,
+      "series": "中高靜壓",
+      "unit_type": "吊隱式"
+    },
+    {
       "model": "FXMQ63PAVT",
       "cap": 7.1,
       "series": "高靜壓",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXMQ63PAVT",
+      "cap": 7.1,
+      "series": "中高靜壓",
       "unit_type": "吊隱式"
     },
     {
@@ -841,9 +877,21 @@ export const EQUIPMENT_DB = {
       "unit_type": "吊隱式"
     },
     {
+      "model": "FXMQ80PAVT",
+      "cap": 9.0,
+      "series": "中高靜壓",
+      "unit_type": "吊隱式"
+    },
+    {
       "model": "FXMQ100PAVT",
       "cap": 11.2,
       "series": "高靜壓",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXMQ100PAVT",
+      "cap": 11.2,
+      "series": "中高靜壓",
       "unit_type": "吊隱式"
     },
     {
@@ -853,9 +901,21 @@ export const EQUIPMENT_DB = {
       "unit_type": "吊隱式"
     },
     {
+      "model": "FXMQ125PAVT",
+      "cap": 14.0,
+      "series": "中高靜壓",
+      "unit_type": "吊隱式"
+    },
+    {
       "model": "FXMQ140PAVT",
       "cap": 16.0,
       "series": "高靜壓",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXMQ140PAVT",
+      "cap": 16.0,
+      "series": "中高靜壓",
       "unit_type": "吊隱式"
     },
     {
@@ -865,9 +925,21 @@ export const EQUIPMENT_DB = {
       "unit_type": "吊隱式"
     },
     {
+      "model": "FXMQ200MVET",
+      "cap": 22.4,
+      "series": "中高靜壓",
+      "unit_type": "吊隱式"
+    },
+    {
       "model": "FXMQ250MVET",
       "cap": 28.0,
       "series": "高靜壓",
+      "unit_type": "吊隱式"
+    },
+    {
+      "model": "FXMQ250MVET",
+      "cap": 28.0,
+      "series": "中高靜壓",
       "unit_type": "吊隱式"
     },
     {
