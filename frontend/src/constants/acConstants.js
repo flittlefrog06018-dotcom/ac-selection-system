@@ -400,7 +400,7 @@ export const EQUIPMENT_DB = {
     },
     {
       "model": "FTXM71YVLT",
-      "cap": 7.2,
+      "cap": 7.1,
       "series": "家用MULTI系列",
       "unit_type": "壁掛式"
     },
@@ -477,25 +477,25 @@ export const EQUIPMENT_DB = {
       "unit_type": "壁掛式"
     },
     {
-      "model": "FTHF40VVLT",
+      "model": "FTHF40ZVLT",
       "cap": 4.1,
       "series": "SUPER MULTI系列",
       "unit_type": "壁掛式"
     },
     {
-      "model": "FTHF50VVLT",
+      "model": "FTHF50ZVLT",
       "cap": 5.0,
       "series": "SUPER MULTI系列",
       "unit_type": "壁掛式"
     },
     {
-      "model": "FTHF60VVLT",
+      "model": "FTHF60ZVLT",
       "cap": 6.0,
       "series": "SUPER MULTI系列",
       "unit_type": "壁掛式"
     },
     {
-      "model": "FTHF71VVLT",
+      "model": "FTHF71ZVLT",
       "cap": 7.2,
       "series": "SUPER MULTI系列",
       "unit_type": "壁掛式"
@@ -518,43 +518,43 @@ export const EQUIPMENT_DB = {
       "model": "FCA71DVLT",
       "cap": 7.2,
       "series": "商用冷專系列",
-      "unit_type": "全方吹"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FCA71CVLT",
       "cap": 7.2,
       "series": "商用冷專系列",
-      "unit_type": "全方吹"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FCA100CVLT",
       "cap": 10.1,
       "series": "商用冷專系列",
-      "unit_type": "全方吹"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FCA125CVLT",
       "cap": 12.5,
       "series": "商用冷專系列",
-      "unit_type": "全方吹"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FCA140CVLT",
       "cap": 14.0,
       "series": "商用冷專系列",
-      "unit_type": "全方吹"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FCA140DVLT",
       "cap": 14.0,
       "series": "商用冷專系列",
-      "unit_type": "全方吹"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FCA140CVLT",
       "cap": 14.0,
       "series": "商用冷專系列",
-      "unit_type": "全方吹"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FBA71BVLT",
@@ -596,37 +596,37 @@ export const EQUIPMENT_DB = {
       "model": "FCA71DVLT",
       "cap": 7.2,
       "series": "商用冷暖系列",
-      "unit_type": "全方吹"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FCA100CVLT",
       "cap": 10.4,
       "series": "商用冷暖系列",
-      "unit_type": "全方吹"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FCA125CVLT",
       "cap": 12.5,
       "series": "商用冷暖系列",
-      "unit_type": "全方吹"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FCA140CVLT",
       "cap": 14.0,
       "series": "商用冷暖系列",
-      "unit_type": "全方吹"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FCA140DVLT",
       "cap": 14.0,
       "series": "商用冷暖系列",
-      "unit_type": "全方吹"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FCA140CVLT",
       "cap": 14.0,
       "series": "商用冷暖系列",
-      "unit_type": "全方吹"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FBA71BVLT",
@@ -802,133 +802,133 @@ export const EQUIPMENT_DB = {
       "model": "FXMQ20PAVT",
       "cap": 2.2,
       "series": "中高靜壓",
-      "unit_type": "吊隱式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXMQ25PAVT",
       "cap": 2.8,
       "series": "中高靜壓",
-      "unit_type": "吊隱式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXMQ32PAVT",
       "cap": 3.6,
       "series": "中高靜壓",
-      "unit_type": "吊隱式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXMQ40PAVT",
       "cap": 4.5,
       "series": "中高靜壓",
-      "unit_type": "吊隱式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXMQ50PAVT",
       "cap": 5.6,
       "series": "中高靜壓",
-      "unit_type": "吊隱式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXMQ63PAVT",
       "cap": 7.1,
       "series": "中高靜壓",
-      "unit_type": "吊隱式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXMQ80PAVT",
       "cap": 9.0,
       "series": "中高靜壓",
-      "unit_type": "吊隱式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXMQ100PAVT",
       "cap": 11.2,
       "series": "中高靜壓",
-      "unit_type": "吊隱式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXMQ125PAVT",
       "cap": 14.0,
       "series": "中高靜壓",
-      "unit_type": "吊隱式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXMQ140PAVT",
       "cap": 16.0,
       "series": "中高靜壓",
-      "unit_type": "吊隱式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXMQ200MVET",
       "cap": 22.4,
       "series": "高靜壓",
-      "unit_type": "吊隱式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXMQ250MVET",
       "cap": 28.0,
       "series": "高靜壓",
-      "unit_type": "吊隱式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXMQ200PVMT",
       "cap": 22.4,
       "series": "高靜壓(DC)",
-      "unit_type": "吊隱式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXMQ250PVMT",
       "cap": 28.0,
       "series": "高靜壓(DC)",
-      "unit_type": "吊隱式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXMQ48MFVJU",
       "cap": 14.0,
       "series": "外氣處理(出風溫度控制)",
-      "unit_type": "吊隱式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXMQ72MFVJU",
       "cap": 22.4,
       "series": "外氣處理(出風溫度控制)",
-      "unit_type": "吊隱式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXMQ96MFVJU",
       "cap": 28.0,
       "series": "外氣處理(出風溫度控制)",
-      "unit_type": "吊隱式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXMQ80AFVLT",
       "cap": 9.0,
       "series": "外氣處理(回風溫度控制)",
-      "unit_type": "吊隱式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXMQ140AFVLT",
       "cap": 16.0,
       "series": "外氣處理(回風溫度控制)",
-      "unit_type": "吊隱式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXMQ200AFVLT",
       "cap": 22.4,
       "series": "外氣處理(回風溫度控制)",
-      "unit_type": "吊隱式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXMQ250AFVLT",
       "cap": 28.0,
       "series": "外氣處理(回風溫度控制)",
-      "unit_type": "吊隱式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXPQ25AVN",
       "cap": 2.8,
       "series": "單點式空調",
-      "unit_type": "單點式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXFQ25BVT",
@@ -988,55 +988,55 @@ export const EQUIPMENT_DB = {
       "model": "FXFSQ25BVT",
       "cap": 2.8,
       "series": "全方吹(智慧感應型)",
-      "unit_type": "嵌入式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXFSQ32BVT",
       "cap": 3.6,
       "series": "全方吹(智慧感應型)",
-      "unit_type": "嵌入式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXFSQ40BVT",
       "cap": 4.5,
       "series": "全方吹(智慧感應型)",
-      "unit_type": "嵌入式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXFSQ50BVT",
       "cap": 5.6,
       "series": "全方吹(智慧感應型)",
-      "unit_type": "嵌入式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXFSQ63BVT",
       "cap": 7.1,
       "series": "全方吹(智慧感應型)",
-      "unit_type": "嵌入式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXFSQ80BVT",
       "cap": 9.0,
       "series": "全方吹(智慧感應型)",
-      "unit_type": "嵌入式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXFSQ100BVT",
       "cap": 11.2,
       "series": "全方吹(智慧感應型)",
-      "unit_type": "嵌入式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXFSQ125BVT",
       "cap": 14.0,
       "series": "全方吹(智慧感應型)",
-      "unit_type": "嵌入式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXFSQ140BVT",
       "cap": 16.0,
       "series": "全方吹(智慧感應型)",
-      "unit_type": "嵌入式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXAQ20AVLT",
@@ -1078,175 +1078,175 @@ export const EQUIPMENT_DB = {
       "model": "FXHQ32MVET",
       "cap": 3.6,
       "series": "天吊式",
-      "unit_type": "天吊式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXHQ63MVET",
       "cap": 7.1,
       "series": "天吊式",
-      "unit_type": "天吊式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXHQ100MVET",
       "cap": 11.2,
       "series": "天吊式",
-      "unit_type": "天吊式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXVQ250NTL",
       "cap": 28.0,
       "series": "落地箱型機",
-      "unit_type": "箱型機"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXVQ400NTL",
       "cap": 45.0,
       "series": "落地箱型機",
-      "unit_type": "箱型機"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXVQ500NTL",
       "cap": 56.0,
       "series": "落地箱型機",
-      "unit_type": "箱型機"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXZQ20BVLT",
       "cap": 2.2,
       "series": "小型四方吹",
-      "unit_type": "嵌入式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXZQ25BVLT",
       "cap": 2.8,
       "series": "小型四方吹",
-      "unit_type": "嵌入式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXZQ32BVLT",
       "cap": 3.6,
       "series": "小型四方吹",
-      "unit_type": "嵌入式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXZQ40BVLT",
       "cap": 4.5,
       "series": "小型四方吹",
-      "unit_type": "嵌入式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXZQ50BVLT",
       "cap": 5.6,
       "series": "小型四方吹",
-      "unit_type": "嵌入式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXCQ20AVT",
       "cap": 2.2,
       "series": "雙向氣流",
-      "unit_type": "嵌入式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXCQ25AVT",
       "cap": 2.8,
       "series": "雙向氣流",
-      "unit_type": "嵌入式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXCQ32AVT",
       "cap": 3.6,
       "series": "雙向氣流",
-      "unit_type": "嵌入式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXCQ40AVT",
       "cap": 4.5,
       "series": "雙向氣流",
-      "unit_type": "嵌入式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXCQ50AVT",
       "cap": 5.6,
       "series": "雙向氣流",
-      "unit_type": "嵌入式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXCQ63AVT",
       "cap": 7.1,
       "series": "雙向氣流",
-      "unit_type": "嵌入式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXCQ80AVT",
       "cap": 9.0,
       "series": "雙向氣流",
-      "unit_type": "嵌入式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FXCQ125AVT",
       "cap": 14.0,
       "series": "雙向氣流",
-      "unit_type": "嵌入式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FFQ25JVLT",
       "cap": 2.5,
       "series": "家用系列(小型多方吹)",
-      "unit_type": "嵌入式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FFQ30JVLT",
       "cap": 3.0,
       "series": "家用系列(小型多方吹)",
-      "unit_type": "嵌入式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FFQ40JVLT",
       "cap": 4.0,
       "series": "家用系列(小型多方吹)",
-      "unit_type": "嵌入式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FFQ50JVLT",
       "cap": 5.0,
       "series": "家用系列(小型多方吹)",
-      "unit_type": "嵌入式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FFQ60JVLT",
       "cap": 6.0,
       "series": "家用系列(小型多方吹)",
-      "unit_type": "嵌入式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "CDXS25EAVMT",
       "cap": 2.5,
       "series": "家用系列(吊隱式)",
-      "unit_type": "吊隱式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "CDXS30JVLT",
       "cap": 3.0,
       "series": "家用系列(吊隱式)",
-      "unit_type": "吊隱式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "CDXS40JVLT",
       "cap": 4.0,
       "series": "家用系列(吊隱式)",
-      "unit_type": "吊隱式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "CDXS50DVMT",
       "cap": 5.0,
       "series": "家用系列(吊隱式)",
-      "unit_type": "吊隱式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "CDXS60DVMT",
       "cap": 6.0,
       "series": "家用系列(吊隱式)",
-      "unit_type": "吊隱式"
+      "unit_type": "壁掛式"
     },
     {
       "model": "FTXS20KVLT",
