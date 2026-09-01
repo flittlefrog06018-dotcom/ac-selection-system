@@ -1466,11 +1466,13 @@ function App() {
     if (!targetRows || targetRows.length === 0) return { updatedRows: targetRows, groups: [] };
 
     const activeSys = sysVal !== undefined ? sysVal : fastSystem;
-    if (!activeSys) {
+    const activeSeries = seriesVal !== undefined ? seriesVal : fastSeries;
+
+    if (!activeSys || !activeSeries) {
       const updatedRows = targetRows.map(r => ({
         ...r,
-        system_type: '',
-        series: '',
+        system_type: activeSys || '',
+        series: activeSeries || '',
         unit_type: '',
         best_match_model: '',
         unit_count: 1,
@@ -1482,7 +1484,6 @@ function App() {
       }));
       return { updatedRows, groups: [] };
     }
-    const activeSeries = seriesVal || fastSeries || '';
     const activeOutType = outTypeVal || fastOutdoorType || '側吹單風扇';
     const activeOutPower = outPowerVal || fastOutdoorPower || (activeSys === 'RA' ? '1φ, 220V, 60Hz' : '3φ, 4P, 380V, 60Hz');
 
