@@ -1686,18 +1686,19 @@ function App() {
   // 🎯 核心智慧配對演算法：快速選機模式下自動將全場空間併入 VRV 系統，自動計算 115% 內之 HP 數；
   // 當 60HP (RXYQ60ANYLT, 1500指數) 連結率超過 116% 時，自動拆分成兩套平衡 VRV 系統 (如 30HP + 32HP)
   // 🎯 核心智慧配對演算法 (支援 VRV 併機、RA 家用MULTI 限制最多4連機分組、RA/SA 1對1 獨立選配)
-  const autoGroupAllRows = (targetRows, sysVal, seriesVal, outTypeVal, outPowerVal) => {
+  const autoGroupAllRows = (targetRows, sysVal, seriesVal, outTypeVal, outPowerVal, optUnitTypeVal) => {
     if (!targetRows || targetRows.length === 0) return { updatedRows: targetRows, groups: [] };
 
     const activeSys = sysVal !== undefined ? sysVal : fastSystem;
     const activeSeries = seriesVal !== undefined ? seriesVal : fastSeries;
+    const activeUnitType = optUnitTypeVal !== undefined ? optUnitTypeVal : fastUnitType;
 
-    if (!activeSys || !activeSeries) {
+    if (!activeSys || !activeSeries || (activeSys === 'SA' && !activeUnitType)) {
       const updatedRows = targetRows.map(r => ({
         ...r,
         system_type: activeSys || '',
         series: activeSeries || '',
-        unit_type: '',
+        unit_type: activeSys === 'SA' ? (activeUnitType || '') : '',
         best_match_model: '',
         unit_count: 1,
         cap_kw: 0,
@@ -1717,7 +1718,7 @@ function App() {
     if (activeSys === 'SA' || (activeSys === 'RA' && !isMultiSeries)) {
       const updatedRows = targetRows.map(r => {
         const demandKcal = r.total_cooling_demand || (r.area_ping * (r.calc_basis || 500));
-        let autoUnitType = r.unit_type || fastUnitType;
+        let autoUnitType = activeUnitType || r.unit_type;
         if (activeSys === 'RA') {
           autoUnitType = activeSeries === '隱藏風管系列' ? '吊隱式' : (activeSeries ? '壁掛式' : (r.unit_type || '壁掛式'));
         }
@@ -4998,7 +4999,7 @@ function App() {
                       onChange={(e) => {
                         const unitVal = e.target.value;
                         setFastUnitType(unitVal);
-                        const { updatedRows, groups } = autoGroupAllRows(rows, fastSystem, fastSeries, fastOutdoorType, fastOutdoorPower);
+                        const { updatedRows, groups } = autoGroupAllRows(rows, fastSystem, fastSeries, fastOutdoorType, fastOutdoorPower, unitVal);
                         setRows(updatedRows);
                         setOutdoorGroups(groups);
                       }}
