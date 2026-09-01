@@ -4212,34 +4212,13 @@ function App() {
         <span style={{ fontSize: '12px', color: '#64748b' }}>Backend: Connected</span>
       </header>
 
-      <section style={styles.panel}>
-        <input
-          type="file"
-          ref={fileInputRef}
-          accept="image/*,.pdf,.dxf"
-          onChange={handleFileChange}
-          style={{ display: 'none' }}
-        />
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '13px', color: file ? '#34d399' : '#94a3b8', fontWeight: file ? 'bold' : 'normal' }}>
-            {file ? `📄 已選取：${file.name}` : '⚠️ 尚未選擇圖面 (請於下方視窗點選或拖曳檔案)'}
-          </span>
-        </div>
-        <button
-          onClick={handleAnalyze}
-          disabled={loading || !file}
-          style={{
-            ...styles.btnPrimary,
-            opacity: loading || !file ? 0.6 : 1,
-            cursor: loading || !file ? 'not-allowed' : 'pointer'
-          }}
-        >
-          {loading ? "⚡ AI 正在全力計算中..." : "🚀 執行圖面自動解析"}
-        </button>
-        <button onClick={handleExportExcel} disabled={exportLoading || rows.length === 0} style={styles.btnSecondary}>
-          {exportLoading ? "⏳ 正在產生檔案..." : "📊 導出至官方「選機表-.xlsx」"}
-        </button>
-      </section>
+      <input
+        type="file"
+        ref={fileInputRef}
+        accept="image/*,.pdf,.dxf"
+        onChange={handleFileChange}
+        style={{ display: 'none' }}
+      />
 
       <div style={{
         display: 'grid',
@@ -4740,6 +4719,36 @@ function App() {
               </div>
             )}
           </div>
+
+          <div style={{
+            marginTop: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            justify: 'space-between',
+            flexWrap: 'wrap',
+            gap: '10px',
+            backgroundColor: '#0f172a',
+            padding: '10px 14px',
+            borderRadius: '8px',
+            border: '1px solid #334155'
+          }}>
+            <span style={{ fontSize: '13px', color: file ? '#34d399' : '#94a3b8', fontWeight: file ? 'bold' : 'normal' }}>
+              {file ? `📄 已選取：${file.name}` : '⚠️ 尚未選擇圖檔 (點選更換或拖曳圖檔)'}
+            </span>
+            <button
+              onClick={handleAnalyze}
+              disabled={loading || !file}
+              style={{
+                ...styles.btnPrimary,
+                opacity: loading || !file ? 0.6 : 1,
+                cursor: loading || !file ? 'not-allowed' : 'pointer',
+                padding: '7px 16px',
+                fontSize: '13.5px'
+              }}
+            >
+              {loading ? "⚡ AI 正在全力計算中..." : "🚀 執行圖面自動解析"}
+            </button>
+          </div>
         </section>
         )}
 
@@ -5133,6 +5142,17 @@ function App() {
                   }}
                 >
                   🔗 將勾選空間併入同一台室外機
+                </button>
+                <button
+                  onClick={handleExportExcel}
+                  disabled={exportLoading || rows.length === 0}
+                  style={{
+                    ...styles.btnSecondary,
+                    padding: '7px 16px',
+                    fontSize: '13px'
+                  }}
+                >
+                  {exportLoading ? "⏳ 正在產生檔案..." : "📊 導出至官方「選機表-.xlsx」"}
                 </button>
               </div>
             </div>
