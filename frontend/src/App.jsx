@@ -1709,7 +1709,7 @@ function App() {
       }));
       return { updatedRows, groups: [] };
     }
-    const activeOutType = outTypeVal || fastOutdoorType || '側吹單風扇';
+    const activeOutType = outTypeVal || fastOutdoorType || (activeSys === 'VRV' ? '上吹' : '側吹單風扇');
     const activeOutPower = outPowerVal || fastOutdoorPower || (activeSys === 'RA' ? '1φ, 220V, 60Hz' : '3φ, 4P, 380V, 60Hz');
 
     const isMultiSeries = activeSys === 'RA' && (activeSeries === '家用MULTI系列' || activeSeries === 'SUPER MULTI系列' || activeSeries.includes('MULTI'));
@@ -1973,29 +1973,19 @@ function App() {
       };
     });
 
-    const candidates = getOutdoorModelsForSystem(activeSys, activeSeries, activeOutType, activeOutPower);
+    let candidates = getOutdoorModelsForSystem(activeSys, activeSeries, activeOutType, activeOutPower);
     if (!candidates || candidates.length === 0) {
-      const singleGroupId = `group-auto-1`;
-      const singleGroup = {
-        id: singleGroupId,
-        name: `VRV 全域系統 (無此機型)`,
-        system_type: activeSys,
-        outdoor_model: '無此機型',
-        outdoor_cap_kw: 0,
-        outdoor_cap_index: 0,
-        power_supply: activeOutPower,
-        color: GROUP_COLOR_PALETTE[0],
-        space_indices: processedRows.map((_, idx) => idx)
-      };
-      const finalRows = processedRows.map(r => ({
-        ...r,
-        outdoorGroupId: singleGroupId,
-        outdoor_model: '無此機型'
-      }));
-      return { updatedRows: finalRows, groups: [singleGroup] };
+      candidates = getOutdoorModelsForSystem(activeSys, '', activeOutType, activeOutPower);
+    }
+    if (!candidates || candidates.length === 0) {
+      candidates = OUTDOOR_UNITS_DB.filter(m => m.system === activeSys);
     }
 
     const sortedCandidates = [...candidates].sort((a, b) => (a.cap_index || a.cap_kw * 10) - (b.cap_index || b.cap_kw * 10));
+
+    const defaultFallback = sortedCandidates.length > 0
+      ? sortedCandidates[sortedCandidates.length - 1]
+      : (OUTDOOR_UNITS_DB.find(m => m.system === activeSys) || { model: 'RXYQ8ANYLT', cap_kw: 22.4, cap_index: 80.0 });
 
     // 當 60HP (RXYQ60ANYLT, cap_index=1500) 連結率超過 116% (總指數 > 1500 * 1.16 = 1740) 時自動拆分成兩套
     const maxSingleSystemIndexLimit = 1500 * 1.16; // 1740
@@ -2020,8 +2010,8 @@ function App() {
       const sumIdx1 = g1Indices.reduce((acc, i) => acc + lookupIndoorCapIndex(processedRows[i].best_match_model) * (processedRows[i].unit_count || 1), 0);
       const sumIdx2 = g2Indices.reduce((acc, i) => acc + lookupIndoorCapIndex(processedRows[i].best_match_model) * (processedRows[i].unit_count || 1), 0);
 
-      const matchOutdoor1 = sortedCandidates.find(m => ((sumIdx1 / (m.cap_index || m.cap_kw * 10)) * 100.0) <= 115.0) || sortedCandidates[sortedCandidates.length - 1];
-      const matchOutdoor2 = sortedCandidates.find(m => ((sumIdx2 / (m.cap_index || m.cap_kw * 10)) * 100.0) <= 115.0) || sortedCandidates[sortedCandidates.length - 1];
+      const matchOutdoor1 = sortedCandidates.find(m => ((sumIdx1 / (m.cap_index || m.cap_kw * 10)) * 100.0) <= 115.0) || defaultFallback;
+      const matchOutdoor2 = sortedCandidates.find(m => ((sumIdx2 / (m.cap_index || m.cap_kw * 10)) * 100.0) <= 115.0) || defaultFallback;
 
       const g1Id = `group-auto-1`;
       const g2Id = `group-auto-2`;
@@ -2059,7 +2049,7 @@ function App() {
 
       return { updatedRows: finalRows, groups: newGroups };
     } else {
-      const matchedOutdoor = sortedCandidates.find(m => ((totalIndoorIndex / (m.cap_index || m.cap_kw * 10)) * 100.0) <= 115.0) || sortedCandidates[sortedCandidates.length - 1];
+      const matchedOutdoor = sortedCandidates.find(m => ((totalIndoorIndex / (m.cap_index || m.cap_kw * 10)) * 100.0) <= 115.0) || defaultFallback;
       const singleGroupId = `group-auto-1`;
 
       const singleGroup = {
