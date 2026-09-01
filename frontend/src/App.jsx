@@ -1949,9 +1949,13 @@ function App() {
 
     // 3. 如果是 VRV 系統
     let totalIndoorIndex = 0;
+    const vrvCascade = (DYNAMIC_EQUIPMENT_CASCADE && DYNAMIC_EQUIPMENT_CASCADE['VRV']) || [];
+    const vrvSeriesObj = vrvCascade.find(s => s.series === activeSeries);
+    const vrvAutoUnitType = activeUnitType || (vrvSeriesObj && vrvSeriesObj.types && vrvSeriesObj.types[0]) || '吊隱式';
+
     const processedRows = targetRows.map(r => {
       const demandKcal = r.total_cooling_demand || (r.area_ping * (r.calc_basis || 500));
-      const autoMatch = clientSideSelectEquipment(demandKcal, activeSys, activeSeries, '吊隱式');
+      const autoMatch = clientSideSelectEquipment(demandKcal, activeSys, activeSeries, vrvAutoUnitType);
       const singleIdx = lookupIndoorCapIndex(autoMatch.model);
       const qty = autoMatch.qty || 1;
       totalIndoorIndex += (singleIdx * qty);
@@ -1960,10 +1964,10 @@ function App() {
         ...r,
         system_type: activeSys,
         series: activeSeries,
-        unit_type: '吊隱式',
-        best_match_model: autoMatch.model,
+        unit_type: autoMatch.unit_type || vrvAutoUnitType,
+        best_match_model: autoMatch.model || '',
         unit_count: qty,
-        cap_kw: autoMatch.cap,
+        cap_kw: autoMatch.cap || 0,
         outdoor_type: activeOutType,
         power_supply: activeOutPower
       };
