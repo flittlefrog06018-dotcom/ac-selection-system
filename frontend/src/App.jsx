@@ -61,11 +61,11 @@ function App() {
 
   // 🎯 快速選機 vs 細緻選機 模式切換與全域控制 State (快速選機預設帶入 VRV / 中靜壓 / 吊隱式 / 上吹 / 3φ, 4P, 380V, 60Hz)
   const [selectionMode, setSelectionMode] = useState('fast'); // 'fast' | 'detail'
-  const [fastSystem, setFastSystem] = useState('VRV'); // 'RA', 'SA', 'VRV' (預設 VRV)
-  const [fastSeries, setFastSeries] = useState('中靜壓'); // 預設 中靜壓
-  const [fastUnitType, setFastUnitType] = useState('吊隱式'); // 預設 吊隱式
-  const [fastOutdoorType, setFastOutdoorType] = useState('上吹'); // 預設 上吹
-  const [fastOutdoorPower, setFastOutdoorPower] = useState('3φ, 4P, 380V, 60Hz'); // 預設 3φ, 4P, 380V, 60Hz
+  const [fastSystem, setFastSystem] = useState(''); // 預設空白 (待使用者選擇系統)
+  const [fastSeries, setFastSeries] = useState(''); // 預設空白
+  const [fastUnitType, setFastUnitType] = useState(''); // 預設空白
+  const [fastOutdoorType, setFastOutdoorType] = useState(''); // 預設空白
+  const [fastOutdoorPower, setFastOutdoorPower] = useState(''); // 預設空白
 
   // 🎯 室外機智慧配對與分組 UI State & 數據庫
   const [outdoorGroups, setOutdoorGroups] = useState([]);
@@ -399,7 +399,23 @@ function App() {
   const autoGroupAllRows = (targetRows, sysVal, seriesVal, outTypeVal, outPowerVal) => {
     if (!targetRows || targetRows.length === 0) return { updatedRows: targetRows, groups: [] };
 
-    const activeSys = sysVal || fastSystem || 'VRV';
+    const activeSys = sysVal !== undefined ? sysVal : fastSystem;
+    if (!activeSys) {
+      const updatedRows = targetRows.map(r => ({
+        ...r,
+        system_type: '',
+        series: '',
+        unit_type: '',
+        best_match_model: '',
+        unit_count: 1,
+        cap_kw: 0,
+        outdoor_type: '',
+        power_supply: '',
+        outdoor_model: '',
+        outdoorGroupId: null
+      }));
+      return { updatedRows, groups: [] };
+    }
     const activeSeries = seriesVal || fastSeries || '';
     const activeOutType = outTypeVal || fastOutdoorType || '側吹單風扇';
     const activeOutPower = outPowerVal || fastOutdoorPower || (activeSys === 'RA' ? '1φ, 220V, 60Hz' : '3φ, 4P, 380V, 60Hz');
@@ -1915,7 +1931,7 @@ function App() {
           setShowColoredMasks(true);
           const spacesList = Array.isArray(data) ? data : (data.spaces || data.data || []);
           if (spacesList.length > 0) {
-            const activeSys = selectionMode === 'fast' ? fastSystem : "VRV";
+            const activeSys = selectionMode === 'fast' ? fastSystem : "";
             const activeSeries = selectionMode === 'fast' ? fastSeries : "低靜壓(無排水泵)";
             const activeType = selectionMode === 'fast' ? fastUnitType : "吊隱式";
 
@@ -1975,7 +1991,7 @@ function App() {
         }
 
         if (dynamicTextSpaces && dynamicTextSpaces.length > 0) {
-          const activeSys = selectionMode === 'fast' ? fastSystem : "VRV";
+          const activeSys = selectionMode === 'fast' ? fastSystem : "";
           const activeSeries = selectionMode === 'fast' ? fastSeries : "低靜壓(無排水泵)";
           const activeType = selectionMode === 'fast' ? fastUnitType : "吊隱式";
 
@@ -4129,7 +4145,7 @@ function App() {
                         </td>
 
                         <td style={{ ...styles.td, color: '#38bdf8', fontWeight: 'bold', fontSize: '15px' }}>
-                          {parseFloat(row.cap_kw || lookupModelCapKw(row.best_match_model)).toFixed(1)} kW
+                          {(row.cap_kw || row.best_match_model) ? `${parseFloat(row.cap_kw || lookupModelCapKw(row.best_match_model)).toFixed(1)} kW` : '-'}
                         </td>
 
                         <td style={styles.td}>
@@ -4147,7 +4163,7 @@ function App() {
                         </td>
 
                         <td style={{ ...styles.td, color: '#a855f7', fontWeight: 'bold' }}>
-                          {((parseFloat(row.cap_kw || lookupModelCapKw(row.best_match_model)) || 0) * (row.unit_count || 1)).toFixed(1)} kW
+                          {(row.cap_kw || row.best_match_model) ? `${((parseFloat(row.cap_kw || lookupModelCapKw(row.best_match_model)) || 0) * (row.unit_count || 1)).toFixed(1)} kW` : '-'}
                         </td>
 
                         {/* 🎯 室外機延伸: 供應電源、室外機型號、室外機台數、冷房能力與連結率 */}
@@ -4377,12 +4393,13 @@ function App() {
                           }
 
                           // 獨立單機個體列 (非併機群組)
+                          const hasActiveSys = Boolean(row.system_type || fastSystem);
                           const singleUnitCount = row.unit_count || 1;
-                          const autoOutdoor = row.series ? autoMatchOutdoorModelForRow(row.system_type || fastSystem, row.series || fastSeries, (parseFloat(row.cap_kw || lookupModelCapKw(row.best_match_model)) * singleUnitCount), fastOutdoorType, fastOutdoorPower, singleUnitCount) : '';
-                          const selectedModelStr = (selectionMode === 'detail' && !row.series) ? '' : (row.outdoor_model || autoOutdoor);
-                          const validCandidateList = getOutdoorModelsForSystem(row.system_type || fastSystem, row.series || fastSeries, fastOutdoorType, targetPower);
-                          const isNoModel = (selectionMode === 'detail' && !row.series) ? false : (!selectedModelStr || selectedModelStr === '無此機型' || validCandidateList.length === 0);
-                          const isPowerValid = isNoModel ? true : isValidOutdoorPower(selectedModelStr, targetPower);
+                          const autoOutdoor = (hasActiveSys && row.series) ? autoMatchOutdoorModelForRow(row.system_type || fastSystem, row.series || fastSeries, (parseFloat(row.cap_kw || lookupModelCapKw(row.best_match_model)) * singleUnitCount), fastOutdoorType, fastOutdoorPower, singleUnitCount) : '';
+                          const selectedModelStr = (!hasActiveSys || (selectionMode === 'detail' && !row.series)) ? '' : (row.outdoor_model || autoOutdoor);
+                          const validCandidateList = hasActiveSys ? getOutdoorModelsForSystem(row.system_type || fastSystem, row.series || fastSeries, fastOutdoorType, targetPower) : [];
+                          const isNoModel = !hasActiveSys ? false : ((selectionMode === 'detail' && !row.series) ? false : (!selectedModelStr || selectedModelStr === '無此機型' || validCandidateList.length === 0));
+                          const isPowerValid = !hasActiveSys ? true : (isNoModel ? true : isValidOutdoorPower(selectedModelStr, targetPower));
                           const matchedOutdoorObj = OUTDOOR_UNITS_DB.find(m => m.model === selectedModelStr);
                           const outdoorCapKw = (!isNoModel && isPowerValid && matchedOutdoorObj) ? matchedOutdoorObj.cap_kw : 0;
                           const outdoorCapIndex = (!isNoModel && isPowerValid && matchedOutdoorObj) ? (matchedOutdoorObj.cap_index || 223.0) : 0;
@@ -4395,9 +4412,9 @@ function App() {
                             return 1;
                           };
                           const singleIndoorKw = (parseFloat(row.cap_kw || lookupModelCapKw(row.best_match_model)) || 0) * singleUnitCount;
-                          const isExceed15Percent = (!isNoModel && isPowerValid && outdoorCapKw > 0) ? (singleIndoorKw > outdoorCapKw * 1.15) : false;
-                          const isSingleMinViolated = (selectionMode === 'detail' && !row.series) ? false : (!isNoModel && singleUnitCount < getModelMinUnitsSingle(selectedModelStr));
-                          const isSingleSelectionError = (selectionMode === 'detail' && !row.series) ? false : (isNoModel || !isPowerValid || isSingleMinViolated || isExceed15Percent);
+                          const isExceed15Percent = (!hasActiveSys || isNoModel || !isPowerValid || outdoorCapKw === 0) ? false : (singleIndoorKw > outdoorCapKw * 1.15);
+                          const isSingleMinViolated = !hasActiveSys ? false : ((selectionMode === 'detail' && !row.series) ? false : (!isNoModel && singleUnitCount < getModelMinUnitsSingle(selectedModelStr)));
+                          const isSingleSelectionError = !hasActiveSys ? false : ((selectionMode === 'detail' && !row.series) ? false : (isNoModel || !isPowerValid || isSingleMinViolated || isExceed15Percent));
 
                           const singleIndoorIdx = lookupIndoorCapIndex(row.best_match_model);
                           const totalIndoorIdx = singleIndoorIdx * singleUnitCount;
@@ -4438,7 +4455,7 @@ function App() {
 
                               <td style={{ ...styles.td, backgroundColor: isSingleSelectionError ? '#450a0a' : undefined }}>
                                 <select
-                                  value={(selectionMode === 'detail' && !row.series) ? '' : (isNoModel ? '無此機型' : (!isPowerValid ? '' : (isSingleMinViolated ? '選型錯誤' : selectedModelStr)))}
+                                  value={!hasActiveSys ? '' : ((selectionMode === 'detail' && !row.series) ? '' : (isNoModel ? '無此機型' : (!isPowerValid ? '' : (isSingleMinViolated ? '選型錯誤' : selectedModelStr))))}
                                   onChange={(e) => handleCellChange(index, 'outdoor_model', e.target.value)}
                                   style={{
                                     backgroundColor: isSingleSelectionError ? '#450a0a' : '#0f172a',
@@ -4452,7 +4469,8 @@ function App() {
                                   }}
                                   title={!isPowerValid ? `⚠️ 電源不符！室外機 [${selectedModelStr}] 不支援 [${targetPower}] 電源` : (isSingleMinViolated ? `⚠️ 選型錯誤：Multi 多聯室外機 [${selectedModelStr}] 最少必須連接 2 台室內機！單台室內機不可選用 Multi 室外機。` : "")}
                                 >
-                                  {(selectionMode === 'detail' && !row.series) && <option value="">--請選擇系列--</option>}
+                                  {!hasActiveSys && <option value="">--請選擇系統--</option>}
+                                  {(selectionMode === 'detail' && !row.series && hasActiveSys) && <option value="">--請選擇系列--</option>}
                                   {!isPowerValid && <option value="">⚠️ 電源不符</option>}
                                   {isSingleMinViolated && <option value="選型錯誤">⚠️ 選型錯誤 ({selectedModelStr})</option>}
                                   {validCandidateList.map((m, mIdx) => (
@@ -4481,7 +4499,7 @@ function App() {
                               </td>
 
                               <td style={{ ...styles.td, textAlign: 'center', color: '#34d399', fontWeight: 'bold', fontSize: '15px', backgroundColor: isSingleSelectionError ? '#450a0a' : undefined }}>
-                                {row.outdoor_count || 1} 台
+                                {hasActiveSys && selectedModelStr ? `${row.outdoor_count || 1} 台` : '-'}
                               </td>
 
                               <td style={{ ...styles.td, textAlign: 'center', color: isSingleSelectionError ? '#ef4444' : (isPowerValid ? '#a855f7' : '#64748b'), fontWeight: 'bold', fontSize: '15px', backgroundColor: isSingleSelectionError ? '#450a0a' : undefined }}>

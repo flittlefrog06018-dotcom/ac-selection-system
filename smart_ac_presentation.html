@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大金空調智慧選機系統 (Daikin Smart AC Selection System) - 系統架構與設計簡介</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&family=Noto+Sans+TC:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #090d16;
+            --bg-card: #111827;
+            --bg-card-hover: #1f293d;
+            --accent-blue: #38bdf8;
+            --accent-cyan: #06b6d4;
+            --accent-purple: #a855f7;
+            --accent-amber: #f59e0b;
+            --accent-emerald: #10b981;
+            --accent-rose: #f43f5e;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #1e293b;
+            --border-glow: rgba(56, 189, 248, 0.25);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Noto Sans TC', 'Outfit', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            line-height: 1.6;
+            overflow-x: hidden;
+            padding-bottom: 60px;
+        }
+
+        /* 頂部 Hero 區塊 */
+        .hero {
+            position: relative;
+            padding: 80px 20px 60px;
+            text-align: center;
+            background: radial-gradient(circle at 50% 20%, rgba(56, 189, 248, 0.15) 0%, rgba(9, 13, 22, 1) 70%);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .badge-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 16px;
+            border-radius: 9999px;
+            background: rgba(56, 189, 248, 0.1);
+            border: 1px solid var(--border-glow);
+            color: var(--accent-blue);
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            letter-spacing: 0.5px;
+        }
+
+        .hero h1 {
+            font-size: 2.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #ffffff 0%, var(--accent-blue) 50%, var(--accent-cyan) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 16px;
+            line-height: 1.2;
+        }
+
+        .hero p {
+            font-size: 1.15rem;
+            color: var(--text-muted);
+            max-width: 800px;
+            margin: 0 auto;
+            font-weight: 400;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        .section-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin: 60px 0 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #ffffff;
+        }
+
+        .section-title span {
+            color: var(--accent-blue);
+        }
+
+        /* 網格卡片 */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            gap: 24px;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 28px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            border-color: var(--accent-blue);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5), 0 0 20px var(--border-glow);
+        }
+
+        .card-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: rgba(56, 189, 248, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(56, 189, 248, 0.2);
+        }
+
+        .card h3 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: #ffffff;
+        }
+
+        .card p, .card ul {
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            line-height: 1.7;
+        }
+
+        .card ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .card ul li {
+            position: relative;
+            padding-left: 20px;
+            margin-bottom: 8px;
+        }
+
+        .card ul li::before {
+            content: "✦";
+            position: absolute;
+            left: 0;
+            color: var(--accent-blue);
+            font-size: 12px;
+        }
+
+        /* 軟體與技術 Stack 標籤 */
+        .tech-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .tech-tag {
+            padding: 4px 12px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 12.5px;
+            font-family: 'JetBrains Mono', monospace;
+            color: #e2e8f0;
+        }
+
+        /* 流程步驟 Flow */
+        .flow-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            position: relative;
+            margin-top: 24px;
+        }
+
+        .flow-step {
+            display: grid;
+            grid-template-columns: 80px 1fr;
+            gap: 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+            align-items: center;
+            transition: border-color 0.3s;
+        }
+
+        .flow-step:hover {
+            border-color: var(--accent-cyan);
+        }
+
+        .step-number {
+            width: 60px;
+            height: 60px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-cyan) 100%);
+            color: #000000;
+            font-size: 1.5rem;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .step-content h4 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 6px;
+        }
+
+        .step-content p {
+            font-size: 0.95rem;
+            color: var(--text-muted);
+        }
+
+        /* 架構流向圖 (Mermaid 風格 HTML) */
+        .arch-diagram {
+            background: #0d1322;
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 32px;
+            margin-top: 24px;
+        }
+
+        .diagram-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            position: relative;
+        }
+
+        @media (max-width: 900px) {
+            .diagram-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .node-box {
+            background: #172033;
+            border: 1px solid #2a3754;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+
+        .node-box.header-node {
+            border-color: var(--accent-blue);
+            background: rgba(56, 189, 248, 0.08);
+        }
+
+        .node-box h5 {
+            font-size: 1rem;
+            color: var(--accent-blue);
+            margin-bottom: 8px;
+            font-weight: 700;
+        }
+
+        .node-box p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        .connector-arrow {
+            text-align: center;
+            color: var(--accent-cyan);
+            font-size: 20px;
+            margin: 10px 0;
+        }
+
+        /* Highlight Highlight Badge */
+        .highlight-bar {
+            background: linear-gradient(90deg, rgba(56,189,248,0.15) 0%, rgba(168,85,247,0.15) 100%);
+            border-left: 4px solid var(--accent-blue);
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 40px;
+            font-size: 1rem;
+            color: #e2e8f0;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 80px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Hero 頂部區塊 -->
+    <header class="hero">
+        <div class="badge-pill">
+            <span>✨ AI Vision & Automated Engineering System</span>
+        </div>
+        <h1>大金空調智慧選機系統</h1>
+        <p>結合 AI 圖面視覺辨識、工程熱負載試算與大金 (Daikin) 原廠規格配對之全自動選機與報表系統</p>
+    </header>
+
+    <main class="container">
+
+        <!-- 1. 原始發想與痛點 (Motivation) -->
+        <section>
+            <h2 class="section-title">💡 <span>01.</span> 原始發想與為您解決的痛點</h2>
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-icon">⏳</div>
+                    <h3>傳統人工選機耗時易錯</h3>
+                    <p>傳統空調工程師或室內設計師在進行工程規劃時，需手動量測圖面坪數、查閱龐雜的原廠型錄對照冷房能力、乘算環境加成（西曬、頂曬、挑高），極度耗費人力且易出現人為計算疏漏。</p>
+                </div>
+                <div class="card">
+                    <div class="card-icon">⚙️</div>
+                    <h3>原廠規格與配對限制複雜</h3>
+                    <p>大金空調包含家用 RA (1對1 橫綱/大關/經典系列、家用 Multi 多聯)、商用 SA 與 VRV 系統。各機種具備嚴格的連結率 (100%~115%)、配管指數限制及官方指定雙機/三機/四機搭配組合，人工查表門檻極高。</p>
+                </div>
+                <div class="card" style="grid-column: 1 / -1;">
+                    <div class="card-icon">🚀</div>
+                    <h3>智慧自動化解決方案</h3>
+                    <p>開發一套<b>一站式 Web 智慧選機系統</b>：上傳建築平面圖面檔 (PDF/JPG/PNG) 後，系統自動完成空間辨識與面積算量，並根據工程規範自動匹配最佳室內機與室外機組合，同步產出合乎官方格式的專業 Excel 報表。</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. 使用軟體與技術棧 (Tech Stack) -->
+        <section>
+            <h2 class="section-title">🛠️ <span>02.</span> 使用的軟體與技術構建</h2>
+            <div class="grid-3">
+                <div class="card">
+                    <div class="card-icon">🎨</div>
+                    <h3>前端系統 (Frontend App)</h3>
+                    <ul>
+                        <li><b>React 18 & Vite</b>：打造極速響應與現代化深色 UI 介面。</li>
+                        <li><b>Vanilla CSS Design System</b>：客製化玻璃擬物與動態高亮導覽。</li>
+                        <li><b>ExcelJS & SheetJS</b>：提供高相容性之 `.xlsx` 試算表匯出。</li>
+                    </ul>
+                    <div class="tech-tags">
+                        <span class="tech-tag">React.js</span>
+                        <span class="tech-tag">Vite</span>
+                        <span class="tech-tag">ExcelJS</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-icon">⚡</div>
+                    <h3>後端算力 (Backend Engine)</h3>
+                    <ul>
+                        <li><b>Python 3.11 & FastAPI</b>：高併發非同步 API 服務架構。</li>
+                        <li><b>OpenCV & PyMuPDF</b>：向量幾何辨識與圖紙文字流提取。</li>
+                        <li><b>Google Gemini 2.0 Flash</b>：最新多模態視覺 AI 空間辨識。</li>
+                    </ul>
+                    <div class="tech-tags">
+                        <span class="tech-tag">Python</span>
+                        <span class="tech-tag">FastAPI</span>
+                        <span class="tech-tag">Gemini API</span>
+                        <span class="tech-tag">OpenCV</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-icon">📊</div>
+                    <h3>規格庫與演算引擎</h3>
+                    <ul>
+                        <li><b>原廠規格資料庫 (`EQUIPMENT_DB`)</b>：完整收錄 RA/SA/VRV 全系列標稱冷房能力與電氣參數。</li>
+                        <li><b>智慧防錯演算法</b>：即時檢驗電源相容性、能力超載與連線上限。</li>
+                    </ul>
+                    <div class="tech-tags">
+                        <span class="tech-tag">Algorithmic Engine</span>
+                        <span class="tech-tag">JSON Database</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. 整體程式構成與運作流程 (Workflow) -->
+        <section>
+            <h2 class="section-title">🔄 <span>03.</span> 系統全流程與核心運作機制</h2>
+
+            <!-- 流程圖呈現 -->
+            <div class="arch-diagram">
+                <div class="diagram-grid">
+                    <div class="node-box header-node">
+                        <h5>Step 1. 上傳與辨識</h5>
+                        <p>上傳 PDF / 影像圖面<br>AI Vision 自動解析空間與面積</p>
+                    </div>
+                    <div class="node-box header-node">
+                        <h5>Step 2. 負載試算</h5>
+                        <p>動態帶入基礎負載<br>計算環境加成 (西曬/頂曬/挑高)</p>
+                    </div>
+                    <div class="node-box header-node">
+                        <h5>Step 3. 智慧機型配對</h5>
+                        <p>自動選擇室內機型號<br>多聯機組網與室外機分組</p>
+                    </div>
+                    <div class="node-box header-node">
+                        <h5>Step 4. 報表與防錯</h5>
+                        <p>即時標示 ⚠️ 型號錯誤<br>一鍵匯出工程建議 Excel</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 詳細步驟清單 -->
+            <div class="flow-container">
+                <div class="flow-step">
+                    <div class="step-number">01</div>
+                    <div class="step-content">
+                        <h4>圖面智慧自動辨識 (Floorplan Ingestion & OCR/CV)</h4>
+                        <p>使用者上傳建築平面圖後，後端透過 Google Gemini 視覺 AI 模型配合 OpenCV 幾何去重演算法，自動識別「客廳」、「主臥」、「餐廳」等真實空間名稱，並精確計算各區域之平方公尺與坪數。</p>
+                    </div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="step-number">02</div>
+                    <div class="step-content">
+                        <h4>動態熱負載試算引擎 (Heat Load Calculation)</h4>
+                        <p>系統根據空間類型帶入建議基準負載 (500~550 kcal/h·坪)，並允許勾選「全內周 (-10%)」、「二面牆 (+5%)」、「西曬 (+6%)」、「挑高 (+4%)」、「頂曬 (+5%)」等偏置條件，精確計算出每個房間的需求冷房能力 (kcal/h, kW)。</p>
+                    </div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="step-number">03</div>
+                    <div class="step-content">
+                        <h4>智慧機型匹配與多聯連線分組 (Smart Selection & Multi-Grouping)</h4>
+                        <p>系統提供「快速選機」與「細緻選機」雙模式。可自動比對室內機型式（壁掛式、吊隱式、風管型），並針對家用 Multi 與 VRV 系統自動依據連線上限（如 SUPER MULTI 上限 2 台、家用 MULTI 上限 4 台）進行室外機最佳能力配對與連結率 (100%~115%) 計算。</p>
+                    </div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="step-number">04</div>
+                    <div class="step-content">
+                        <h4>即時驗證防錯機制 (Real-time Validation)</h4>
+                        <p>當使用者手動調整選單時，系統自動檢核「電源相容性 (1φ/3φ)」、「能力超過 115% 警示」、「連線台數下/上限」及「非官方建議搭配組合」，並於畫面上以醒目的 <code>⚠️ 型號錯誤</code> 紅框與警示標籤即時提醒。</p>
+                    </div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="step-number">05</div>
+                    <div class="step-content">
+                        <h4>一鍵產出工程級報表 (Excel Export)</h4>
+                        <p>整合 ExcelJS 模組，可直接輸出符合工程現場格式與公式之 `.xlsx` 試算報表，將機型、台數、耗電量、尺寸與能力小計完整匯出，極大地提升提案效率與專業形象。</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 總結高亮條 -->
+            <div class="highlight-bar">
+                <strong>🎯 總結效益：</strong> 本系統將原本需要耗費 30~60 分鐘的人工選機與工程查表過程，縮短至 <strong>10 秒以內全自動完成</strong>，並確保選機結果 100% 符合大金原廠技術手冊之規範與連線限制。
+            </div>
+        </section>
+
+        <footer>
+            <p>大金空調智慧選機系統 (AC Selection System) · Designed & Developed for Professional Engineering</p>
+        </footer>
+
+    </main>
+
+</body>
+</html>
