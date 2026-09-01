@@ -5132,8 +5132,10 @@ function App() {
                             }
 
                             const gSpaces = gIndices.map(i => rows[i]).filter(Boolean);
+                            const hasActiveSeries = Boolean(row.series || fastSeries);
+                            const isIndoorSelectionComplete = hasActiveSeries && gSpaces.some(sp => Boolean(sp.best_match_model));
                             const validCandidateList = getOutdoorModelsForSystem(gCard.system_type, row.series || fastSeries, fastOutdoorType, targetPower);
-                            const isNoModel = (selectionMode === 'detail' && !row.series) ? false : (!gCard.outdoor_model || gCard.outdoor_model === '無此機型' || validCandidateList.length === 0);
+                            const isNoModel = (!hasActiveSys || !isIndoorSelectionComplete) ? false : (!gCard.outdoor_model || gCard.outdoor_model === '無此機型' || validCandidateList.length === 0);
                             const isPowerValid = isNoModel ? true : isValidOutdoorPower(gCard.outdoor_model, targetPower);
                             
                             // 🎯 1. 分子：同系統所有室內機能力指數加總 (能力指數 x 台數) 與總冷房能力 kW 需求
@@ -5182,7 +5184,7 @@ function App() {
                               return cap >= 7.8 || modelName.includes('80') || modelName.includes('90');
                             });
                             const isModelDisallowed = hasOver80Indoor && gCard?.outdoor_model && (gCard.outdoor_model.startsWith('2MXM') || gCard.outdoor_model.startsWith('2MXP') || gCard.outdoor_model.startsWith('3MXM'));
-                            const isSelectionError = isNoModel || !isPowerValid || isMinUnitsViolated || isMaxUnitsExceeded || isModelDisallowed || isExceed15Percent;
+                            const isSelectionError = (!hasActiveSys || !isIndoorSelectionComplete) ? false : (isNoModel || !isPowerValid || isMinUnitsViolated || isMaxUnitsExceeded || isModelDisallowed || isExceed15Percent);
 
                             // 🎯 3. 連結率 (%) 樣式與警示規範：
                             const rawRatio = (!isNoModel && isPowerValid && outdoorCapIndex > 0) ? (sumIndoorIndex / outdoorCapIndex) * 100.0 : 0;
@@ -5348,9 +5350,11 @@ function App() {
                           const hasActiveSys = Boolean(row.system_type || fastSystem);
                           const singleUnitCount = row.unit_count || 1;
                           const autoOutdoor = (hasActiveSys && row.series) ? autoMatchOutdoorModelForRow(row.system_type || fastSystem, row.series || fastSeries, (parseFloat(row.cap_kw || lookupModelCapKw(row.best_match_model)) * singleUnitCount), fastOutdoorType, fastOutdoorPower, singleUnitCount) : '';
-                          const selectedModelStr = (!hasActiveSys || (selectionMode === 'detail' && !row.series)) ? '' : (row.outdoor_model || autoOutdoor);
+                          const hasActiveSeries = Boolean(row.series || fastSeries);
+                          const isIndoorSelectionComplete = hasActiveSeries && Boolean(row.best_match_model);
+                          const selectedModelStr = (!hasActiveSys || !isIndoorSelectionComplete) ? '' : (row.outdoor_model || autoOutdoor);
                           const validCandidateList = hasActiveSys ? getOutdoorModelsForSystem(row.system_type || fastSystem, row.series || fastSeries, fastOutdoorType, targetPower) : [];
-                          const isNoModel = !hasActiveSys ? false : ((selectionMode === 'detail' && !row.series) ? false : (!selectedModelStr || selectedModelStr === '無此機型' || validCandidateList.length === 0));
+                          const isNoModel = (!hasActiveSys || !isIndoorSelectionComplete) ? false : (!selectedModelStr || selectedModelStr === '無此機型' || validCandidateList.length === 0);
                           const isPowerValid = !hasActiveSys ? true : (isNoModel ? true : isValidOutdoorPower(selectedModelStr, targetPower));
                           const matchedOutdoorObj = OUTDOOR_UNITS_DB.find(m => m.model === selectedModelStr);
                           const outdoorCapKw = (!isNoModel && isPowerValid && matchedOutdoorObj) ? matchedOutdoorObj.cap_kw : 0;
@@ -5366,7 +5370,7 @@ function App() {
                           const singleIndoorKw = (parseFloat(row.cap_kw || lookupModelCapKw(row.best_match_model)) || 0) * singleUnitCount;
                           const isExceed15Percent = (!hasActiveSys || isNoModel || !isPowerValid || outdoorCapKw === 0) ? false : (singleIndoorKw > outdoorCapKw * 1.15);
                           const isSingleMinViolated = !hasActiveSys ? false : ((selectionMode === 'detail' && !row.series) ? false : (!isNoModel && singleUnitCount < getModelMinUnitsSingle(selectedModelStr)));
-                          const isSingleSelectionError = !hasActiveSys ? false : ((selectionMode === 'detail' && !row.series) ? false : (isNoModel || !isPowerValid || isSingleMinViolated || isExceed15Percent));
+                          const isSingleSelectionError = (!hasActiveSys || !isIndoorSelectionComplete) ? false : (isNoModel || !isPowerValid || isSingleMinViolated || isExceed15Percent);
 
                           const singleIndoorIdx = lookupIndoorCapIndex(row.best_match_model);
                           const totalIndoorIdx = singleIndoorIdx * singleUnitCount;
