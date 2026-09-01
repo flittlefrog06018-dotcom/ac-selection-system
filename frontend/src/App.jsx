@@ -276,6 +276,78 @@ function App() {
   },
   {
     "system": "RA",
+    "series": "橫綱X系列",
+    "outdoor_type": "側吹單風扇",
+    "power_supply": "1φ, 220V, 60Hz",
+    "model": "RXM22XVLT",
+    "cap_kw": 2.2
+  },
+  {
+    "system": "RA",
+    "series": "橫綱X系列",
+    "outdoor_type": "側吹單風扇",
+    "power_supply": "1φ, 220V, 60Hz",
+    "model": "RXM28XVLT",
+    "cap_kw": 2.8
+  },
+  {
+    "system": "RA",
+    "series": "橫綱X系列",
+    "outdoor_type": "側吹單風扇",
+    "power_supply": "1φ, 220V, 60Hz",
+    "model": "RXM36XVLT",
+    "cap_kw": 3.5
+  },
+  {
+    "system": "RA",
+    "series": "橫綱X系列",
+    "outdoor_type": "側吹單風扇",
+    "power_supply": "1φ, 220V, 60Hz",
+    "model": "RXM41XVLT",
+    "cap_kw": 4.1
+  },
+  {
+    "system": "RA",
+    "series": "橫綱X系列",
+    "outdoor_type": "側吹單風扇",
+    "power_supply": "1φ, 220V, 60Hz",
+    "model": "RXM50XVLT",
+    "cap_kw": 5.0
+  },
+  {
+    "system": "RA",
+    "series": "橫綱X系列",
+    "outdoor_type": "側吹單風扇",
+    "power_supply": "1φ, 220V, 60Hz",
+    "model": "RXM60XVLT",
+    "cap_kw": 6.0
+  },
+  {
+    "system": "RA",
+    "series": "橫綱X系列",
+    "outdoor_type": "側吹單風扇",
+    "power_supply": "1φ, 220V, 60Hz",
+    "model": "RXM71XVLT",
+    "cap_kw": 7.2
+  },
+  {
+    "system": "RA",
+    "series": "橫綱X系列",
+    "outdoor_type": "側吹單風扇",
+    "power_supply": "1φ, 220V, 60Hz",
+    "model": "RXM80XVLT",
+    "cap_kw": 8.0
+  },
+  {
+    "system": "RA",
+    "series": "橫綱X系列",
+    "outdoor_type": "側吹單風扇",
+    "power_supply": "1φ, 220V, 60Hz",
+    "model": "RXM90XVLT",
+    "cap_kw": 8.7
+  },
+  {
+    "system": "RA",
     "series": "大關Z系列",
     "outdoor_type": "側吹單風扇",
     "power_supply": "1φ, 220V, 60Hz",
@@ -1229,6 +1301,78 @@ function App() {
     "model": "RXYQ60ANYLT",
     "cap_kw": 162.0,
     "cap_index": 1500.0
+  },
+  {
+    "system": "RA",
+    "series": "橫綱X系列",
+    "outdoor_type": "側吹單風扇",
+    "power_supply": "1φ, 220V, 60Hz",
+    "model": "RXV22XVLT",
+    "cap_kw": 2.2
+  },
+  {
+    "system": "RA",
+    "series": "橫綱X系列",
+    "outdoor_type": "側吹單風扇",
+    "power_supply": "1φ, 220V, 60Hz",
+    "model": "RXV28XVLT",
+    "cap_kw": 2.8
+  },
+  {
+    "system": "RA",
+    "series": "橫綱X系列",
+    "outdoor_type": "側吹單風扇",
+    "power_supply": "1φ, 220V, 60Hz",
+    "model": "RXV36XVLT",
+    "cap_kw": 3.5
+  },
+  {
+    "system": "RA",
+    "series": "橫綱X系列",
+    "outdoor_type": "側吹單風扇",
+    "power_supply": "1φ, 220V, 60Hz",
+    "model": "RXV41XVLT",
+    "cap_kw": 4.1
+  },
+  {
+    "system": "RA",
+    "series": "橫綱X系列",
+    "outdoor_type": "側吹單風扇",
+    "power_supply": "1φ, 220V, 60Hz",
+    "model": "RXV50XVLT",
+    "cap_kw": 5.0
+  },
+  {
+    "system": "RA",
+    "series": "橫綱X系列",
+    "outdoor_type": "側吹單風扇",
+    "power_supply": "1φ, 220V, 60Hz",
+    "model": "RXV60XVLT",
+    "cap_kw": 6.0
+  },
+  {
+    "system": "RA",
+    "series": "橫綱X系列",
+    "outdoor_type": "側吹單風扇",
+    "power_supply": "1φ, 220V, 60Hz",
+    "model": "RXV71XVLT",
+    "cap_kw": 7.2
+  },
+  {
+    "system": "RA",
+    "series": "橫綱X系列",
+    "outdoor_type": "側吹單風扇",
+    "power_supply": "1φ, 220V, 60Hz",
+    "model": "RXV80XVLT",
+    "cap_kw": 8.0
+  },
+  {
+    "system": "RA",
+    "series": "橫綱X系列",
+    "outdoor_type": "側吹單風扇",
+    "power_supply": "1φ, 220V, 60Hz",
+    "model": "RXV90XVLT",
+    "cap_kw": 8.7
   }
 ];
 
