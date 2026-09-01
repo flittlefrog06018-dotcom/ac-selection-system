@@ -2179,12 +2179,20 @@ function App() {
       return;
     }
 
-    const activeSys = fastSystem;
-    const activeSeries = fastSeries || '中靜壓';
-    const activeOutType = fastOutdoorType || '上吹';
-    const activeOutPower = fastOutdoorPower || '3φ, 4P, 380V, 60Hz';
+    const firstSelectedRow = rows[selectedIndices[0]];
+    const activeSys = (firstSelectedRow && firstSelectedRow.system_type) || fastSystem || 'VRV';
+    const activeSeries = (firstSelectedRow && firstSelectedRow.series) || fastSeries || '';
+    const activeOutType = (firstSelectedRow && firstSelectedRow.outdoor_type) || fastOutdoorType || '上吹';
+    const activeOutPower = (firstSelectedRow && firstSelectedRow.power_supply) || fastOutdoorPower || (activeSys === 'RA' ? '1φ, 220V, 60Hz' : '3φ, 4P, 380V, 60Hz');
 
-    const candidates = getOutdoorModelsForSystem(activeSys, activeSeries, activeOutType, activeOutPower);
+    let candidates = getOutdoorModelsForSystem(activeSys, activeSeries, activeOutType, activeOutPower);
+    if (!candidates || candidates.length === 0) {
+      candidates = getOutdoorModelsForSystem(activeSys, '', activeOutType, activeOutPower);
+    }
+    if (!candidates || candidates.length === 0) {
+      candidates = OUTDOOR_UNITS_DB.filter(m => m.system === activeSys);
+    }
+
     const sortedCandidates = [...candidates].sort((a, b) => (a.cap_index || a.cap_kw * 10) - (b.cap_index || b.cap_kw * 10));
 
     // 🎯 計算此次勾選空間之能力指數總和並自動對應連結率 <= 115% 之室外機
@@ -2193,11 +2201,16 @@ function App() {
       const singleIdx = lookupIndoorCapIndex(sp.best_match_model);
       return acc + (singleIdx * (sp.unit_count || 1));
     }, 0);
-    const matchedOutdoor = sortedCandidates.find(m => ((sumIdx / (m.cap_index || m.cap_kw * 10)) * 100.0) <= 115.0) || sortedCandidates[sortedCandidates.length - 1];
+
+    const defaultFallback = sortedCandidates.length > 0
+      ? sortedCandidates[sortedCandidates.length - 1]
+      : (OUTDOOR_UNITS_DB.find(m => m.system === activeSys) || { model: 'RXYQ8ANYLT', cap_kw: 22.4, cap_index: 80.0 });
+
+    const matchedOutdoor = sortedCandidates.find(m => ((sumIdx / (m.cap_index || m.cap_kw * 10)) * 100.0) <= 115.0) || defaultFallback;
 
     const nextGroupNum = outdoorGroups.length + 1;
     const newGroupId = `group-${Date.now()}-${nextGroupNum}`;
-    const groupName = `VRV 系統 #${nextGroupNum} (${matchedOutdoor.model})`;
+    const groupName = `${activeSys} 系統 #${nextGroupNum} (${matchedOutdoor.model})`;
     const colorObj = GROUP_COLOR_PALETTE[outdoorGroups.length % GROUP_COLOR_PALETTE.length];
 
     const newGroup = {
@@ -2215,7 +2228,13 @@ function App() {
     // 僅把當前勾選的空間標記為該新群組 ID，未勾選者保留其原有群組狀態
     const finalRows = rows.map((r, idx) => {
       if (selectedIndices.includes(idx)) {
-        return { ...r, outdoorGroupId: newGroupId, selected: false, outdoor_model: matchedOutdoor.model };
+        return {
+          ...r,
+          system_type: r.system_type || activeSys,
+          outdoorGroupId: newGroupId,
+          selected: false,
+          outdoor_model: matchedOutdoor.model
+        };
       }
       return r;
     });
@@ -2239,13 +2258,14 @@ function App() {
       return;
     }
 
-    const activeSys = fastSystem;
-    const activeOutPower = fastOutdoorPower || '3φ, 4P, 380V, 60Hz';
+    const firstSelectedRow = rows[selectedIndices[0]];
+    const activeSys = (firstSelectedRow && firstSelectedRow.system_type) || fastSystem || 'VRV';
+    const activeOutPower = (firstSelectedRow && firstSelectedRow.power_supply) || fastOutdoorPower || (activeSys === 'RA' ? '1φ, 220V, 60Hz' : '3φ, 4P, 380V, 60Hz');
     const matchedOutdoor = OUTDOOR_UNITS_DB.find(m => m.model === chosenModelStr) || { model: chosenModelStr, cap_kw: 28.0, cap_index: 250.0 };
 
     const nextGroupNum = outdoorGroups.length + 1;
     const newGroupId = `group-${Date.now()}-${nextGroupNum}`;
-    const groupName = `VRV 系統 #${nextGroupNum} (${matchedOutdoor.model})`;
+    const groupName = `${activeSys} 系統 #${nextGroupNum} (${matchedOutdoor.model})`;
     const colorObj = GROUP_COLOR_PALETTE[outdoorGroups.length % GROUP_COLOR_PALETTE.length];
 
     const newGroup = {
@@ -2262,7 +2282,13 @@ function App() {
 
     const finalRows = rows.map((r, idx) => {
       if (selectedIndices.includes(idx)) {
-        return { ...r, outdoorGroupId: newGroupId, selected: false, outdoor_model: matchedOutdoor.model };
+        return {
+          ...r,
+          system_type: r.system_type || activeSys,
+          outdoorGroupId: newGroupId,
+          selected: false,
+          outdoor_model: matchedOutdoor.model
+        };
       }
       return r;
     });
