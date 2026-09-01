@@ -4140,7 +4140,7 @@ function App() {
                               fontSize: '14.5px',
                               display: 'inline-block'
                             }}>
-                              --請選擇系列--
+                              --請選擇型號--
                             </span>
                           ) : (
                             <select
@@ -4148,6 +4148,7 @@ function App() {
                               onChange={(e) => handleCellChange(index, 'best_match_model', e.target.value)}
                               style={{ ...styles.selectSys, width: '155px', color: '#34d399', fontWeight: 'bold', fontSize: '15px' }}
                             >
+                              {!row.best_match_model && <option value="">--請選擇型號--</option>}
                               {getDynamicModelCandidates(
                                 (row.total_cooling_demand || 0) / 860.0,
                                 row.system_type || 'VRV',
