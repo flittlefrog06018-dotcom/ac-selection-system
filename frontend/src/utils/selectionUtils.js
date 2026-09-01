@@ -1,4 +1,4 @@
-import { EQUIPMENT_DB, DYNAMIC_LOAD_RULES } from '../constants/acConstants';
+import { EQUIPMENT_DB, DYNAMIC_LOAD_RULES } from '../constants/acConstants.js';
 
 // 🎯 動態相容配機演算法：依據系統、系列別與室內機型式進行最佳能力單機/多機匹配 (嚴格鎖定系列別)
 export const clientSideSelectEquipment = (totalDemandKcal, systemType, seriesName = null, unitTypeName = null) => {
