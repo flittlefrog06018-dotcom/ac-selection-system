@@ -2234,19 +2234,24 @@ function App() {
 
       const calcBasis = 520;
       const demandKcal = Math.round(realAreaPing * calcBasis);
-      const autoMatch = clientSideSelectEquipment(demandKcal, "VRV");
+      const activeSys = selectionMode === 'fast' ? fastSystem : "";
+      const activeSeries = selectionMode === 'fast' ? fastSeries : "";
+      const activeType = selectionMode === 'fast' ? fastUnitType : "";
+      const autoMatch = activeSys ? clientSideSelectEquipment(demandKcal, activeSys, activeSeries, activeType) : { model: '', qty: 1, cap: 0 };
 
       const newRow = {
         space_name: resolvedSpaceName,
         area_m2: realAreaM2,
         area_ping: realAreaPing,
-        system_type: "VRV",
+        system_type: activeSys,
+        series: activeSeries,
+        unit_type: activeType,
         base_suggested_load: calcBasis,
         calc_basis: calcBasis,
         total_cooling_demand: demandKcal,
-        best_match_model: autoMatch.model,
-        unit_count: autoMatch.qty,
-        cap_kw: autoMatch.cap,
+        best_match_model: autoMatch.model || '',
+        unit_count: autoMatch.qty || 1,
+        cap_kw: autoMatch.cap || 0,
         box_color: OVERLAY_COLORS[rows.length % OVERLAY_COLORS.length].border,
         modifiers: { 全內周: false, 二面牆: false, 西曬: false, 挑高: false, 頂曬: false },
         selected: true,
@@ -2349,7 +2354,8 @@ function App() {
           const targetRow = prevRows[spaceIndex];
           const baseKcal = getFuzzyBaseLoadByName(finalName);
           const initialDemand = Math.round(targetRow.area_ping * baseKcal);
-          const autoMatch = clientSideSelectEquipment(initialDemand, targetRow.system_type || "VRV");
+          const activeSys = targetRow.system_type || fastSystem;
+          const autoMatch = activeSys ? clientSideSelectEquipment(initialDemand, activeSys, targetRow.series || fastSeries, targetRow.unit_type || fastUnitType) : { model: '', qty: 1, cap: 0 };
 
           const newRows = [...prevRows];
           newRows[spaceIndex] = {
@@ -2357,9 +2363,9 @@ function App() {
             space_name: finalName,
             calc_basis: baseKcal,
             total_cooling_demand: initialDemand,
-            best_match_model: autoMatch.model,
-            unit_count: autoMatch.qty,
-            cap_kw: autoMatch.cap
+            best_match_model: autoMatch.model || '',
+            unit_count: autoMatch.qty || 1,
+            cap_kw: autoMatch.cap || 0
           };
           return newRows;
         });
@@ -3069,13 +3075,19 @@ function App() {
         row.cap_kw = cap || lookupModelCapKw(model);
       }
     } else if (field !== 'best_match_model' && field !== 'unit_count' && field !== 'outdoor_model' && field !== 'outdoor_unit_count' && field !== 'power_supply') {
-      const curSys = selectionMode === 'fast' ? fastSystem : (row.system_type || 'VRV');
+      const curSys = selectionMode === 'fast' ? fastSystem : row.system_type;
       const curSeries = selectionMode === 'fast' ? fastSeries : row.series;
       const curUnitType = selectionMode === 'fast' ? fastUnitType : row.unit_type;
-      const { model, qty, cap } = clientSideSelectEquipment(newDemand, curSys, curSeries, curUnitType);
-      row.best_match_model = model;
-      row.unit_count = qty;
-      row.cap_kw = cap || lookupModelCapKw(model);
+      if (curSys) {
+        const { model, qty, cap } = clientSideSelectEquipment(newDemand, curSys, curSeries, curUnitType);
+        row.best_match_model = model || '';
+        row.unit_count = qty || 1;
+        row.cap_kw = cap || lookupModelCapKw(model) || 0;
+      } else {
+        row.best_match_model = '';
+        row.unit_count = 1;
+        row.cap_kw = 0;
+      }
     } else if (field === 'best_match_model') {
       row.best_match_model = value;
       row.cap_kw = lookupModelCapKw(value);
@@ -6031,15 +6043,16 @@ function App() {
                         const realAreaPing = parseFloat((realAreaM2 * 0.3025).toFixed(2));
                         const baseKcal = row.calc_basis || 520;
                         const initialDemand = Math.round(realAreaPing * baseKcal);
-                        const autoMatch = clientSideSelectEquipment(initialDemand, row.system_type || "VRV");
+                        const activeSys = row.system_type || fastSystem;
+                        const autoMatch = activeSys ? clientSideSelectEquipment(initialDemand, activeSys, row.series || fastSeries, row.unit_type || fastUnitType) : { model: '', qty: 1, cap: 0 };
                         return {
                           ...row,
                           area_m2: realAreaM2,
                           area_ping: realAreaPing,
                           total_cooling_demand: initialDemand,
-                          best_match_model: autoMatch.model,
-                          unit_count: autoMatch.qty,
-                          cap_kw: autoMatch.cap
+                          best_match_model: autoMatch.model || '',
+                          unit_count: autoMatch.qty || 1,
+                          cap_kw: autoMatch.cap || 0
                         };
                       }));
 
