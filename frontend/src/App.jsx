@@ -2428,57 +2428,72 @@ function App() {
 
       // 1. 平鋪渲染資料列 (僅渲染當前已勾選之空間，絕不重複)
       const flatRowsToRender = [...filteredRows];
-      const groupSpans = [];
+      const isVRV = (fastSystem === 'VRV') || flatRowsToRender.some(r => r.system_type === 'VRV');
 
+      // 確保 VRV 系統或多聯群組資訊完整
+      let currentGroups = [...outdoorGroups];
+      if (currentGroups.length === 0 && isVRV) {
+        const { groups } = autoGroupAllRows(flatRowsToRender, 'VRV', fastSeries, fastOutdoorType, fastOutdoorPower, fastUnitType);
+        currentGroups = groups;
+      }
+
+      const groupSpans = [];
       let scanIdx = 0;
+
       while (scanIdx < flatRowsToRender.length) {
         const room = flatRowsToRender[scanIdx];
-        const gId = room.outdoorGroupId;
-        if (gId && (selectionMode === 'fast' || userHasCustomGroups)) {
+        const gId = room.outdoorGroupId || (isVRV ? (currentGroups[0]?.id || 'group-auto-1') : null);
+
+        if (gId && (selectionMode === 'fast' || userHasCustomGroups || isVRV)) {
           let j = scanIdx;
-          while (j + 1 < flatRowsToRender.length && flatRowsToRender[j + 1].outdoorGroupId === gId) {
-            j++;
+          while (j + 1 < flatRowsToRender.length) {
+            const nextGId = flatRowsToRender[j + 1].outdoorGroupId || (isVRV ? (currentGroups[0]?.id || 'group-auto-1') : null);
+            if (nextGId === gId) {
+              j++;
+            } else {
+              break;
+            }
           }
+
           const gStart = startRow + scanIdx;
           const gEnd = startRow + j;
           const gSpaces = flatRowsToRender.slice(scanIdx, j + 1);
+          gSpaces.forEach(s => { s._inGroup = true; });
 
-          if (gEnd > gStart) {
-            gSpaces.forEach(s => { s._inGroup = true; });
-            const matchedG = outdoorGroups.find(g => g.id === gId);
-            let sumIndoorKw = 0;
-            let sumIndoorIndex = 0;
-            gSpaces.forEach((s) => {
-              const singleCap = parseFloat(s.cap_kw) || lookupModelCapKw(s.best_match_model);
-              const qty = parseInt(s.unit_count) || 1;
-              const singleIdx = lookupIndoorCapIndex(s.best_match_model);
-              sumIndoorKw += singleCap * qty;
-              sumIndoorIndex += singleIdx * qty;
-            });
+          const matchedG = currentGroups.find(g => g.id === gId) || currentGroups[0];
+          let sumIndoorKw = 0;
+          let sumIndoorIndex = 0;
 
-            const outModel = (matchedG && matchedG.outdoor_model) || room.outdoor_model || autoMatchOutdoorModelForRow(room.system_type || fastSystem, room.series || fastSeries, sumIndoorKw, fastOutdoorType, fastOutdoorPower);
-            const outUpper = (outModel || "").trim().toUpperCase();
-            const matchedOutObj = (EQUIPMENT_FULL_DB.outdoor_units && EQUIPMENT_FULL_DB.outdoor_units[outUpper]) || OUTDOOR_UNITS_DB.find((m) => m.model === outModel);
-            const outCapKw = matchedOutObj ? parseFloat(matchedOutObj.cap_kw) : ((matchedG && matchedG.outdoor_cap_kw) || 0);
-            const outCapIndex = (matchedOutObj && matchedOutObj.cap_index) ? parseFloat(matchedOutObj.cap_index) : 223.0;
+          gSpaces.forEach((s) => {
+            const singleCap = parseFloat(s.cap_kw) || lookupModelCapKw(s.best_match_model);
+            const qty = parseInt(s.unit_count) || 1;
+            const singleIdx = lookupIndoorCapIndex(s.best_match_model);
+            sumIndoorKw += singleCap * qty;
+            sumIndoorIndex += singleIdx * qty;
+          });
 
-            const rawRatio = (outCapIndex > 0 && sumIndoorIndex > 0) ? (sumIndoorIndex / outCapIndex) * 100.0 : 0;
-            const connRatioStr = outCapKw > 0 ? `${Math.round(rawRatio)}%` : "-";
+          const outModel = (matchedG && matchedG.outdoor_model) || room.outdoor_model || autoMatchOutdoorModelForRow(room.system_type || fastSystem, room.series || fastSeries, sumIndoorKw, fastOutdoorType, fastOutdoorPower);
+          const outUpper = (outModel || "").trim().toUpperCase();
+          const matchedOutObj = (EQUIPMENT_FULL_DB.outdoor_units && EQUIPMENT_FULL_DB.outdoor_units[outUpper]) || OUTDOOR_UNITS_DB.find((m) => m.model === outModel);
+          const outCapKw = matchedOutObj ? parseFloat(matchedOutObj.cap_kw) : ((matchedG && matchedG.outdoor_cap_kw) || sumIndoorKw);
+          const outCapIndex = (matchedOutObj && matchedOutObj.cap_index) ? parseFloat(matchedOutObj.cap_index) : (matchedG?.outdoor_cap_index || 223.0);
 
-            groupSpans.push({
-              startRow: gStart,
-              endRow: gEnd,
-              outdoor_model: outModel,
-              outdoor_qty: 1,
-              conn_ratio_str: connRatioStr,
-              outdoor_info: matchedOutObj,
-              fallback_cap_kw: outCapKw
-            });
-            scanIdx = j + 1;
-          } else {
-            room._inGroup = false;
-            scanIdx++;
-          }
+          const rawRatio = (outCapIndex > 0 && sumIndoorIndex > 0) ? (sumIndoorIndex / outCapIndex) * 100.0 : 0;
+          const connRatioStr = outCapKw > 0 ? `${Math.round(rawRatio)}%` : "-";
+
+          groupSpans.push({
+            startRow: gStart,
+            endRow: gEnd,
+            system_type: room.system_type || fastSystem,
+            outdoor_model: outModel,
+            outdoor_qty: 1,
+            conn_ratio_str: connRatioStr,
+            outdoor_info: matchedOutObj,
+            fallback_cap_kw: outCapKw,
+            outdoor_cap_index: outCapIndex
+          });
+
+          scanIdx = j + 1;
         } else {
           room._inGroup = false;
           scanIdx++;
@@ -2646,7 +2661,9 @@ function App() {
         const outCapKw = span.fallback_cap_kw;
         const outCapKcal = outCapKw > 0 ? parseFloat((outCapKw * 860.0).toFixed(1)) : "-";
         const outSysUpper = (span.system_type || fastSystem || "").toUpperCase();
-        const outNominal = outSysUpper.includes("VRV") ? (outInfo ? (outInfo.nominal_cap || "-") : "-") : "-";
+        const outNominal = outSysUpper.includes("VRV")
+          ? (outInfo?.nominal_cap || outInfo?.cap_index || span.outdoor_cap_index || "-")
+          : "-";
 
         const topRow = ws.getRow(sR);
         topRow.getCell(31).value = span.outdoor_model || "-";
