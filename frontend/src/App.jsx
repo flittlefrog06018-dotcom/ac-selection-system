@@ -407,23 +407,33 @@ function App() {
         if (activeSys === 'RA') {
           autoUnitType = activeSeries === '隱藏風管系列' ? '吊隱式' : (activeSeries ? '壁掛式' : (r.unit_type || '壁掛式'));
         }
-        const autoMatch = clientSideSelectEquipment(demandKcal, activeSys, activeSeries, autoUnitType);
-        // 🎯 1 對 1 系統：室外機型號依據單台室內機容量 (autoMatch.cap) 匹配，台數與室內機台數 (autoMatch.qty) 完全同步
+
+        // 🎯 SA 系統：必須在「系列別」與「室內機型式」皆選定後才配對室內機
+        const hasIndoorSpecs = (activeSys === 'SA') ? Boolean(activeSeries && autoUnitType) : Boolean(activeSys && activeSeries);
+        const autoMatch = hasIndoorSpecs
+          ? clientSideSelectEquipment(demandKcal, activeSys, activeSeries, autoUnitType, activeOutPower)
+          : { model: '', qty: 1, cap: 0.0 };
+
+        // 🎯 SA 系統：必須在「系列別」、「室內機型式」與「室外機電源」三者皆選定完成後才提供室外機型號！
+        const hasOutdoorSpecs = (activeSys === 'SA') ? Boolean(activeSeries && autoUnitType && activeOutPower) : Boolean(activeSys && activeSeries);
+
         const singleIndoorKw = autoMatch.cap;
-        const autoOutdoor = autoMatchOutdoorModelForRow(activeSys, activeSeries, singleIndoorKw, activeOutType, activeOutPower, 1, autoMatch.model);
+        const autoOutdoor = (hasOutdoorSpecs && autoMatch.model)
+          ? autoMatchOutdoorModelForRow(activeSys, activeSeries, singleIndoorKw, activeOutType, activeOutPower, 1, autoMatch.model)
+          : '';
 
         return {
           ...r,
           system_type: activeSys,
           series: activeSeries,
-          unit_type: autoMatch.unit_type || autoUnitType || '壁掛式',
+          unit_type: autoMatch.unit_type || autoUnitType || '',
           best_match_model: autoMatch.model,
-          unit_count: autoMatch.qty,
+          unit_count: autoMatch.qty || 1,
           cap_kw: autoMatch.cap,
           outdoor_type: activeOutType,
-          power_supply: autoMatch.power_supply || activeOutPower,
-          outdoor_model: autoMatch.outdoor_model || autoOutdoor,
-          outdoor_count: autoMatch.qty,
+          power_supply: activeOutPower,
+          outdoor_model: hasOutdoorSpecs ? (autoMatch.outdoor_model || autoOutdoor) : '',
+          outdoor_count: hasOutdoorSpecs ? autoMatch.qty : 1,
           outdoorGroupId: null
         };
       });
@@ -3777,8 +3787,9 @@ function App() {
                       onChange={(e) => {
                         const powerVal = e.target.value;
                         setFastOutdoorPower(powerVal);
-                        setRows(prev => prev.map(r => ({ ...r, power_supply: powerVal })));
-                        setOutdoorGroups(prev => prev.map(g => ({ ...g, power_supply: powerVal })));
+                        const { updatedRows, groups } = autoGroupAllRows(rows, fastSystem, fastSeries, fastOutdoorType, powerVal, fastUnitType);
+                        setRows(updatedRows);
+                        setOutdoorGroups(groups);
                       }}
                       title={isPowerLocked ? "RA 系統自動固定為 1φ, 220V, 60Hz 電源 (自動鎖定，不可編輯)" : "請選擇室外機電源"}
                       style={{
@@ -4438,14 +4449,17 @@ function App() {
 
                           const singleUnitCount = row.unit_count || 1;
                           const singleCapKw = parseFloat(row.cap_kw || lookupModelCapKw(row.best_match_model)) || 0;
-                          const autoOutdoor = (hasActiveSys && hasActiveSeries && row.best_match_model)
-                            ? autoMatchOutdoorModelForRow(row.system_type || fastSystem, row.series || fastSeries, singleCapKw, fastOutdoorType, fastOutdoorPower, 1, row.best_match_model)
+                          const isSASystem = (row.system_type || fastSystem) === 'SA';
+                          const isSAPendingSpecs = isSASystem && (!targetPower || !(row.unit_type || fastUnitType) || !(row.series || fastSeries));
+
+                          const autoOutdoor = (hasActiveSys && hasActiveSeries && row.best_match_model && !isSAPendingSpecs)
+                            ? autoMatchOutdoorModelForRow(row.system_type || fastSystem, row.series || fastSeries, singleCapKw, fastOutdoorType, targetPower, 1, row.best_match_model)
                             : '';
                           const isIndoorSelectionComplete = hasActiveSeries && Boolean(row.best_match_model);
-                          const selectedModelStr = (!hasActiveSys || !isIndoorSelectionComplete) ? '' : (row.outdoor_model || autoOutdoor);
-                          const validCandidateList = (hasActiveSys && hasActiveSeries) ? getOutdoorModelsForSystem(row.system_type || fastSystem, row.series || fastSeries, fastOutdoorType, targetPower) : [];
-                          const isNoModel = (!hasActiveSys || !isIndoorSelectionComplete) ? false : (!selectedModelStr || selectedModelStr === '無此機型' || validCandidateList.length === 0);
-                          const isPowerValid = !hasActiveSys ? true : (isNoModel ? true : isValidOutdoorPower(selectedModelStr, targetPower));
+                          const selectedModelStr = (!hasActiveSys || !isIndoorSelectionComplete || isSAPendingSpecs) ? '' : (row.outdoor_model || autoOutdoor);
+                          const validCandidateList = (hasActiveSys && hasActiveSeries && (!isSASystem || targetPower)) ? getOutdoorModelsForSystem(row.system_type || fastSystem, row.series || fastSeries, fastOutdoorType, targetPower) : [];
+                          const isNoModel = (!hasActiveSys || !isIndoorSelectionComplete || isSAPendingSpecs) ? false : (!selectedModelStr || selectedModelStr === '無此機型' || validCandidateList.length === 0);
+                          const isPowerValid = (!hasActiveSys || isSAPendingSpecs) ? true : (isNoModel ? true : isValidOutdoorPower(selectedModelStr, targetPower));
                           const matchedOutdoorObj = OUTDOOR_UNITS_DB.find(m => m.model === selectedModelStr);
                           const outdoorCapKw = (!isNoModel && isPowerValid && matchedOutdoorObj) ? matchedOutdoorObj.cap_kw : 0;
                           const outdoorCapIndex = (!isNoModel && isPowerValid && matchedOutdoorObj) ? (matchedOutdoorObj.cap_index || 223.0) : 0;
@@ -4459,9 +4473,9 @@ function App() {
                           };
                           const singleIndoorKw = singleCapKw * singleUnitCount;
                           const totalOutdoorKw = outdoorCapKw * singleUnitCount;
-                          const isExceed15Percent = (!hasActiveSys || isNoModel || !isPowerValid || outdoorCapKw === 0) ? false : (singleIndoorKw > totalOutdoorKw * 1.15);
-                          const isSingleMinViolated = !hasActiveSys ? false : ((selectionMode === 'detail' && !row.series) ? false : (!isNoModel && singleUnitCount < getModelMinUnitsSingle(selectedModelStr)));
-                          const isSingleSelectionError = (!hasActiveSys || !isIndoorSelectionComplete) ? false : (isNoModel || !isPowerValid || isSingleMinViolated || isExceed15Percent);
+                          const isExceed15Percent = (!hasActiveSys || isNoModel || !isPowerValid || outdoorCapKw === 0 || isSAPendingSpecs) ? false : (singleIndoorKw > totalOutdoorKw * 1.15);
+                          const isSingleMinViolated = (!hasActiveSys || isSAPendingSpecs) ? false : ((selectionMode === 'detail' && !row.series) ? false : (!isNoModel && singleUnitCount < getModelMinUnitsSingle(selectedModelStr)));
+                          const isSingleSelectionError = (!hasActiveSys || !isIndoorSelectionComplete || isSAPendingSpecs) ? false : (isNoModel || !isPowerValid || isSingleMinViolated || isExceed15Percent);
 
                           const singleIndoorIdx = lookupIndoorCapIndex(row.best_match_model);
                           const totalIndoorIdx = singleIndoorIdx * singleUnitCount;
