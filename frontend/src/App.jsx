@@ -26,6 +26,110 @@ import {
 
 
 
+class GlobalErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null, errorInfo: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("Critical Application Error caught by ErrorBoundary:", error, errorInfo);
+    this.setState({ errorInfo });
+  }
+
+  handleReset = () => {
+    sessionStorage.clear();
+    localStorage.clear();
+    window.location.reload();
+  };
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{
+          minHeight: '100vh',
+          backgroundColor: '#0b1329',
+          color: '#f8fafc',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '24px',
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang TC", "Microsoft JhengHei", sans-serif'
+        }}>
+          <div style={{
+            maxWidth: '650px',
+            width: '100%',
+            backgroundColor: '#1e293b',
+            border: '2px solid #ef4444',
+            borderRadius: '12px',
+            padding: '28px',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)'
+          }}>
+            <h2 style={{ color: '#ef4444', fontSize: '22px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              ⚠️ 系統介面遇到非預期中斷 (已成功防護)
+            </h2>
+            <p style={{ color: '#94a3b8', fontSize: '14px', lineHeight: '1.6', marginBottom: '16px' }}>
+              選型計算或介面渲染時發生異常，已啟動安全防護以保護數據。詳細診斷資訊如下：
+            </p>
+            <div style={{
+              backgroundColor: '#0f172a',
+              border: '1px solid #334155',
+              padding: '12px',
+              borderRadius: '6px',
+              color: '#f43f5e',
+              fontFamily: 'monospace',
+              fontSize: '13px',
+              overflowX: 'auto',
+              maxHeight: '160px',
+              marginBottom: '20px'
+            }}>
+              {this.state.error?.toString()}
+            </div>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={() => this.setState({ hasError: false })}
+                style={{
+                  backgroundColor: '#3b82f6',
+                  color: '#ffffff',
+                  border: 'none',
+                  padding: '10px 20px',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
+                }}
+              >
+                🔄 嘗試恢復介面
+              </button>
+              <button
+                onClick={this.handleReset}
+                style={{
+                  backgroundColor: '#334155',
+                  color: '#cbd5e1',
+                  border: '1px solid #475569',
+                  padding: '10px 20px',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
+                }}
+              >
+                🧹 清除暫存並重整
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     return !SYSTEM_ACCESS_PASSWORD || sessionStorage.getItem("app_authenticated") === "true";
@@ -4114,11 +4218,11 @@ function App() {
                                         ...styles.td,
                                         verticalAlign: 'middle',
                                         textAlign: 'center',
-                                        backgroundColor: gCard.color.bg
+                                        backgroundColor: gCard?.color?.bg || 'rgba(59, 130, 246, 0.15)'
                                       }}
                                     >
                                       <select
-                                        value={isRAPower ? '1φ, 220V, 60Hz' : (gCard.power_supply || targetPower)}
+                                        value={isRAPower ? '1φ, 220V, 60Hz' : (gCard?.power_supply || targetPower)}
                                         disabled={isRAPower}
                                         onChange={(e) => {
                                           const pVal = e.target.value;
@@ -5308,4 +5412,10 @@ const styles = {
   }
 };
 
-export default App;
+export default function RootApp() {
+  return (
+    <GlobalErrorBoundary>
+      <App />
+    </GlobalErrorBoundary>
+  );
+}
