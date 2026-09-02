@@ -408,8 +408,9 @@ function App() {
           autoUnitType = activeSeries === '隱藏風管系列' ? '吊隱式' : (activeSeries ? '壁掛式' : (r.unit_type || '壁掛式'));
         }
         const autoMatch = clientSideSelectEquipment(demandKcal, activeSys, activeSeries, autoUnitType);
-        const indoorKw = autoMatch.cap * autoMatch.qty;
-        const autoOutdoor = autoMatchOutdoorModelForRow(activeSys, activeSeries, indoorKw, activeOutType, activeOutPower);
+        // 🎯 1 對 1 系統：室外機型號依據單台室內機容量 (autoMatch.cap) 匹配，台數與室內機台數 (autoMatch.qty) 完全同步
+        const singleIndoorKw = autoMatch.cap;
+        const autoOutdoor = autoMatchOutdoorModelForRow(activeSys, activeSeries, singleIndoorKw, activeOutType, activeOutPower, 1, autoMatch.model);
 
         return {
           ...r,
@@ -420,8 +421,9 @@ function App() {
           unit_count: autoMatch.qty,
           cap_kw: autoMatch.cap,
           outdoor_type: activeOutType,
-          power_supply: activeOutPower,
-          outdoor_model: autoOutdoor,
+          power_supply: autoMatch.power_supply || activeOutPower,
+          outdoor_model: autoMatch.outdoor_model || autoOutdoor,
+          outdoor_count: autoMatch.qty,
           outdoorGroupId: null
         };
       });
@@ -2592,7 +2594,7 @@ function App() {
             outMfa = saPair.outdoor.mfa_a || "-";
             outDim = saPair.outdoor.dimensions_mm || "-";
           } else {
-            const autoOutdoor = autoMatchOutdoorModelForRow(row.system_type || fastSystem, row.series || fastSeries, (singleCapKw * qty), fastOutdoorType, fastOutdoorPower, qty, modelStr);
+            const autoOutdoor = autoMatchOutdoorModelForRow(row.system_type || fastSystem, row.series || fastSeries, singleCapKw, fastOutdoorType, fastOutdoorPower, 1, modelStr);
             outModelStr = row.outdoor_model || autoOutdoor;
             const outUpper = (outModelStr || "").trim().toUpperCase();
             const outObj = (EQUIPMENT_FULL_DB.outdoor_units && EQUIPMENT_FULL_DB.outdoor_units[outUpper])
@@ -2606,13 +2608,13 @@ function App() {
             outDim = outObj ? (outObj.dimensions || "-") : "-";
           }
 
-          const outCapKcal = outCapKw > 0 ? parseFloat((outCapKw * 860.0).toFixed(1)) : "-";
+          const outCapKcal = outCapKw > 0 ? parseFloat((outCapKw * qty * 860.0).toFixed(1)) : "-";
           const outNominal = "-";
 
           excelRow.getCell(31).value = outModelStr || "-";                   // Col AE (31): 室外機型號
-          excelRow.getCell(32).value = 1;                                     // Col AF (32): 室外機台數
-          excelRow.getCell(33).value = outCapKcal;                            // Col AG (33): 冷房能力 (kcal/hr)
-          excelRow.getCell(34).value = outCapKw;                              // Col AH (34): 冷房能力 (kW)
+          excelRow.getCell(32).value = qty;                                   // Col AF (32): 室外機台數 (1對1 系統室外機台數同步室內機台數)
+          excelRow.getCell(33).value = outCapKcal;                            // Col AG (33): 冷房總能力 (kcal/hr)
+          excelRow.getCell(34).value = parseFloat((outCapKw * qty).toFixed(1)); // Col AH (34): 冷房總能力 (kW)
           excelRow.getCell(35).value = outNominal;                            // Col AI (35): 標稱能力 (僅 VRV 為能力指數，RA/SA 為 -)
           excelRow.getCell(36).value = "100%";                                // Col AJ (36): 連結率 %
           excelRow.getCell(37).value = outPwrCon;                             // Col AK (37): 耗電量 (kW)
@@ -4435,7 +4437,10 @@ function App() {
                           }
 
                           const singleUnitCount = row.unit_count || 1;
-                          const autoOutdoor = (hasActiveSys && hasActiveSeries && row.best_match_model) ? autoMatchOutdoorModelForRow(row.system_type || fastSystem, row.series || fastSeries, (parseFloat(row.cap_kw || lookupModelCapKw(row.best_match_model)) * singleUnitCount), fastOutdoorType, fastOutdoorPower, singleUnitCount) : '';
+                          const singleCapKw = parseFloat(row.cap_kw || lookupModelCapKw(row.best_match_model)) || 0;
+                          const autoOutdoor = (hasActiveSys && hasActiveSeries && row.best_match_model)
+                            ? autoMatchOutdoorModelForRow(row.system_type || fastSystem, row.series || fastSeries, singleCapKw, fastOutdoorType, fastOutdoorPower, 1, row.best_match_model)
+                            : '';
                           const isIndoorSelectionComplete = hasActiveSeries && Boolean(row.best_match_model);
                           const selectedModelStr = (!hasActiveSys || !isIndoorSelectionComplete) ? '' : (row.outdoor_model || autoOutdoor);
                           const validCandidateList = (hasActiveSys && hasActiveSeries) ? getOutdoorModelsForSystem(row.system_type || fastSystem, row.series || fastSeries, fastOutdoorType, targetPower) : [];
@@ -4452,8 +4457,9 @@ function App() {
                             }
                             return 1;
                           };
-                          const singleIndoorKw = (parseFloat(row.cap_kw || lookupModelCapKw(row.best_match_model)) || 0) * singleUnitCount;
-                          const isExceed15Percent = (!hasActiveSys || isNoModel || !isPowerValid || outdoorCapKw === 0) ? false : (singleIndoorKw > outdoorCapKw * 1.15);
+                          const singleIndoorKw = singleCapKw * singleUnitCount;
+                          const totalOutdoorKw = outdoorCapKw * singleUnitCount;
+                          const isExceed15Percent = (!hasActiveSys || isNoModel || !isPowerValid || outdoorCapKw === 0) ? false : (singleIndoorKw > totalOutdoorKw * 1.15);
                           const isSingleMinViolated = !hasActiveSys ? false : ((selectionMode === 'detail' && !row.series) ? false : (!isNoModel && singleUnitCount < getModelMinUnitsSingle(selectedModelStr)));
                           const isSingleSelectionError = (!hasActiveSys || !isIndoorSelectionComplete) ? false : (isNoModel || !isPowerValid || isSingleMinViolated || isExceed15Percent);
 
@@ -4567,11 +4573,11 @@ function App() {
                               </td>
 
                               <td style={{ ...styles.td, textAlign: 'center', color: '#34d399', fontWeight: 'bold', fontSize: '15px', backgroundColor: isSingleSelectionError ? '#450a0a' : undefined }}>
-                                {hasActiveSys && selectedModelStr ? `${row.outdoor_count || 1} 台` : '-'}
+                                {hasActiveSys && selectedModelStr ? `${singleUnitCount} 台` : '-'}
                               </td>
 
                               <td style={{ ...styles.td, textAlign: 'center', color: isSingleSelectionError ? '#ef4444' : (isPowerValid ? '#a855f7' : '#64748b'), fontWeight: 'bold', fontSize: '15px', backgroundColor: isSingleSelectionError ? '#450a0a' : undefined }}>
-                                {isPowerValid && outdoorCapKw ? `${parseFloat(outdoorCapKw).toFixed(1)} kW` : '-'}
+                                {isPowerValid && outdoorCapKw ? `${(parseFloat(outdoorCapKw) * singleUnitCount).toFixed(1)} kW` : '-'}
                                 {isExceed15Percent && (
                                   <div
                                     style={{ color: '#ef4444', fontSize: '12px', fontWeight: 'bold', marginTop: '4px', lineHeight: '1.2' }}
