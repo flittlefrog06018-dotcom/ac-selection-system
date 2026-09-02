@@ -207,7 +207,23 @@ function App() {
     const newRows = [...rows];
     const [movedRow] = newRows.splice(draggedRowIndex, 1);
     newRows.splice(targetIndex, 0, movedRow);
-    setRows(newRows);
+
+    // 🎯 依照新的空間排序，重新連動分組與室外機型號配置
+    if (selectionMode === 'fast' && fastSystem && fastSeries) {
+      const { updatedRows, groups } = autoGroupAllRows(newRows, fastSystem, fastSeries, fastOutdoorType, fastOutdoorPower, fastUnitType);
+      setRows(updatedRows);
+      setOutdoorGroups(groups);
+    } else if (outdoorGroups.length > 0) {
+      // 保持現有分組對應，更新 space_indices
+      const updatedGroups = outdoorGroups.map(g => {
+        const newIndices = newRows.map((r, idx) => r.outdoorGroupId === g.id ? idx : null).filter(i => i !== null);
+        return { ...g, space_indices: newIndices };
+      });
+      setRows(newRows);
+      setOutdoorGroups(updatedGroups);
+    } else {
+      setRows(newRows);
+    }
 
     setDraggedRowIndex(null);
     setDragOverRowIndex(null);
