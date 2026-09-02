@@ -1,11 +1,68 @@
-import { EQUIPMENT_DB, DYNAMIC_LOAD_RULES } from '../constants/acConstants.js';
+import { EQUIPMENT_DB, DYNAMIC_LOAD_RULES, SA_MATCHED_PAIRS } from '../constants/acConstants.js';
+
+// 🎯 SA 商用系統 1對1 精確欄位配對檢索 (依據 EQUIPMENT_Data.xlsx 之 indoor_units_SA only 與 outdoor_units_SA only)
+export const getSaPairByIndoorModel = (indoorModel, powerSupply = null, seriesName = null) => {
+  if (!indoorModel || !SA_MATCHED_PAIRS) return null;
+  const cleanModel = String(indoorModel).trim();
+  let matches = SA_MATCHED_PAIRS.filter(p => p.indoor.model === cleanModel);
+  if (matches.length === 0) return null;
+
+  if (seriesName) {
+    const seriesMatches = matches.filter(p => p.series === seriesName || p.indoor.series === seriesName);
+    if (seriesMatches.length > 0) matches = seriesMatches;
+  }
+
+  if (powerSupply) {
+    const pwrMatches = matches.filter(p => p.outdoor.power_supply === powerSupply);
+    if (pwrMatches.length > 0) return pwrMatches[0];
+  }
+
+  return matches[0];
+};
+
+export const getSaPairByOutdoorModel = (outdoorModel) => {
+  if (!outdoorModel || !SA_MATCHED_PAIRS) return null;
+  const cleanModel = String(outdoorModel).trim();
+  return SA_MATCHED_PAIRS.find(p => p.outdoor.model === cleanModel) || null;
+};
 
 // 🎯 動態相容配機演算法：依據系統、系列別與室內機型式進行最佳能力單機/多機匹配 (嚴格鎖定系列別)
-export const clientSideSelectEquipment = (totalDemandKcal, systemType, seriesName = null, unitTypeName = null) => {
+export const clientSideSelectEquipment = (totalDemandKcal, systemType, seriesName = null, unitTypeName = null, powerSupply = null) => {
   if (!systemType) {
     return { model: '', qty: 1, cap: 0.0 };
   }
   const totalLoadKw = totalDemandKcal / 860.0;
+
+  // 🎯 若為 SA 系統，直接依據 SA_MATCHED_PAIRS 嚴格配對池挑選
+  if (systemType === 'SA' && SA_MATCHED_PAIRS && SA_MATCHED_PAIRS.length > 0) {
+    let saPool = [...SA_MATCHED_PAIRS];
+    if (seriesName) {
+      saPool = saPool.filter(p => p.series === seriesName || p.indoor.series === seriesName);
+    }
+    if (unitTypeName) {
+      saPool = saPool.filter(p => p.indoor.unit_type === unitTypeName);
+    }
+    if (powerSupply) {
+      const pwrPool = saPool.filter(p => p.outdoor.power_supply === powerSupply);
+      if (pwrPool.length > 0) saPool = pwrPool;
+    }
+    if (saPool.length > 0) {
+      // 依室內機能力排序
+      saPool.sort((a, b) => a.indoor.cap_kw - b.indoor.cap_kw);
+      const matched = saPool.find(p => p.indoor.cap_kw >= totalLoadKw) || saPool[saPool.length - 1];
+      return {
+        model: matched.indoor.model,
+        qty: 1,
+        cap: matched.indoor.cap_kw,
+        unit_type: matched.indoor.unit_type,
+        outdoor_model: matched.outdoor.model,
+        power_supply: matched.outdoor.power_supply,
+        col: matched.col,
+        saPair: matched
+      };
+    }
+  }
+
   let modelsList = EQUIPMENT_DB[systemType] || [];
   if (!modelsList || modelsList.length === 0) {
     return { model: '', qty: 1, cap: 0.0 };

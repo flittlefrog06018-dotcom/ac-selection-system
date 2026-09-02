@@ -12,7 +12,8 @@ import {
   DYNAMIC_LOAD_RULES,
   SYSTEM_ACCESS_PASSWORD,
   DYNAMIC_EQUIPMENT_CASCADE,
-  OUTDOOR_UNITS_DB
+  OUTDOOR_UNITS_DB,
+  SA_MATCHED_PAIRS
 } from './constants/acConstants';
 import {
   clientSideSelectEquipment,
@@ -21,7 +22,9 @@ import {
   lookupModelCapKw,
   getFuzzyBaseLoadByName,
   calculateShoelaceArea,
-  calculateRealAreaFromPolygon
+  calculateRealAreaFromPolygon,
+  getSaPairByIndoorModel,
+  getSaPairByOutdoorModel
 } from './utils/selectionUtils';
 
 
@@ -292,7 +295,21 @@ function App() {
     return matched;
   };
 
-  const autoMatchOutdoorModelForRow = (sysType, seriesVal, demandKw, outdoorTypeVal, powerSupplyVal, unitCount = 1) => {
+  const autoMatchOutdoorModelForRow = (sysType, seriesVal, demandKw, outdoorTypeVal, powerSupplyVal, unitCount = 1, indoorModel = '') => {
+    // 🎯 1. SA 系統：完全依照 indoor_units_SA only 與 outdoor_units_SA only 欄位順序 1 對 1 配對
+    if (sysType === 'SA') {
+      if (indoorModel) {
+        const saPair = getSaPairByIndoorModel(indoorModel, powerSupplyVal, seriesVal);
+        if (saPair && saPair.outdoor && saPair.outdoor.model) {
+          return saPair.outdoor.model;
+        }
+      }
+      const saMatch = clientSideSelectEquipment((demandKw || 7.1) * 860.0, 'SA', seriesVal, null, powerSupplyVal);
+      if (saMatch && saMatch.outdoor_model) {
+        return saMatch.outdoor_model;
+      }
+    }
+
     let targetSeries = seriesVal;
     // 🎯 只有一台室內機時，不可自動匹配 Multi 多聯室外機，自動切換至 1對1 橫綱Y系列室外機
     if ((seriesVal && (seriesVal.includes('MULTI') || seriesVal.includes('多聯'))) && unitCount < 2) {
@@ -2495,8 +2512,12 @@ function App() {
         const pingPerUsrt = (qty * singleCapKw > 0) ? parseFloat((ping / ((qty * singleCapKw) / 3.516)).toFixed(1)) : 0;
 
         const sysUpper = (row.system_type || fastSystem || "").toUpperCase();
+        const saPair = (sysUpper === 'SA') ? getSaPairByIndoorModel(modelStr, row.power_supply || fastOutdoorPower, row.series || fastSeries) : null;
+
         let powerSupply = "-";
-        if (sysUpper.includes("VRV") || mUpper.startsWith("FX") || mUpper.startsWith("FBA")) {
+        if (saPair) {
+          powerSupply = saPair.indoor.power_supply || "室外機供電";
+        } else if (sysUpper.includes("VRV") || mUpper.startsWith("FX") || mUpper.startsWith("FBA")) {
           powerSupply = "1φ, 220V, 60Hz";
         }
 
@@ -2511,9 +2532,9 @@ function App() {
           }
         }
 
-        const powerConsumption = (indoorInfo && indoorInfo.power_consumption_kw !== "-") ? indoorInfo.power_consumption_kw : (row.power_consumption_kw || "-");
-        const maxCurrent = (indoorInfo && indoorInfo.mca !== "-") ? indoorInfo.mca : (row.max_current_a || "-");
-        const dimensions = (indoorInfo && indoorInfo.dimensions !== "-") ? indoorInfo.dimensions : (row.dimensions || "-");
+        const powerConsumption = saPair ? (saPair.indoor.power_consumption_kw || "-") : ((indoorInfo && indoorInfo.power_consumption_kw !== "-") ? indoorInfo.power_consumption_kw : (row.power_consumption_kw || "-"));
+        const maxCurrent = saPair ? (saPair.indoor.rated_current_a || "-") : ((indoorInfo && indoorInfo.mca !== "-") ? indoorInfo.mca : (row.max_current_a || "-"));
+        const dimensions = saPair ? (saPair.indoor.dimensions_mm || "-") : ((indoorInfo && indoorInfo.dimensions !== "-") ? indoorInfo.dimensions : (row.dimensions || "-"));
 
         let nominalSubtotal = "-";
         if (sysUpper.includes("VRV") && typeof nominalCapVal === "number" && !isNaN(nominalCapVal)) {
@@ -2554,20 +2575,39 @@ function App() {
 
         // 3. 獨立單機/未分組空間之室外機欄位填入 (Col AE ~ Col AO)
         if (!row._inGroup) {
-          const autoOutdoor = autoMatchOutdoorModelForRow(row.system_type || fastSystem, row.series || fastSeries, (singleCapKw * qty), fastOutdoorType, fastOutdoorPower);
-          const outModelStr = row.outdoor_model || autoOutdoor;
-          const outUpper = (outModelStr || "").trim().toUpperCase();
-          const outObj = (EQUIPMENT_FULL_DB.outdoor_units && EQUIPMENT_FULL_DB.outdoor_units[outUpper])
-            || OUTDOOR_UNITS_DB.find((m) => m.model === outModelStr);
+          let outModelStr = row.outdoor_model;
+          let outCapKw = singleCapKw;
+          let outPwrCon = "-";
+          let outPwrSup = "-";
+          let outMca = "-";
+          let outMfa = "-";
+          let outDim = "-";
 
-          const outCapKw = outObj ? parseFloat(outObj.cap_kw) : singleCapKw;
+          if (saPair) {
+            outModelStr = saPair.outdoor.model;
+            outCapKw = saPair.outdoor.cap_kw;
+            outPwrCon = saPair.outdoor.power_consumption_kw || "-";
+            outPwrSup = saPair.outdoor.power_supply || "-";
+            outMca = saPair.outdoor.mca_a || "-";
+            outMfa = saPair.outdoor.mfa_a || "-";
+            outDim = saPair.outdoor.dimensions_mm || "-";
+          } else {
+            const autoOutdoor = autoMatchOutdoorModelForRow(row.system_type || fastSystem, row.series || fastSeries, (singleCapKw * qty), fastOutdoorType, fastOutdoorPower, qty, modelStr);
+            outModelStr = row.outdoor_model || autoOutdoor;
+            const outUpper = (outModelStr || "").trim().toUpperCase();
+            const outObj = (EQUIPMENT_FULL_DB.outdoor_units && EQUIPMENT_FULL_DB.outdoor_units[outUpper])
+              || OUTDOOR_UNITS_DB.find((m) => m.model === outModelStr);
+
+            outCapKw = outObj ? parseFloat(outObj.cap_kw) : singleCapKw;
+            outPwrCon = outObj ? (outObj.power_consumption_kw || "-") : "-";
+            outPwrSup = outObj ? (outObj.power_supply || "-") : "-";
+            outMca = outObj ? (outObj.mca || "-") : "-";
+            outMfa = outObj ? (outObj.mfa || "-") : "-";
+            outDim = outObj ? (outObj.dimensions || "-") : "-";
+          }
+
           const outCapKcal = outCapKw > 0 ? parseFloat((outCapKw * 860.0).toFixed(1)) : "-";
-          const outNominal = sysUpper.includes("VRV") ? (outObj ? (outObj.nominal_cap || "-") : "-") : "-";
-          const outPwrCon = outObj ? (outObj.power_consumption_kw || "-") : "-";
-          const outPwrSup = outObj ? (outObj.power_supply || "-") : "-";
-          const outMca = outObj ? (outObj.mca || "-") : "-";
-          const outMfa = outObj ? (outObj.mfa || "-") : "-";
-          const outDim = outObj ? (outObj.dimensions || "-") : "-";
+          const outNominal = "-";
 
           excelRow.getCell(31).value = outModelStr || "-";                   // Col AE (31): 室外機型號
           excelRow.getCell(32).value = 1;                                     // Col AF (32): 室外機台數
