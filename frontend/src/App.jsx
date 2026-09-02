@@ -4258,14 +4258,13 @@ function App() {
                             );
                           }
 
-                          // 獨立單機個體列 (非併機群組)
                           const hasActiveSys = Boolean(row.system_type || fastSystem);
-                          const singleUnitCount = row.unit_count || 1;
-                          const autoOutdoor = (hasActiveSys && row.series) ? autoMatchOutdoorModelForRow(row.system_type || fastSystem, row.series || fastSeries, (parseFloat(row.cap_kw || lookupModelCapKw(row.best_match_model)) * singleUnitCount), fastOutdoorType, fastOutdoorPower, singleUnitCount) : '';
                           const hasActiveSeries = Boolean(row.series || fastSeries);
+                          const singleUnitCount = row.unit_count || 1;
+                          const autoOutdoor = (hasActiveSys && hasActiveSeries && row.best_match_model) ? autoMatchOutdoorModelForRow(row.system_type || fastSystem, row.series || fastSeries, (parseFloat(row.cap_kw || lookupModelCapKw(row.best_match_model)) * singleUnitCount), fastOutdoorType, fastOutdoorPower, singleUnitCount) : '';
                           const isIndoorSelectionComplete = hasActiveSeries && Boolean(row.best_match_model);
                           const selectedModelStr = (!hasActiveSys || !isIndoorSelectionComplete) ? '' : (row.outdoor_model || autoOutdoor);
-                          const validCandidateList = hasActiveSys ? getOutdoorModelsForSystem(row.system_type || fastSystem, row.series || fastSeries, fastOutdoorType, targetPower) : [];
+                          const validCandidateList = (hasActiveSys && hasActiveSeries) ? getOutdoorModelsForSystem(row.system_type || fastSystem, row.series || fastSeries, fastOutdoorType, targetPower) : [];
                           const isNoModel = (!hasActiveSys || !isIndoorSelectionComplete) ? false : (!selectedModelStr || selectedModelStr === '無此機型' || validCandidateList.length === 0);
                           const isPowerValid = !hasActiveSys ? true : (isNoModel ? true : isValidOutdoorPower(selectedModelStr, targetPower));
                           const matchedOutdoorObj = OUTDOOR_UNITS_DB.find(m => m.model === selectedModelStr);
@@ -4322,29 +4321,56 @@ function App() {
                               })()}
 
                               <td style={{ ...styles.td, backgroundColor: isSingleSelectionError ? '#450a0a' : undefined }}>
-                                <select
-                                  value={!hasActiveSys ? '' : ((selectionMode === 'detail' && !row.series) ? '' : (isNoModel ? '無此機型' : (!isPowerValid ? '' : (isSingleMinViolated ? '選型錯誤' : selectedModelStr))))}
-                                  onChange={(e) => handleCellChange(index, 'outdoor_model', e.target.value)}
-                                  style={{
-                                    backgroundColor: isSingleSelectionError ? '#450a0a' : '#0f172a',
-                                    color: isSingleSelectionError ? '#ef4444' : ((selectionMode === 'detail' && !row.series) ? '#94a3b8' : '#38bdf8'),
-                                    border: isSingleSelectionError ? '2px solid #ef4444' : '1px solid #334155',
+                                {selectionMode === 'fast' ? (
+                                  <span style={{
+                                    backgroundColor: '#334155',
+                                    color: '#cbd5e1',
+                                    border: '1px solid #475569',
                                     padding: '5px 10px',
                                     borderRadius: '4px',
                                     fontSize: '15px',
                                     fontWeight: 'bold',
-                                    cursor: 'pointer'
-                                  }}
-                                  title={!isPowerValid ? `⚠️ 電源不符！室外機 [${selectedModelStr}] 不支援 [${targetPower}] 電源` : (isSingleMinViolated ? `⚠️ 選型錯誤：Multi 多聯室外機 [${selectedModelStr}] 最少必須連接 2 台室內機！單台室內機不可選用 Multi 室外機。` : "")}
-                                >
-                                  {!hasActiveSys && <option value="">--請選擇型號--</option>}
-                                  {(selectionMode === 'detail' && !row.series && hasActiveSys) && <option value="">--請選擇型號--</option>}
-                                  {!isPowerValid && <option value="">⚠️ 電源不符</option>}
-                                  {isSingleMinViolated && <option value="選型錯誤">⚠️ 選型錯誤 ({selectedModelStr})</option>}
-                                  {validCandidateList.map((m, mIdx) => (
-                                    <option key={mIdx} value={m.model}>{m.model}</option>
-                                  ))}
-                                </select>
+                                    display: 'inline-block',
+                                    userSelect: 'none'
+                                  }}>
+                                    {selectedModelStr || '-'}
+                                  </span>
+                                ) : !row.series ? (
+                                  <span style={{
+                                    backgroundColor: '#1e293b',
+                                    color: '#94a3b8',
+                                    border: '1px solid #334155',
+                                    padding: '5px 10px',
+                                    borderRadius: '4px',
+                                    fontSize: '14.5px',
+                                    display: 'inline-block'
+                                  }}>
+                                    --請先選擇系列--
+                                  </span>
+                                ) : (
+                                  <select
+                                    value={!hasActiveSys ? '' : (isNoModel ? '無此機型' : (!isPowerValid ? '' : (isSingleMinViolated ? '選型錯誤' : selectedModelStr)))}
+                                    onChange={(e) => handleCellChange(index, 'outdoor_model', e.target.value)}
+                                    style={{
+                                      backgroundColor: isSingleSelectionError ? '#450a0a' : '#0f172a',
+                                      color: isSingleSelectionError ? '#ef4444' : '#38bdf8',
+                                      border: isSingleSelectionError ? '2px solid #ef4444' : '1px solid #334155',
+                                      padding: '5px 10px',
+                                      borderRadius: '4px',
+                                      fontSize: '15px',
+                                      fontWeight: 'bold',
+                                      cursor: 'pointer'
+                                    }}
+                                    title={!isPowerValid ? `⚠️ 電源不符！室外機 [${selectedModelStr}] 不支援 [${targetPower}] 電源` : (isSingleMinViolated ? `⚠️ 選型錯誤：Multi 多聯室外機 [${selectedModelStr}] 最少必須連接 2 台室內機！單台室內機不可選用 Multi 室外機。` : "")}
+                                  >
+                                    <option value="">--請選擇型號--</option>
+                                    {!isPowerValid && <option value="">⚠️ 電源不符</option>}
+                                    {isSingleMinViolated && <option value="選型錯誤">⚠️ 選型錯誤 ({selectedModelStr})</option>}
+                                    {validCandidateList.map((m, mIdx) => (
+                                      <option key={mIdx} value={m.model}>{m.model}</option>
+                                    ))}
+                                  </select>
+                                )}
 
                                  {isSingleSelectionError && (
                                    <div
