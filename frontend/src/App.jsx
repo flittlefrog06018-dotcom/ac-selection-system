@@ -2158,7 +2158,7 @@ function App() {
     }
 
     // 🎯 核心連動：當系統為 SA (商用) 或變動機型/電源/台數時，自動即時更新對應之商用 1對1 室外機型號與室外機台數
-    if (row.system_type === 'SA' || row.system_type === 'RA') {
+    if ((row.system_type === 'SA' || row.system_type === 'RA') && !row.outdoorGroupId) {
       const singleKw = parseFloat(row.cap_kw || lookupModelCapKw(row.best_match_model)) || 7.1;
       const targetPwr = row.power_supply || fastOutdoorPower || '3φ, 4P, 380V, 60Hz';
       const targetType = row.outdoor_type || fastOutdoorType;
@@ -2167,6 +2167,14 @@ function App() {
       if (field === 'unit_count' || !row.outdoor_unit_count) {
         row.outdoor_unit_count = row.unit_count || 1;
       }
+    }
+
+    // 🎯 核心連動：若處於快速選機模式且已選系列，自動同步重新計算全域室外機群組與容量升級
+    if (selectionMode === 'fast' && fastSystem && fastSeries) {
+      const { updatedRows: reGroupedRows, groups: reGroupedGroups } = autoGroupAllRows(updatedRows, fastSystem, fastSeries, fastOutdoorType, fastOutdoorPower, fastUnitType);
+      setRows(reGroupedRows);
+      setOutdoorGroups(reGroupedGroups);
+      return;
     }
 
     setRows(updatedRows);
