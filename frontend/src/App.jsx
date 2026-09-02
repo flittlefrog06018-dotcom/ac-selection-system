@@ -416,12 +416,13 @@ function App() {
     if (activeSys === 'RA' && isMultiSeries) {
       const processedRows = targetRows.map(r => {
         const demandKcal = r.total_cooling_demand || (r.area_ping * (r.calc_basis || 500));
-        const autoMatch = clientSideSelectEquipment(demandKcal, activeSys, activeSeries, r.unit_type || fastUnitType || '壁掛式');
+        const targetType = activeUnitType || r.unit_type || '壁掛式';
+        const autoMatch = clientSideSelectEquipment(demandKcal, activeSys, activeSeries, targetType);
         return {
           ...r,
           system_type: activeSys,
           series: activeSeries,
-          unit_type: autoMatch.unit_type || r.unit_type || fastUnitType || '壁掛式',
+          unit_type: autoMatch.unit_type || targetType,
           best_match_model: autoMatch.model,
           unit_count: autoMatch.qty,
           cap_kw: autoMatch.cap,
@@ -587,8 +588,14 @@ function App() {
           return true;
         });
 
+        // 🎯 核心升級邏輯：優先挑選能滿足容量（cap_kw * 1.15 >= chunkIndoorKwSum）之合規型號；
+        // 若較小容量無法滿足，自動升級至更大容量型號（例如 4MXM110YVLT）；
+        // 若已為最大容量型號依然無法滿足，則選擇最大容量型號並於介面標示型號錯誤
         const pool = validCandidates.length > 0 ? validCandidates : sortedCandidates;
-        const matchedOutdoor = pool.find(m => m.cap_kw >= chunkIndoorKwSum) || pool[pool.length - 1] || { model: '4MXM110YVLT', cap_kw: 10.5 };
+        const capableCandidates = pool.filter(m => (m.cap_kw * 1.15) >= chunkIndoorKwSum);
+        const matchedOutdoor = (capableCandidates.length > 0)
+          ? capableCandidates[0]
+          : (pool[pool.length - 1] || { model: '4MXM110YVLT', cap_kw: 10.5 });
 
         const colorObj = GROUP_COLOR_PALETTE[(groupNum - 1) % GROUP_COLOR_PALETTE.length];
         const newGroup = {
