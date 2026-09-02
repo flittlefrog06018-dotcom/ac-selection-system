@@ -4136,6 +4136,8 @@ function App() {
 
                         {/* 🎯 室外機延伸: 供應電源、室外機型號、室外機台數、冷房能力與連結率 */}
                         {(() => {
+                          const hasActiveSys = Boolean(row.system_type || fastSystem);
+                          const hasActiveSeries = Boolean(row.series || fastSeries);
                           const targetPower = row.power_supply || (gCard ? (gCard.power_supply || fastOutdoorPower) : fastOutdoorPower);
 
                           if (gCard) {
@@ -4148,7 +4150,6 @@ function App() {
                             }
 
                             const gSpaces = gIndices.map(i => rows[i]).filter(Boolean);
-                            const hasActiveSeries = Boolean(row.series || fastSeries);
                             const isIndoorSelectionComplete = hasActiveSeries && gSpaces.some(sp => Boolean(sp.best_match_model));
                             const validCandidateList = getOutdoorModelsForSystem(gCard.system_type, row.series || fastSeries, fastOutdoorType, targetPower);
                             const isNoModel = (!hasActiveSys || !isIndoorSelectionComplete) ? false : (!gCard.outdoor_model || gCard.outdoor_model === '無此機型' || validCandidateList.length === 0);
@@ -4362,8 +4363,6 @@ function App() {
                             );
                           }
 
-                          const hasActiveSys = Boolean(row.system_type || fastSystem);
-                          const hasActiveSeries = Boolean(row.series || fastSeries);
                           const singleUnitCount = row.unit_count || 1;
                           const autoOutdoor = (hasActiveSys && hasActiveSeries && row.best_match_model) ? autoMatchOutdoorModelForRow(row.system_type || fastSystem, row.series || fastSeries, (parseFloat(row.cap_kw || lookupModelCapKw(row.best_match_model)) * singleUnitCount), fastOutdoorType, fastOutdoorPower, singleUnitCount) : '';
                           const isIndoorSelectionComplete = hasActiveSeries && Boolean(row.best_match_model);
