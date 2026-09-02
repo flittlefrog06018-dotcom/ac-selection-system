@@ -3351,10 +3351,10 @@ function App() {
                         x2={doorGapSettings.pickedLine.p2[0]}
                         y2={doorGapSettings.pickedLine.p2[1]}
                         stroke="#ef4444"
-                        strokeWidth="5"
+                        strokeWidth="3"
                       />
-                      <circle cx={doorGapSettings.pickedLine.p1[0]} cy={doorGapSettings.pickedLine.p1[1]} r="8" fill="#ef4444" stroke="#ffffff" strokeWidth="2" />
-                      <circle cx={doorGapSettings.pickedLine.p2[0]} cy={doorGapSettings.pickedLine.p2[1]} r="8" fill="#ef4444" stroke="#ffffff" strokeWidth="2" />
+                      <circle cx={doorGapSettings.pickedLine.p1[0]} cy={doorGapSettings.pickedLine.p1[1]} r="4" fill="#ef4444" stroke="#ffffff" strokeWidth="1.2" />
+                      <circle cx={doorGapSettings.pickedLine.p2[0]} cy={doorGapSettings.pickedLine.p2[1]} r="4" fill="#ef4444" stroke="#ffffff" strokeWidth="1.2" />
                       <foreignObject
                         x={(doorGapSettings.pickedLine.p1[0] + doorGapSettings.pickedLine.p2[0])/2 - 75}
                         y={(doorGapSettings.pickedLine.p1[1] + doorGapSettings.pickedLine.p2[1])/2 - 15}
@@ -5200,9 +5200,9 @@ function App() {
                     )}
                     {isRectDrawing && drawToolMode === 'scale' && rectStart && rectCurrent && (
                       <g key="active_scale_line_m">
-                        <line x1={rectStart[0]} y1={rectStart[1]} x2={rectCurrent[0]} y2={rectCurrent[1]} stroke="#38bdf8" strokeWidth="4" strokeDasharray="6 3" />
-                        <circle cx={rectStart[0]} cy={rectStart[1]} r="7" fill="#0284c7" stroke="#ffffff" strokeWidth="2" />
-                        <circle cx={rectCurrent[0]} cy={rectCurrent[1]} r="7" fill="#0284c7" stroke="#ffffff" strokeWidth="2" />
+                        <line x1={rectStart[0]} y1={rectStart[1]} x2={rectCurrent[0]} y2={rectCurrent[1]} stroke="#38bdf8" strokeWidth="2.5" strokeDasharray="6 3" />
+                        <circle cx={rectStart[0]} cy={rectStart[1]} r="3.5" fill="#0284c7" stroke="#ffffff" strokeWidth="1" />
+                        <circle cx={rectCurrent[0]} cy={rectCurrent[1]} r="3.5" fill="#0284c7" stroke="#ffffff" strokeWidth="1" />
                       </g>
                     )}
                     {plinePoints.length > 0 && (
@@ -5220,9 +5220,9 @@ function App() {
                     )}
                     {doorGapSettings.pickedLine && (
                       <g key="door_calib_line_m">
-                        <line x1={doorGapSettings.pickedLine.p1[0]} y1={doorGapSettings.pickedLine.p1[1]} x2={doorGapSettings.pickedLine.p2[0]} y2={doorGapSettings.pickedLine.p2[1]} stroke="#38bdf8" strokeWidth="5" />
-                        <circle cx={doorGapSettings.pickedLine.p1[0]} cy={doorGapSettings.pickedLine.p1[1]} r="8" fill="#0284c7" stroke="#ffffff" strokeWidth="2" />
-                        <circle cx={doorGapSettings.pickedLine.p2[0]} cy={doorGapSettings.pickedLine.p2[1]} r="8" fill="#0284c7" stroke="#ffffff" strokeWidth="2" />
+                        <line x1={doorGapSettings.pickedLine.p1[0]} y1={doorGapSettings.pickedLine.p1[1]} x2={doorGapSettings.pickedLine.p2[0]} y2={doorGapSettings.pickedLine.p2[1]} stroke="#38bdf8" strokeWidth="3" />
+                        <circle cx={doorGapSettings.pickedLine.p1[0]} cy={doorGapSettings.pickedLine.p1[1]} r="4" fill="#0284c7" stroke="#ffffff" strokeWidth="1.2" />
+                        <circle cx={doorGapSettings.pickedLine.p2[0]} cy={doorGapSettings.pickedLine.p2[1]} r="4" fill="#0284c7" stroke="#ffffff" strokeWidth="1.2" />
                         <foreignObject
                           x={(doorGapSettings.pickedLine.p1[0] + doorGapSettings.pickedLine.p2[0])/2 - 75}
                           y={(doorGapSettings.pickedLine.p1[1] + doorGapSettings.pickedLine.p2[1])/2 - 15}
