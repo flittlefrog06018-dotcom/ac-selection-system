@@ -279,7 +279,8 @@ function App() {
     if (sysType) {
       matched = matched.filter(m => m.system === sysType);
     }
-    if (seriesVal) {
+    // 🎯 VRV 室外機獨立依室外機型式 (側吹單/雙風扇、冷專/冷暖上吹型) 挑選，不受室內機系列別限制
+    if (sysType !== 'VRV' && seriesVal) {
       const seriesMatches = matched.filter(m => m.series === seriesVal);
       if (seriesMatches.length > 0) {
         matched = seriesMatches;
@@ -3614,13 +3615,15 @@ function App() {
                     let newPower = '';
                     if (sysVal === 'RA') {
                       newPower = '1φ, 220V, 60Hz';
-                    } else if (sysVal === 'SA' || sysVal === 'VRV') {
+                    } else if (sysVal === 'VRV') {
                       newPower = '3φ, 4P, 380V, 60Hz';
+                    } else if (sysVal === 'SA') {
+                      newPower = ''; // 🎯 SA 系統一開始電源維持空白
                     }
                     setFastOutdoorPower(newPower);
 
                     const isOutdoorLocked = (sysVal === 'RA' || sysVal === 'SA');
-                    const newOutdoor = isOutdoorLocked ? '側吹單風扇' : '';
+                    const newOutdoor = isOutdoorLocked ? '側吹單風扇' : (sysVal === 'VRV' ? '冷暖上吹型' : '');
                     setFastOutdoorType(newOutdoor);
 
                     setRows(prev => prev.map(r => ({
@@ -3735,23 +3738,21 @@ function App() {
                 );
               })()}
 
-              {/* 🎯 4. 室外機型式 (RA 與 SA 固定為 側吹單風扇，確定時改為不可編輯灰底) */}
+              {/* 🎯 4. 室外機型式 (RA 與 SA 固定為 側吹單風扇；VRV 提供 側吹單風扇、側吹雙風扇、冷專上吹型、冷暖上吹型) */}
               {(() => {
                 const isOutdoorLocked = (fastSystem === 'RA' || fastSystem === 'SA');
                 return (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span style={{ fontSize: '13px', color: '#94a3b8', fontWeight: 'bold' }}>室外機型式:</span>
                     <select
-                      value={isOutdoorLocked ? '側吹單風扇' : fastOutdoorType}
+                      value={isOutdoorLocked ? '側吹單風扇' : (fastOutdoorType || (fastSystem === 'VRV' ? '冷暖上吹型' : ''))}
                       disabled={isOutdoorLocked}
                       onChange={(e) => {
                         const val = e.target.value;
                         setFastOutdoorType(val);
-                        setRows(prev => prev.map(r => {
-                          const indoorKw = (parseFloat(r.cap_kw || lookupModelCapKw(r.best_match_model)) * (r.unit_count || 1));
-                          const autoOutdoor = autoMatchOutdoorModelForRow(r.system_type || fastSystem, r.series || fastSeries, indoorKw);
-                          return { ...r, outdoor_type: val, outdoor_model: r.outdoor_model || autoOutdoor };
-                        }));
+                        const { updatedRows, groups } = autoGroupAllRows(rows, fastSystem, fastSeries, val, fastOutdoorPower, fastUnitType);
+                        setRows(updatedRows);
+                        setOutdoorGroups(groups);
                       }}
                       title={isOutdoorLocked ? `${fastSystem} 系統固定為側吹單風扇室外機 (自動鎖定，不可編輯)` : "請選擇室外機型式"}
                       style={{
@@ -3767,9 +3768,20 @@ function App() {
                       }}
                     >
                       <option value=""></option>
-                      <option value="側吹單風扇">側吹單風扇</option>
-                      <option value="側吹雙風扇">側吹雙風扇</option>
-                      <option value="上吹">上吹</option>
+                      {fastSystem === 'VRV' ? (
+                        <>
+                          <option value="側吹單風扇">側吹單風扇</option>
+                          <option value="側吹雙風扇">側吹雙風扇</option>
+                          <option value="冷專上吹型">冷專上吹型</option>
+                          <option value="冷暖上吹型">冷暖上吹型</option>
+                        </>
+                      ) : (
+                        <>
+                          <option value="側吹單風扇">側吹單風扇</option>
+                          <option value="側吹雙風扇">側吹雙風扇</option>
+                          <option value="上吹">上吹</option>
+                        </>
+                      )}
                     </select>
                   </div>
                 );

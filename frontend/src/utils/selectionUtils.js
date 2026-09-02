@@ -33,7 +33,7 @@ export const clientSideSelectEquipment = (totalDemandKcal, systemType, seriesNam
   }
   const totalLoadKw = totalDemandKcal / 860.0;
 
-  // 🎯 若為 SA 系統，直接依據 SA_MATCHED_PAIRS 嚴格配對池挑選
+  // 🎯 若為 SA 系統，直接依據 SA_MATCHED_PAIRS 原廠 1對1 資料庫挑選最貼近需求負載的室內機
   if (systemType === 'SA' && SA_MATCHED_PAIRS && SA_MATCHED_PAIRS.length > 0) {
     let saPool = [...SA_MATCHED_PAIRS];
     if (seriesName) {
@@ -42,14 +42,23 @@ export const clientSideSelectEquipment = (totalDemandKcal, systemType, seriesNam
     if (unitTypeName) {
       saPool = saPool.filter(p => p.indoor.unit_type === unitTypeName);
     }
-    if (powerSupply) {
-      const pwrPool = saPool.filter(p => p.outdoor.power_supply === powerSupply);
-      if (pwrPool.length > 0) saPool = pwrPool;
-    }
     if (saPool.length > 0) {
       // 依室內機能力排序
       saPool.sort((a, b) => a.indoor.cap_kw - b.indoor.cap_kw);
-      const matched = saPool.find(p => p.indoor.cap_kw >= totalLoadKw) || saPool[saPool.length - 1];
+
+      // 1. 找出所有滿足空間總需求 (cap_kw >= totalLoadKw) 之候選，若無則取最大容量
+      const candidateList = saPool.filter(p => p.indoor.cap_kw >= totalLoadKw);
+      const targetList = candidateList.length > 0 ? candidateList : [saPool[saPool.length - 1]];
+      const bestCap = targetList[0].indoor.cap_kw;
+
+      // 2. 在相同最佳容量的機型中，優先選用符合指定電源 (powerSupply) 者，若無則依原廠預設配對
+      const sameCapPairs = saPool.filter(p => p.indoor.cap_kw === bestCap);
+      let matched = sameCapPairs[0];
+      if (powerSupply) {
+        const pwrMatch = sameCapPairs.find(p => p.outdoor.power_supply === powerSupply);
+        if (pwrMatch) matched = pwrMatch;
+      }
+
       return {
         model: matched.indoor.model,
         qty: 1,

@@ -400,7 +400,7 @@ export const EQUIPMENT_DB = {
     },
     {
       "model": "FTXM71YVLT",
-      "cap": 7.2,
+      "cap": 7.1,
       "series": "家用MULTI系列",
       "unit_type": "壁掛式"
     },
@@ -477,194 +477,31 @@ export const EQUIPMENT_DB = {
       "unit_type": "壁掛式"
     },
     {
-      "model": "FTHF40VVLT",
+      "model": "FTHF40ZVLT",
       "cap": 4.1,
       "series": "SUPER MULTI系列",
       "unit_type": "壁掛式"
     },
     {
-      "model": "FTHF50VVLT",
+      "model": "FTHF50ZVLT",
       "cap": 5.0,
       "series": "SUPER MULTI系列",
       "unit_type": "壁掛式"
     },
     {
-      "model": "FTHF60VVLT",
+      "model": "FTHF60ZVLT",
       "cap": 6.0,
       "series": "SUPER MULTI系列",
       "unit_type": "壁掛式"
     },
     {
-      "model": "FTHF71VVLT",
+      "model": "FTHF71ZVLT",
       "cap": 7.2,
       "series": "SUPER MULTI系列",
       "unit_type": "壁掛式"
     }
   ],
-  "SA": [
-    {
-      "model": "FAA71XVLT",
-      "cap": 7.2,
-      "series": "商用冷專系列",
-      "unit_type": "壁掛式"
-    },
-    {
-      "model": "FAA100XVLT",
-      "cap": 9.5,
-      "series": "商用冷專系列",
-      "unit_type": "壁掛式"
-    },
-    {
-      "model": "FCA71DVLT",
-      "cap": 7.2,
-      "series": "商用冷專系列",
-      "unit_type": "全方吹"
-    },
-    {
-      "model": "FCA71CVLT",
-      "cap": 7.2,
-      "series": "商用冷專系列",
-      "unit_type": "全方吹"
-    },
-    {
-      "model": "FCA100CVLT",
-      "cap": 10.1,
-      "series": "商用冷專系列",
-      "unit_type": "全方吹"
-    },
-    {
-      "model": "FCA125CVLT",
-      "cap": 12.5,
-      "series": "商用冷專系列",
-      "unit_type": "全方吹"
-    },
-    {
-      "model": "FCA140CVLT",
-      "cap": 14.0,
-      "series": "商用冷專系列",
-      "unit_type": "全方吹"
-    },
-    {
-      "model": "FCA140DVLT",
-      "cap": 14.0,
-      "series": "商用冷專系列",
-      "unit_type": "全方吹"
-    },
-    {
-      "model": "FCA140CVLT",
-      "cap": 14.0,
-      "series": "商用冷專系列",
-      "unit_type": "全方吹"
-    },
-    {
-      "model": "FBA71BVLT",
-      "cap": 7.2,
-      "series": "商用冷專系列",
-      "unit_type": "吊隱式"
-    },
-    {
-      "model": "FBA100BVLT",
-      "cap": 10.1,
-      "series": "商用冷專系列",
-      "unit_type": "吊隱式"
-    },
-    {
-      "model": "FBA125BVLT",
-      "cap": 12.5,
-      "series": "商用冷專系列",
-      "unit_type": "吊隱式"
-    },
-    {
-      "model": "FBA140BVLT",
-      "cap": 13.3,
-      "series": "商用冷專系列",
-      "unit_type": "吊隱式"
-    },
-    {
-      "model": "FBA140BVLT",
-      "cap": 13.3,
-      "series": "商用冷專系列",
-      "unit_type": "吊隱式"
-    },
-    {
-      "model": "FBA140BVLT",
-      "cap": 13.3,
-      "series": "商用冷專系列",
-      "unit_type": "吊隱式"
-    },
-    {
-      "model": "FCA71DVLT",
-      "cap": 7.2,
-      "series": "商用冷暖系列",
-      "unit_type": "全方吹"
-    },
-    {
-      "model": "FCA100CVLT",
-      "cap": 10.4,
-      "series": "商用冷暖系列",
-      "unit_type": "全方吹"
-    },
-    {
-      "model": "FCA125CVLT",
-      "cap": 12.5,
-      "series": "商用冷暖系列",
-      "unit_type": "全方吹"
-    },
-    {
-      "model": "FCA140CVLT",
-      "cap": 14.0,
-      "series": "商用冷暖系列",
-      "unit_type": "全方吹"
-    },
-    {
-      "model": "FCA140DVLT",
-      "cap": 14.0,
-      "series": "商用冷暖系列",
-      "unit_type": "全方吹"
-    },
-    {
-      "model": "FCA140CVLT",
-      "cap": 14.0,
-      "series": "商用冷暖系列",
-      "unit_type": "全方吹"
-    },
-    {
-      "model": "FBA71BVLT",
-      "cap": 7.2,
-      "series": "商用冷暖系列",
-      "unit_type": "吊隱式"
-    },
-    {
-      "model": "FBA100BVLT",
-      "cap": 10.1,
-      "series": "商用冷暖系列",
-      "unit_type": "吊隱式"
-    },
-    {
-      "model": "FBA125BVLT",
-      "cap": 12.5,
-      "series": "商用冷暖系列",
-      "unit_type": "吊隱式"
-    },
-    {
-      "model": "FBA140BVLT",
-      "cap": 13.3,
-      "series": "商用冷暖系列",
-      "unit_type": "吊隱式"
-    },
-    {
-      "model": "FBA140BVLT",
-      "cap": 13.3,
-      "series": "商用冷暖系列",
-      "unit_type": "吊隱式"
-    },
-    {
-      "model": "FBA140BVLT",
-      "cap": 13.3,
-      "series": "商用冷暖系列",
-      "unit_type": "吊隱式"
-    }
-  ],
+  "SA": [],
   "VRV": [
     {
       "model": "FXDQ20PDNVT",
@@ -1614,7 +1451,7 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "RA",
-    "series": "橫綱Z系列",
+    "series": "大關Z系列",
     "outdoor_type": "側吹單風扇",
     "power_supply": "1φ, 220V, 60Hz",
     "model": "RXV22ZVLT",
@@ -1623,7 +1460,7 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "RA",
-    "series": "橫綱Z系列",
+    "series": "大關Z系列",
     "outdoor_type": "側吹單風扇",
     "power_supply": "1φ, 220V, 60Hz",
     "model": "RXV28ZVLT",
@@ -1632,7 +1469,7 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "RA",
-    "series": "橫綱Z系列",
+    "series": "大關Z系列",
     "outdoor_type": "側吹單風扇",
     "power_supply": "1φ, 220V, 60Hz",
     "model": "RXV36ZVLT",
@@ -1641,7 +1478,7 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "RA",
-    "series": "橫綱Z系列",
+    "series": "大關Z系列",
     "outdoor_type": "側吹單風扇",
     "power_supply": "1φ, 220V, 60Hz",
     "model": "RXV41ZVLT",
@@ -1650,7 +1487,7 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "RA",
-    "series": "橫綱Z系列",
+    "series": "大關Z系列",
     "outdoor_type": "側吹單風扇",
     "power_supply": "1φ, 220V, 60Hz",
     "model": "RXV50ZVLT",
@@ -1659,7 +1496,7 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "RA",
-    "series": "橫綱Z系列",
+    "series": "大關Z系列",
     "outdoor_type": "側吹單風扇",
     "power_supply": "1φ, 220V, 60Hz",
     "model": "RXV60ZVLT",
@@ -1668,7 +1505,7 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "RA",
-    "series": "橫綱Z系列",
+    "series": "大關Z系列",
     "outdoor_type": "側吹單風扇",
     "power_supply": "1φ, 220V, 60Hz",
     "model": "RXV71ZVLT",
@@ -1740,7 +1577,7 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "RA",
-    "series": "經典V系列",
+    "series": "豪菁Z系列",
     "outdoor_type": "側吹單風扇",
     "power_supply": "1φ, 220V, 60Hz",
     "model": "RHF20ZVLT",
@@ -1749,7 +1586,7 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "RA",
-    "series": "經典V系列",
+    "series": "豪菁Z系列",
     "outdoor_type": "側吹單風扇",
     "power_supply": "1φ, 220V, 60Hz",
     "model": "RHF25ZVLT",
@@ -1758,7 +1595,7 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "RA",
-    "series": "經典V系列",
+    "series": "豪菁Z系列",
     "outdoor_type": "側吹單風扇",
     "power_supply": "1φ, 220V, 60Hz",
     "model": "RHF30ZVLT",
@@ -1767,7 +1604,7 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "RA",
-    "series": "經典V系列",
+    "series": "豪菁Z系列",
     "outdoor_type": "側吹單風扇",
     "power_supply": "1φ, 220V, 60Hz",
     "model": "RHF40ZVLT",
@@ -1776,7 +1613,7 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "RA",
-    "series": "經典V系列",
+    "series": "豪菁Z系列",
     "outdoor_type": "側吹單風扇",
     "power_supply": "1φ, 220V, 60Hz",
     "model": "RHF50ZVLT",
@@ -1785,7 +1622,7 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "RA",
-    "series": "經典V系列",
+    "series": "豪菁Z系列",
     "outdoor_type": "側吹單風扇",
     "power_supply": "1φ, 220V, 60Hz",
     "model": "RHF60ZVLT",
@@ -1794,7 +1631,7 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "RA",
-    "series": "經典V系列",
+    "series": "豪菁Z系列",
     "outdoor_type": "側吹單風扇",
     "power_supply": "1φ, 220V, 60Hz",
     "model": "RHF71ZVLT",
@@ -1803,7 +1640,7 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "RA",
-    "series": "經典VA系列",
+    "series": "經典V系列",
     "outdoor_type": "側吹單風扇",
     "power_supply": "1φ, 220V, 60Hz",
     "model": "RHF20VAVLT",
@@ -1812,7 +1649,7 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "RA",
-    "series": "經典VA系列",
+    "series": "經典V系列",
     "outdoor_type": "側吹單風扇",
     "power_supply": "1φ, 220V, 60Hz",
     "model": "RHF25VAVLT",
@@ -1821,7 +1658,7 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "RA",
-    "series": "經典VA系列",
+    "series": "經典V系列",
     "outdoor_type": "側吹單風扇",
     "power_supply": "1φ, 220V, 60Hz",
     "model": "RHF30VAVLT",
@@ -1867,7 +1704,7 @@ export const OUTDOOR_UNITS_DB = [
   {
     "system": "RA",
     "series": "家用MULTI系列",
-    "outdoor_type": "側吹雙風扇",
+    "outdoor_type": "側吹單風扇",
     "power_supply": "1φ, 220V, 60Hz",
     "model": "2MXM56YVLT",
     "cap_kw": 5.6,
@@ -1876,7 +1713,7 @@ export const OUTDOOR_UNITS_DB = [
   {
     "system": "RA",
     "series": "家用MULTI系列",
-    "outdoor_type": "側吹雙風扇",
+    "outdoor_type": "側吹單風扇",
     "power_supply": "1φ, 220V, 60Hz",
     "model": "2MXM75YVLT",
     "cap_kw": 7.2,
@@ -1885,7 +1722,7 @@ export const OUTDOOR_UNITS_DB = [
   {
     "system": "RA",
     "series": "家用MULTI系列",
-    "outdoor_type": "側吹雙風扇",
+    "outdoor_type": "側吹單風扇",
     "power_supply": "1φ, 220V, 60Hz",
     "model": "3MXM90YVLT",
     "cap_kw": 8.5,
@@ -1894,7 +1731,7 @@ export const OUTDOOR_UNITS_DB = [
   {
     "system": "RA",
     "series": "家用MULTI系列",
-    "outdoor_type": "側吹雙風扇",
+    "outdoor_type": "側吹單風扇",
     "power_supply": "1φ, 220V, 60Hz",
     "model": "4MXM110YVLT",
     "cap_kw": 10.5,
@@ -1903,403 +1740,16 @@ export const OUTDOOR_UNITS_DB = [
   {
     "system": "RA",
     "series": "SUPER MULTI系列",
-    "outdoor_type": "側吹雙風扇",
+    "outdoor_type": "側吹單風扇",
     "power_supply": "1φ, 220V, 60Hz",
     "model": "2MXP50ZVLT",
     "cap_kw": 5.0,
     "cap_index": 50.0
   },
   {
-    "system": "RA",
-    "series": "SUPER MULTI系列",
-    "outdoor_type": "側吹雙風扇",
-    "power_supply": "1φ, 220V, 60Hz",
-    "model": "2MXP85ZVLT",
-    "cap_kw": 8.5,
-    "cap_index": 85.0
-  },
-  {
-      "system": "SA",
-      "series": "商用冷專系列",
-      "outdoor_type": "側吹單風扇",
-      "power_supply": "1φ, 220V, 60Hz",
-      "model": "RKF71XVLT",
-      "cap_kw": 7.2,
-      "cap_index": 72.0,
-      "power_consumption_kw": 2.23,
-      "mca": 10.2,
-      "mfa": 15.0,
-      "dimensions": "595×845×300",
-      "recommended_indoor_type": "壁掛式"
-  },
-  {
-      "system": "SA",
-      "series": "商用冷專系列",
-      "outdoor_type": "側吹單風扇",
-      "power_supply": "1φ, 220V, 60Hz",
-      "model": "RKF100XVLT",
-      "cap_kw": 9.5,
-      "cap_index": 95.0,
-      "power_consumption_kw": 2.8,
-      "mca": 15.0,
-      "mfa": 20.0,
-      "dimensions": "990×940×320",
-      "recommended_indoor_type": "壁掛式"
-  },
-  {
-      "system": "SA",
-      "series": "商用冷專系列",
-      "outdoor_type": "側吹單風扇",
-      "power_supply": "1φ, 220V, 60Hz",
-      "model": "RZF71DVLT",
-      "cap_kw": 7.2,
-      "cap_index": 72.0,
-      "power_consumption_kw": 1.9,
-      "mca": 9.5,
-      "mfa": 16.0,
-      "dimensions": "608×845×300",
-      "recommended_indoor_type": "全方吹"
-  },
-  {
-      "system": "SA",
-      "series": "商用冷專系列",
-      "outdoor_type": "側吹單風扇",
-      "power_supply": "1φ, 220V, 60Hz",
-      "model": "RZF71CVLT",
-      "cap_kw": 7.2,
-      "cap_index": 72.0,
-      "power_consumption_kw": 1.9,
-      "mca": 9.5,
-      "mfa": 16.0,
-      "dimensions": "595×845×300",
-      "recommended_indoor_type": "全方吹"
-  },
-  {
-      "system": "SA",
-      "series": "商用冷專系列",
-      "outdoor_type": "側吹單風扇",
-      "power_supply": "1φ, 220V, 60Hz",
-      "model": "RZF100CVLT",
-      "cap_kw": 10.1,
-      "cap_index": 101.0,
-      "power_consumption_kw": 2.88,
-      "mca": 13.4,
-      "mfa": 32.0,
-      "dimensions": "990×940×320",
-      "recommended_indoor_type": "全方吹"
-  },
-  {
-      "system": "SA",
-      "series": "商用冷專系列",
-      "outdoor_type": "側吹單風扇",
-      "power_supply": "1φ, 220V, 60Hz",
-      "model": "RZF125CVLT",
-      "cap_kw": 12.5,
-      "cap_index": 125.0,
-      "power_consumption_kw": 4.0,
-      "mca": 18.3,
-      "mfa": 32.0,
-      "dimensions": "990×940×320",
-      "recommended_indoor_type": "全方吹"
-  },
-  {
-      "system": "SA",
-      "series": "商用冷專系列",
-      "outdoor_type": "側吹單風扇",
-      "power_supply": "1φ, 220V, 60Hz",
-      "model": "RZF140CVLT",
-      "cap_kw": 14.0,
-      "cap_index": 140.0,
-      "power_consumption_kw": 4.8,
-      "mca": 22.0,
-      "mfa": 32.0,
-      "dimensions": "990×940×320",
-      "recommended_indoor_type": "全方吹"
-  },
-  {
-      "system": "SA",
-      "series": "商用冷專系列",
-      "outdoor_type": "側吹單風扇",
-      "power_supply": "3φ, 3P, 220V, 60Hz",
-      "model": "RZF140DTLT",
-      "cap_kw": 14.0,
-      "cap_index": 140.0,
-      "power_consumption_kw": 4.8,
-      "mca": 13.4,
-      "mfa": 32.0,
-      "dimensions": "990×940×320",
-      "recommended_indoor_type": "全方吹"
-  },
-  {
-      "system": "SA",
-      "series": "商用冷專系列",
-      "outdoor_type": "側吹單風扇",
-      "power_supply": "3φ, 4P, 380V, 60Hz",
-      "model": "RZF140CYLT",
-      "cap_kw": 14.0,
-      "cap_index": 140.0,
-      "power_consumption_kw": 4.8,
-      "mca": 8.22,
-      "mfa": 20.0,
-      "dimensions": "990×940×320",
-      "recommended_indoor_type": "全方吹"
-  },
-  {
-      "system": "SA",
-      "series": "商用冷專系列",
-      "outdoor_type": "側吹單風扇",
-      "power_supply": "1φ, 220V, 60Hz",
-      "model": "RZF71DVLT",
-      "cap_kw": 7.2,
-      "cap_index": 72.0,
-      "power_consumption_kw": 2.01,
-      "mca": 10.0,
-      "mfa": 20.0,
-      "dimensions": "608×845×300",
-      "recommended_indoor_type": "吊隱式"
-  },
-  {
-      "system": "SA",
-      "series": "商用冷專系列",
-      "outdoor_type": "側吹單風扇",
-      "power_supply": "1φ, 220V, 60Hz",
-      "model": "RZF100CVLT",
-      "cap_kw": 10.1,
-      "cap_index": 101.0,
-      "power_consumption_kw": 3.04,
-      "mca": 14.0,
-      "mfa": 32.0,
-      "dimensions": "990×940×320",
-      "recommended_indoor_type": "吊隱式"
-  },
-  {
-      "system": "SA",
-      "series": "商用冷專系列",
-      "outdoor_type": "側吹單風扇",
-      "power_supply": "1φ, 220V, 60Hz",
-      "model": "RZF125CVLT",
-      "cap_kw": 12.5,
-      "cap_index": 125.0,
-      "power_consumption_kw": 4.44,
-      "mca": 20.3,
-      "mfa": 32.0,
-      "dimensions": "990×940×320",
-      "recommended_indoor_type": "吊隱式"
-  },
-  {
-      "system": "SA",
-      "series": "商用冷專系列",
-      "outdoor_type": "側吹單風扇",
-      "power_supply": "1φ, 220V, 60Hz",
-      "model": "RZF140CVLT",
-      "cap_kw": 13.3,
-      "cap_index": 133.0,
-      "power_consumption_kw": 5.41,
-      "mca": 24.75,
-      "mfa": 32.0,
-      "dimensions": "990×940×320",
-      "recommended_indoor_type": "吊隱式"
-  },
-  {
-      "system": "SA",
-      "series": "商用冷專系列",
-      "outdoor_type": "側吹單風扇",
-      "power_supply": "3φ, 3P, 220V, 60Hz",
-      "model": "RZF140DTLT",
-      "cap_kw": 13.3,
-      "cap_index": 133.0,
-      "power_consumption_kw": 5.41,
-      "mca": 14.5,
-      "mfa": 25.0,
-      "dimensions": "990×940×320",
-      "recommended_indoor_type": "吊隱式"
-  },
-  {
-      "system": "SA",
-      "series": "商用冷專系列",
-      "outdoor_type": "側吹單風扇",
-      "power_supply": "3φ, 4P, 380V, 60Hz",
-      "model": "RZF140CYLT",
-      "cap_kw": 13.3,
-      "cap_index": 133.0,
-      "power_consumption_kw": 5.41,
-      "mca": 8.69,
-      "mfa": 16.0,
-      "dimensions": "990×940×320",
-      "recommended_indoor_type": "吊隱式"
-  },
-  {
-      "system": "SA",
-      "series": "商用冷暖系列",
-      "outdoor_type": "側吹單風扇",
-      "power_supply": "1φ, 220V, 60Hz",
-      "model": "RZAC71EVLT",
-      "cap_kw": 7.2,
-      "cap_index": 72.0,
-      "power_consumption_kw": 1.88,
-      "mca": 10.4,
-      "mfa": 20.0,
-      "dimensions": "608×845×300",
-      "recommended_indoor_type": "全方吹"
-  },
-  {
-      "system": "SA",
-      "series": "商用冷暖系列",
-      "outdoor_type": "側吹單風扇",
-      "power_supply": "1φ, 220V, 60Hz",
-      "model": "RZAC100DVLT",
-      "cap_kw": 10.4,
-      "cap_index": 104.0,
-      "power_consumption_kw": 2.86,
-      "mca": 13.2,
-      "mfa": 25.0,
-      "dimensions": "990×940×320",
-      "recommended_indoor_type": "全方吹"
-  },
-  {
-      "system": "SA",
-      "series": "商用冷暖系列",
-      "outdoor_type": "側吹單風扇",
-      "power_supply": "1φ, 220V, 60Hz",
-      "model": "RZAC125DVLT",
-      "cap_kw": 12.5,
-      "cap_index": 125.0,
-      "power_consumption_kw": 3.75,
-      "mca": 17.35,
-      "mfa": 32.0,
-      "dimensions": "990×940×320",
-      "recommended_indoor_type": "全方吹"
-  },
-  {
-      "system": "SA",
-      "series": "商用冷暖系列",
-      "outdoor_type": "側吹單風扇",
-      "power_supply": "1φ, 220V, 60Hz",
-      "model": "RZAC140DVLT",
-      "cap_kw": 14.0,
-      "cap_index": 140.0,
-      "power_consumption_kw": 4.7,
-      "mca": 21.8,
-      "mfa": 32.0,
-      "dimensions": "990×940×320",
-      "recommended_indoor_type": "全方吹"
-  },
-  {
-      "system": "SA",
-      "series": "商用冷暖系列",
-      "outdoor_type": "側吹單風扇",
-      "power_supply": "3φ, 3P, 220V, 60Hz",
-      "model": "RZAC140ETLT",
-      "cap_kw": 14.0,
-      "cap_index": 140.0,
-      "power_consumption_kw": 4.7,
-      "mca": 13.0,
-      "mfa": 25.0,
-      "dimensions": "990×940×320",
-      "recommended_indoor_type": "全方吹"
-  },
-  {
-      "system": "SA",
-      "series": "商用冷暖系列",
-      "outdoor_type": "側吹單風扇",
-      "power_supply": "3φ, 4P, 380V, 60Hz",
-      "model": "RZAC140DYLT",
-      "cap_kw": 14.0,
-      "cap_index": 140.0,
-      "power_consumption_kw": 4.7,
-      "mca": 7.31,
-      "mfa": 20.0,
-      "dimensions": "990×940×320",
-      "recommended_indoor_type": "全方吹"
-  },
-  {
-      "system": "SA",
-      "series": "商用冷暖系列",
-      "outdoor_type": "側吹單風扇",
-      "power_supply": "1φ, 220V, 60Hz",
-      "model": "RZAC71EVLT",
-      "cap_kw": 7.2,
-      "cap_index": 72.0,
-      "power_consumption_kw": 2.1,
-      "mca": 11.7,
-      "mfa": 20.0,
-      "dimensions": "608×845×300",
-      "recommended_indoor_type": "吊隱式"
-  },
-  {
-      "system": "SA",
-      "series": "商用冷暖系列",
-      "outdoor_type": "側吹單風扇",
-      "power_supply": "1φ, 220V, 60Hz",
-      "model": "RZAC100DVLT",
-      "cap_kw": 10.1,
-      "cap_index": 101.0,
-      "power_consumption_kw": 2.85,
-      "mca": 14.1,
-      "mfa": 25.0,
-      "dimensions": "990×940×320",
-      "recommended_indoor_type": "吊隱式"
-  },
-  {
-      "system": "SA",
-      "series": "商用冷暖系列",
-      "outdoor_type": "側吹單風扇",
-      "power_supply": "1φ, 220V, 60Hz",
-      "model": "RZAC125DVLT",
-      "cap_kw": 12.5,
-      "cap_index": 125.0,
-      "power_consumption_kw": 4.3,
-      "mca": 19.8,
-      "mfa": 32.0,
-      "dimensions": "990×940×320",
-      "recommended_indoor_type": "吊隱式"
-  },
-  {
-      "system": "SA",
-      "series": "商用冷暖系列",
-      "outdoor_type": "側吹單風扇",
-      "power_supply": "1φ, 220V, 60Hz",
-      "model": "RZAC140DVLT",
-      "cap_kw": 13.3,
-      "cap_index": 133.0,
-      "power_consumption_kw": 4.86,
-      "mca": 22.5,
-      "mfa": 32.0,
-      "dimensions": "990×940×320",
-      "recommended_indoor_type": "吊隱式"
-  },
-  {
-      "system": "SA",
-      "series": "商用冷暖系列",
-      "outdoor_type": "側吹單風扇",
-      "power_supply": "3φ, 3P, 220V, 60Hz",
-      "model": "RZAC140DTLT",
-      "cap_kw": 13.3,
-      "cap_index": 133.0,
-      "power_consumption_kw": 4.9,
-      "mca": 13.1,
-      "mfa": 25.0,
-      "dimensions": "990×940×320",
-      "recommended_indoor_type": "吊隱式"
-  },
-  {
-      "system": "SA",
-      "series": "商用冷暖系列",
-      "outdoor_type": "側吹單風扇",
-      "power_supply": "3φ, 4P, 380V, 60Hz",
-      "model": "RZAC140DYLT",
-      "cap_kw": 13.3,
-      "cap_index": 133.0,
-      "power_consumption_kw": 4.89,
-      "mca": 7.76,
-      "mfa": 16.0,
-      "dimensions": "990×940×320",
-      "recommended_indoor_type": "吊隱式"
-  },
-  {
     "system": "VRV",
-    "series": "VRV S系列",
-    "outdoor_type": "側吹雙風扇",
+    "series": "VRVl高效率S系列",
+    "outdoor_type": "側吹單風扇",
     "power_supply": "1φ, 220V, 60Hz",
     "model": "RSUYQ112AVT",
     "cap_kw": 11.2,
@@ -2307,8 +1757,8 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "VRV",
-    "series": "VRV S系列",
-    "outdoor_type": "側吹雙風扇",
+    "series": "VRV高效率S系列",
+    "outdoor_type": "側吹單風扇",
     "power_supply": "1φ, 220V, 60Hz",
     "model": "RSUYQ125AVT",
     "cap_kw": 12.5,
@@ -2316,8 +1766,8 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "VRV",
-    "series": "VRV S系列",
-    "outdoor_type": "側吹雙風扇",
+    "series": "VRV高效率S系列",
+    "outdoor_type": "側吹單風扇",
     "power_supply": "1φ, 220V, 60Hz",
     "model": "RSUYQ140AVT",
     "cap_kw": 14.0,
@@ -2325,8 +1775,8 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "VRV",
-    "series": "VRV S系列",
-    "outdoor_type": "側吹雙風扇",
+    "series": "VRV高效率S系列",
+    "outdoor_type": "側吹單風扇",
     "power_supply": "1φ, 220V, 60Hz",
     "model": "RSUYQ160AVT",
     "cap_kw": 16.0,
@@ -2334,7 +1784,7 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "VRV",
-    "series": "VRV IV-S系列",
+    "series": "VRV高效率S系列",
     "outdoor_type": "側吹雙風扇",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXYMQ10ARYLT",
@@ -2343,7 +1793,7 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "VRV",
-    "series": "VRV IV-S系列",
+    "series": "VRV高效率S系列",
     "outdoor_type": "側吹雙風扇",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXYMQ12ARYLT",
@@ -2371,7 +1821,7 @@ export const OUTDOOR_UNITS_DB = [
   {
     "system": "VRV",
     "series": "VRV III-S系列",
-    "outdoor_type": "側吹單風扇",
+    "outdoor_type": "側吹雙風扇",
     "power_supply": "1φ, 220V, 60Hz",
     "model": "RXYMQ6TVET",
     "cap_kw": 15.5,
@@ -2380,7 +1830,7 @@ export const OUTDOOR_UNITS_DB = [
   {
     "system": "VRV",
     "series": "VRV III-S系列",
-    "outdoor_type": "側吹單風扇",
+    "outdoor_type": "側吹雙風扇",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXYMQ8TYLT",
     "cap_kw": 20.0,
@@ -2389,7 +1839,7 @@ export const OUTDOOR_UNITS_DB = [
   {
     "system": "VRV",
     "series": "VRV III-S系列",
-    "outdoor_type": "側吹單風扇",
+    "outdoor_type": "側吹雙風扇",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXYMQ10TYLT",
     "cap_kw": 24.0,
@@ -2398,7 +1848,7 @@ export const OUTDOOR_UNITS_DB = [
   {
     "system": "VRV",
     "series": "VRVmini+系列",
-    "outdoor_type": "側吹雙風扇",
+    "outdoor_type": "側吹單風扇",
     "power_supply": "1φ, 220V, 60Hz",
     "model": "RXYCQ4BVLT",
     "cap_kw": 11.2,
@@ -2407,7 +1857,7 @@ export const OUTDOOR_UNITS_DB = [
   {
     "system": "VRV",
     "series": "VRVmini+系列",
-    "outdoor_type": "側吹雙風扇",
+    "outdoor_type": "側吹單風扇",
     "power_supply": "1φ, 220V, 60Hz",
     "model": "RXYCQ5BVLT",
     "cap_kw": 12.5,
@@ -2416,7 +1866,7 @@ export const OUTDOOR_UNITS_DB = [
   {
     "system": "VRV",
     "series": "VRVmini+系列",
-    "outdoor_type": "側吹雙風扇",
+    "outdoor_type": "側吹單風扇",
     "power_supply": "1φ, 220V, 60Hz",
     "model": "RXYCQ6BVLT",
     "cap_kw": 14.0,
@@ -2424,8 +1874,8 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "VRV",
-    "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "series": "VRV A系列",
+    "outdoor_type": "冷專上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXQ8AYLT",
     "cap_kw": 22.4,
@@ -2433,8 +1883,8 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "VRV",
-    "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "series": "VRV A系列",
+    "outdoor_type": "冷專上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXQ10AYLT",
     "cap_kw": 28.0,
@@ -2442,8 +1892,8 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "VRV",
-    "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "series": "VRV A系列",
+    "outdoor_type": "冷專上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXQ12AYLT",
     "cap_kw": 33.5,
@@ -2451,8 +1901,8 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "VRV",
-    "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "series": "VRV A系列",
+    "outdoor_type": "冷專上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXQ14AYLT",
     "cap_kw": 40.0,
@@ -2460,8 +1910,8 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "VRV",
-    "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "series": "VRV A系列",
+    "outdoor_type": "冷專上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXQ16AYLT",
     "cap_kw": 45.0,
@@ -2469,8 +1919,8 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "VRV",
-    "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "series": "VRV A系列",
+    "outdoor_type": "冷專上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXQ18AYLT",
     "cap_kw": 50.0,
@@ -2478,8 +1928,8 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "VRV",
-    "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "series": "VRV A系列",
+    "outdoor_type": "冷專上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXQ20AYLT",
     "cap_kw": 54.0,
@@ -2487,8 +1937,8 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "VRV",
-    "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "series": "VRV A系列",
+    "outdoor_type": "冷專上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXQ22ANYLT",
     "cap_kw": 61.5,
@@ -2496,8 +1946,8 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "VRV",
-    "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "series": "VRV A系列",
+    "outdoor_type": "冷專上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXQ24ANYLT",
     "cap_kw": 67.0,
@@ -2505,8 +1955,8 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "VRV",
-    "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "series": "VRV A系列",
+    "outdoor_type": "冷專上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXQ26ANYLT",
     "cap_kw": 73.5,
@@ -2514,8 +1964,8 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "VRV",
-    "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "series": "VRV A系列",
+    "outdoor_type": "冷專上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXQ28ANYLT",
     "cap_kw": 78.5,
@@ -2523,8 +1973,8 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "VRV",
-    "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "series": "VRV A系列",
+    "outdoor_type": "冷專上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXQ30ANYLT",
     "cap_kw": 85.0,
@@ -2532,8 +1982,8 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "VRV",
-    "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "series": "VRV A系列",
+    "outdoor_type": "冷專上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXQ32AN1YLT",
     "cap_kw": 90.0,
@@ -2541,8 +1991,8 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "VRV",
-    "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "series": "VRV A系列",
+    "outdoor_type": "冷專上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXQ34ANYLT",
     "cap_kw": 95.0,
@@ -2550,8 +2000,8 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "VRV",
-    "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "series": "VRV A系列",
+    "outdoor_type": "冷專上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXQ36AN1YLT",
     "cap_kw": 100.0,
@@ -2559,8 +2009,8 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "VRV",
-    "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "series": "VRV A系列",
+    "outdoor_type": "冷專上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXQ38ANYLT",
     "cap_kw": 104.0,
@@ -2568,8 +2018,8 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "VRV",
-    "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "series": "VRV A系列",
+    "outdoor_type": "冷專上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXQ40AN1YLT",
     "cap_kw": 108.0,
@@ -2577,8 +2027,8 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "VRV",
-    "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "series": "VRV A系列",
+    "outdoor_type": "冷專上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXQ42ANYLT",
     "cap_kw": 117.0,
@@ -2586,8 +2036,8 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "VRV",
-    "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "series": "VRV A系列",
+    "outdoor_type": "冷專上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXQ44ANYLT",
     "cap_kw": 121.0,
@@ -2595,8 +2045,8 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "VRV",
-    "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "series": "VRV A系列",
+    "outdoor_type": "冷專上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXQ46ANYLT",
     "cap_kw": 130.0,
@@ -2604,8 +2054,8 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "VRV",
-    "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "series": "VRV A系列",
+    "outdoor_type": "冷專上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXQ48AN1YLT",
     "cap_kw": 135.0,
@@ -2613,8 +2063,8 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "VRV",
-    "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "series": "VRV A系列",
+    "outdoor_type": "冷專上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXQ50ANYLT",
     "cap_kw": 140.0,
@@ -2622,8 +2072,8 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "VRV",
-    "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "series": "VRV A系列",
+    "outdoor_type": "冷專上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXQ52AN1YLT",
     "cap_kw": 145.0,
@@ -2631,8 +2081,8 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "VRV",
-    "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "series": "VRV A系列",
+    "outdoor_type": "冷專上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXQ54ANYLT",
     "cap_kw": 150.0,
@@ -2640,8 +2090,8 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "VRV",
-    "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "series": "VRV A系列",
+    "outdoor_type": "冷專上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXQ56AN1YLT",
     "cap_kw": 154.0,
@@ -2649,8 +2099,8 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "VRV",
-    "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "series": "VRV A系列",
+    "outdoor_type": "冷專上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXQ58ANYLT",
     "cap_kw": 158.0,
@@ -2658,8 +2108,8 @@ export const OUTDOOR_UNITS_DB = [
   },
   {
     "system": "VRV",
-    "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "series": "VRV A系列",
+    "outdoor_type": "冷專上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXQ60ANYLT",
     "cap_kw": 162.0,
@@ -2668,7 +2118,7 @@ export const OUTDOOR_UNITS_DB = [
   {
     "system": "VRV",
     "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "outdoor_type": "冷暖上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXYQ8AYLT",
     "cap_kw": 22.4,
@@ -2677,7 +2127,7 @@ export const OUTDOOR_UNITS_DB = [
   {
     "system": "VRV",
     "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "outdoor_type": "冷暖上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXYQ10AYLT",
     "cap_kw": 28.0,
@@ -2686,7 +2136,7 @@ export const OUTDOOR_UNITS_DB = [
   {
     "system": "VRV",
     "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "outdoor_type": "冷暖上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXYQ12AYLT",
     "cap_kw": 33.5,
@@ -2695,7 +2145,7 @@ export const OUTDOOR_UNITS_DB = [
   {
     "system": "VRV",
     "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "outdoor_type": "冷暖上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXYQ14AYLT",
     "cap_kw": 40.0,
@@ -2704,7 +2154,7 @@ export const OUTDOOR_UNITS_DB = [
   {
     "system": "VRV",
     "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "outdoor_type": "冷暖上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXYQ16AYLT",
     "cap_kw": 45.0,
@@ -2713,7 +2163,7 @@ export const OUTDOOR_UNITS_DB = [
   {
     "system": "VRV",
     "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "outdoor_type": "冷暖上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXYQ18AYLT",
     "cap_kw": 50.0,
@@ -2722,7 +2172,7 @@ export const OUTDOOR_UNITS_DB = [
   {
     "system": "VRV",
     "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "outdoor_type": "冷暖上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXYQ20AYLT",
     "cap_kw": 54.0,
@@ -2731,7 +2181,7 @@ export const OUTDOOR_UNITS_DB = [
   {
     "system": "VRV",
     "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "outdoor_type": "冷暖上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXYQ22ANYLT",
     "cap_kw": 61.5,
@@ -2740,7 +2190,7 @@ export const OUTDOOR_UNITS_DB = [
   {
     "system": "VRV",
     "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "outdoor_type": "冷暖上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXYQ24ANYLT",
     "cap_kw": 67.0,
@@ -2749,7 +2199,7 @@ export const OUTDOOR_UNITS_DB = [
   {
     "system": "VRV",
     "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "outdoor_type": "冷暖上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXYQ26ANYLT",
     "cap_kw": 73.5,
@@ -2758,7 +2208,7 @@ export const OUTDOOR_UNITS_DB = [
   {
     "system": "VRV",
     "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "outdoor_type": "冷暖上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXYQ28ANYLT",
     "cap_kw": 78.5,
@@ -2767,7 +2217,7 @@ export const OUTDOOR_UNITS_DB = [
   {
     "system": "VRV",
     "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "outdoor_type": "冷暖上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXYQ30ANYLT",
     "cap_kw": 85.0,
@@ -2776,7 +2226,7 @@ export const OUTDOOR_UNITS_DB = [
   {
     "system": "VRV",
     "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "outdoor_type": "冷暖上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXYQ32ANYLT",
     "cap_kw": 90.0,
@@ -2785,7 +2235,7 @@ export const OUTDOOR_UNITS_DB = [
   {
     "system": "VRV",
     "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "outdoor_type": "冷暖上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXYQ34ANYLT",
     "cap_kw": 95.0,
@@ -2794,7 +2244,7 @@ export const OUTDOOR_UNITS_DB = [
   {
     "system": "VRV",
     "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "outdoor_type": "冷暖上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXYQ36ANYLT",
     "cap_kw": 100.0,
@@ -2803,7 +2253,7 @@ export const OUTDOOR_UNITS_DB = [
   {
     "system": "VRV",
     "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "outdoor_type": "冷暖上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXYQ38ANYLT",
     "cap_kw": 104.0,
@@ -2812,7 +2262,7 @@ export const OUTDOOR_UNITS_DB = [
   {
     "system": "VRV",
     "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "outdoor_type": "冷暖上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXYQ40ANYLT",
     "cap_kw": 108.0,
@@ -2821,7 +2271,7 @@ export const OUTDOOR_UNITS_DB = [
   {
     "system": "VRV",
     "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "outdoor_type": "冷暖上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXYQ42ANYLT",
     "cap_kw": 117.0,
@@ -2830,7 +2280,7 @@ export const OUTDOOR_UNITS_DB = [
   {
     "system": "VRV",
     "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "outdoor_type": "冷暖上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXYQ44ANYLT",
     "cap_kw": 121.0,
@@ -2839,7 +2289,7 @@ export const OUTDOOR_UNITS_DB = [
   {
     "system": "VRV",
     "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "outdoor_type": "冷暖上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXYQ46ANYLT",
     "cap_kw": 130.0,
@@ -2848,7 +2298,7 @@ export const OUTDOOR_UNITS_DB = [
   {
     "system": "VRV",
     "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "outdoor_type": "冷暖上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXYQ48ANYLT",
     "cap_kw": 135.0,
@@ -2857,7 +2307,7 @@ export const OUTDOOR_UNITS_DB = [
   {
     "system": "VRV",
     "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "outdoor_type": "冷暖上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXYQ50ANYLT",
     "cap_kw": 140.0,
@@ -2866,7 +2316,7 @@ export const OUTDOOR_UNITS_DB = [
   {
     "system": "VRV",
     "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "outdoor_type": "冷暖上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXYQ52ANYLT",
     "cap_kw": 145.0,
@@ -2875,7 +2325,7 @@ export const OUTDOOR_UNITS_DB = [
   {
     "system": "VRV",
     "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "outdoor_type": "冷暖上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXYQ54ANYLT",
     "cap_kw": 150.0,
@@ -2884,7 +2334,7 @@ export const OUTDOOR_UNITS_DB = [
   {
     "system": "VRV",
     "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "outdoor_type": "冷暖上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXYQ56ANYLT",
     "cap_kw": 154.0,
@@ -2893,7 +2343,7 @@ export const OUTDOOR_UNITS_DB = [
   {
     "system": "VRV",
     "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "outdoor_type": "冷暖上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXYQ58ANYLT",
     "cap_kw": 158.0,
@@ -2902,218 +2352,11 @@ export const OUTDOOR_UNITS_DB = [
   {
     "system": "VRV",
     "series": "VRV H系列",
-    "outdoor_type": "上吹",
+    "outdoor_type": "冷暖上吹型",
     "power_supply": "3φ, 4P, 380V, 60Hz",
     "model": "RXYQ60ANYLT",
     "cap_kw": 162.0,
     "cap_index": 1500.0
-  },
-  {
-    "system": "RA",
-    "series": "橫綱X系列",
-    "outdoor_type": "側吹單風扇",
-    "power_supply": "1φ, 220V, 60Hz",
-    "model": "RXV22XVLT",
-    "cap_kw": 2.2,
-    "cap_index": 22.0
-  },
-  {
-    "system": "RA",
-    "series": "橫綱X系列",
-    "outdoor_type": "側吹單風扇",
-    "power_supply": "1φ, 220V, 60Hz",
-    "model": "RXV28XVLT",
-    "cap_kw": 2.8,
-    "cap_index": 28.0
-  },
-  {
-    "system": "RA",
-    "series": "橫綱X系列",
-    "outdoor_type": "側吹單風扇",
-    "power_supply": "1φ, 220V, 60Hz",
-    "model": "RXV36XVLT",
-    "cap_kw": 3.5,
-    "cap_index": 35.0
-  },
-  {
-    "system": "RA",
-    "series": "橫綱X系列",
-    "outdoor_type": "側吹單風扇",
-    "power_supply": "1φ, 220V, 60Hz",
-    "model": "RXV41XVLT",
-    "cap_kw": 4.1,
-    "cap_index": 41.0
-  },
-  {
-    "system": "RA",
-    "series": "橫綱X系列",
-    "outdoor_type": "側吹單風扇",
-    "power_supply": "1φ, 220V, 60Hz",
-    "model": "RXV50XVLT",
-    "cap_kw": 5.0,
-    "cap_index": 50.0
-  },
-  {
-    "system": "RA",
-    "series": "橫綱X系列",
-    "outdoor_type": "側吹單風扇",
-    "power_supply": "1φ, 220V, 60Hz",
-    "model": "RXV60XVLT",
-    "cap_kw": 6.0,
-    "cap_index": 60.0
-  },
-  {
-    "system": "RA",
-    "series": "橫綱X系列",
-    "outdoor_type": "側吹單風扇",
-    "power_supply": "1φ, 220V, 60Hz",
-    "model": "RXV71XVLT",
-    "cap_kw": 7.2,
-    "cap_index": 72.0
-  },
-  {
-    "system": "RA",
-    "series": "橫綱X系列",
-    "outdoor_type": "側吹單風扇",
-    "power_supply": "1φ, 220V, 60Hz",
-    "model": "RXV80XVLT",
-    "cap_kw": 8.0,
-    "cap_index": 80.0
-  },
-  {
-    "system": "RA",
-    "series": "橫綱X系列",
-    "outdoor_type": "側吹單風扇",
-    "power_supply": "1φ, 220V, 60Hz",
-    "model": "RXV90XVLT",
-    "cap_kw": 8.7,
-    "cap_index": 87.0
-  },
-  {
-    "system": "RA",
-    "series": "經典VA系列",
-    "outdoor_type": "側吹單風扇",
-    "power_supply": "1φ, 220V, 60Hz",
-    "model": "RTHF20VAVLT",
-    "cap_kw": 2.2,
-    "cap_index": 22.0
-  },
-  {
-    "system": "RA",
-    "series": "經典VA系列",
-    "outdoor_type": "側吹單風扇",
-    "power_supply": "1φ, 220V, 60Hz",
-    "model": "RTHF25VAVLT",
-    "cap_kw": 2.5,
-    "cap_index": 25.0
-  },
-  {
-    "system": "RA",
-    "series": "經典VA系列",
-    "outdoor_type": "側吹單風扇",
-    "power_supply": "1φ, 220V, 60Hz",
-    "model": "RTHF30VAVLT",
-    "cap_kw": 3.0,
-    "cap_index": 30.0
-  },
-  {
-    "system": "RA",
-    "series": "經典VA系列",
-    "outdoor_type": "側吹單風扇",
-    "power_supply": "1φ, 220V, 60Hz",
-    "model": "RTHF40VVLT",
-    "cap_kw": 4.0,
-    "cap_index": 40.0
-  },
-  {
-    "system": "RA",
-    "series": "經典VA系列",
-    "outdoor_type": "側吹單風扇",
-    "power_supply": "1φ, 220V, 60Hz",
-    "model": "RTHF50VVLT",
-    "cap_kw": 5.0,
-    "cap_index": 50.0
-  },
-  {
-    "system": "RA",
-    "series": "經典VA系列",
-    "outdoor_type": "側吹單風扇",
-    "power_supply": "1φ, 220V, 60Hz",
-    "model": "RTHF60VVLT",
-    "cap_kw": 6.0,
-    "cap_index": 60.0
-  },
-  {
-    "system": "RA",
-    "series": "經典VA系列",
-    "outdoor_type": "側吹單風扇",
-    "power_supply": "1φ, 220V, 60Hz",
-    "model": "RTHF71VVLT",
-    "cap_kw": 7.2,
-    "cap_index": 72.0
-  },
-  {
-    "system": "RA",
-    "series": "經典VA系列",
-    "outdoor_type": "側吹單風扇",
-    "power_supply": "1φ, 220V, 60Hz",
-    "model": "RTHF20VAVLT",
-    "cap_kw": 2.2,
-    "cap_index": 22.0
-  },
-  {
-    "system": "RA",
-    "series": "經典VA系列",
-    "outdoor_type": "側吹單風扇",
-    "power_supply": "1φ, 220V, 60Hz",
-    "model": "RTHF25VAVLT",
-    "cap_kw": 2.5,
-    "cap_index": 25.0
-  },
-  {
-    "system": "RA",
-    "series": "經典VA系列",
-    "outdoor_type": "側吹單風扇",
-    "power_supply": "1φ, 220V, 60Hz",
-    "model": "RTHF30VAVLT",
-    "cap_kw": 3.0,
-    "cap_index": 30.0
-  },
-  {
-    "system": "RA",
-    "series": "經典VA系列",
-    "outdoor_type": "側吹單風扇",
-    "power_supply": "1φ, 220V, 60Hz",
-    "model": "RTHF40VVLT",
-    "cap_kw": 4.0,
-    "cap_index": 40.0
-  },
-  {
-    "system": "RA",
-    "series": "經典VA系列",
-    "outdoor_type": "側吹單風扇",
-    "power_supply": "1φ, 220V, 60Hz",
-    "model": "RTHF50VVLT",
-    "cap_kw": 5.0,
-    "cap_index": 50.0
-  },
-  {
-    "system": "RA",
-    "series": "經典VA系列",
-    "outdoor_type": "側吹單風扇",
-    "power_supply": "1φ, 220V, 60Hz",
-    "model": "RTHF60VVLT",
-    "cap_kw": 6.0,
-    "cap_index": 60.0
-  },
-  {
-    "system": "RA",
-    "series": "經典VA系列",
-    "outdoor_type": "側吹單風扇",
-    "power_supply": "1φ, 220V, 60Hz",
-    "model": "RTHF71VVLT",
-    "cap_kw": 7.2,
-    "cap_index": 72.0
   }
 ];
 
