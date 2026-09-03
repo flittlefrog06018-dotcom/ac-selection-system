@@ -2222,9 +2222,14 @@ function App() {
         row.unit_count = qty;
         row.cap_kw = cap || lookupModelCapKw(model);
       }
-    } else if (field === 'series') {
-      row.series = value;
-      if (!value) {
+    } else if (field === 'series' || field === 'unit_type') {
+      if (field === 'series') {
+        row.series = value;
+      } else {
+        row.unit_type = value;
+      }
+
+      if (!row.series) {
         row.unit_type = '';
         row.best_match_model = '';
         row.cap_kw = 0;
@@ -2232,14 +2237,48 @@ function App() {
       } else {
         const curSys = row.system_type || 'VRV';
         const sysCascade = (DYNAMIC_EQUIPMENT_CASCADE && DYNAMIC_EQUIPMENT_CASCADE[curSys]) || [];
-        const serObj = sysCascade.find(s => s.series === value);
-        row.unit_type = serObj?.types[0] || '壁掛式';
-        const { model, qty, cap } = clientSideSelectEquipment(newDemand, curSys, value, row.unit_type);
+        const serObj = sysCascade.find(s => s.series === row.series);
+        if (field === 'series' || !row.unit_type) {
+          row.unit_type = serObj?.types[0] || '吊隱式';
+        }
+
+        // 🎯 自動跳出最貼近負載的室內機型號
+        const { model, qty, cap } = clientSideSelectEquipment(newDemand, curSys, row.series, row.unit_type);
         row.best_match_model = model;
-        row.unit_count = qty;
+        row.unit_count = qty || 1;
         row.cap_kw = cap || lookupModelCapKw(model);
+
+        // 🎯 預設室外機型式與電源 (若未設定)
+        if (!row.outdoor_type) {
+          row.outdoor_type = fastOutdoorType || (curSys === 'VRV' ? '冷暖上吹型' : '側吹單風扇');
+        }
+        if (!row.power_supply) {
+          row.power_supply = (curSys === 'RA') ? '1φ, 220V, 60Hz' : (fastOutdoorPower || '3φ, 4P, 380V, 60Hz');
+        }
+
+        // 🎯 自動連動帶出室外機型號
+        const matchedOut = autoMatchOutdoorModelForRow(curSys, row.series, row.cap_kw, row.outdoor_type, row.power_supply, row.unit_count, row.best_match_model);
+        if (matchedOut && matchedOut !== '無此機型') {
+          row.outdoor_model = matchedOut;
+        }
       }
-    } else if (field !== 'best_match_model' && field !== 'unit_count' && field !== 'outdoor_model' && field !== 'outdoor_unit_count' && field !== 'power_supply') {
+    } else if (field === 'outdoor_type') {
+      row.outdoor_type = value;
+      const curSys = row.system_type || 'VRV';
+      const curPwr = row.power_supply || (curSys === 'RA' ? '1φ, 220V, 60Hz' : '3φ, 4P, 380V, 60Hz');
+      const matchedOut = autoMatchOutdoorModelForRow(curSys, row.series, row.cap_kw, value, curPwr, row.unit_count || 1, row.best_match_model);
+      if (matchedOut && matchedOut !== '無此機型') {
+        row.outdoor_model = matchedOut;
+      }
+    } else if (field === 'power_supply') {
+      row.power_supply = value;
+      const curSys = row.system_type || 'VRV';
+      const curType = row.outdoor_type || (curSys === 'VRV' ? '冷暖上吹型' : '側吹單風扇');
+      const matchedOut = autoMatchOutdoorModelForRow(curSys, row.series, row.cap_kw, curType, value, row.unit_count || 1, row.best_match_model);
+      if (matchedOut && matchedOut !== '無此機型') {
+        row.outdoor_model = matchedOut;
+      }
+    } else if (field !== 'best_match_model' && field !== 'unit_count' && field !== 'outdoor_model' && field !== 'outdoor_unit_count') {
       const curSys = selectionMode === 'fast' ? fastSystem : row.system_type;
       const curSeries = selectionMode === 'fast' ? fastSeries : row.series;
       const curUnitType = selectionMode === 'fast' ? fastUnitType : row.unit_type;
@@ -4013,6 +4052,9 @@ function App() {
                   {selectionMode === 'detail' && (
                     <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#eab308', backgroundColor: '#1e293b' }}>供應電源</th>
                   )}
+                  {selectionMode === 'detail' && (
+                    <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#38bdf8', backgroundColor: '#1e293b' }}>室外機型式</th>
+                  )}
                   {/* 🎯 室外機型號與連結率 (標準動態橫向滾動) */}
                   <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#38bdf8', backgroundColor: '#1e293b', minWidth: '160px' }}>室外機型號</th>
                   <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#34d399', backgroundColor: '#1e293b' }}>室外機台數</th>
@@ -4310,7 +4352,8 @@ function App() {
                                 (row.total_cooling_demand || 0) / 860.0,
                                 row.system_type || 'VRV',
                                 row.series,
-                                row.unit_type
+                                row.unit_type,
+                                row.best_match_model
                               ).map((m, mIdx) => (
                                 <option key={mIdx} value={m}>{m}</option>
                               ))}
@@ -4452,6 +4495,63 @@ function App() {
                                         <option value="1φ, 220V, 60Hz">1φ, 220V, 60Hz</option>
                                         <option value="3φ, 3P, 220V, 60Hz">3φ, 3P, 220V, 60Hz</option>
                                         <option value="3φ, 4P, 380V, 60Hz">3φ, 4P, 380V, 60Hz</option>
+                                      </select>
+                                    </td>
+                                  );
+                                })()}
+
+                                {selectionMode === 'detail' && (() => {
+                                  const curSys = gCard?.system_type || row.system_type || fastSystem || 'VRV';
+                                  const curOutType = gCard?.outdoor_type || fastOutdoorType || (curSys === 'VRV' ? '冷暖上吹型' : '側吹單風扇');
+                                  return (
+                                    <td
+                                      rowSpan={gSpan}
+                                      style={{
+                                        ...styles.td,
+                                        verticalAlign: 'middle',
+                                        textAlign: 'center',
+                                        backgroundColor: gCard?.color?.bg || 'rgba(59, 130, 246, 0.15)'
+                                      }}
+                                    >
+                                      <select
+                                        value={curOutType}
+                                        onChange={(e) => {
+                                          const tVal = e.target.value;
+                                          setOutdoorGroups(prev => prev.map(g => {
+                                            if (g.id === gCard.id) {
+                                              const cand = getOutdoorModelsForSystem(g.system_type, row.series || fastSeries, tVal, g.power_supply || targetPower);
+                                              const newModel = cand[0]?.model || g.outdoor_model;
+                                              return { ...g, outdoor_type: tVal, outdoor_model: newModel };
+                                            }
+                                            return g;
+                                          }));
+                                        }}
+                                        style={{
+                                          backgroundColor: '#0f172a',
+                                          color: '#38bdf8',
+                                          border: '1px solid #38bdf8',
+                                          padding: '5px 8px',
+                                          borderRadius: '4px',
+                                          fontSize: '14.5px',
+                                          fontWeight: 'bold',
+                                          cursor: 'pointer'
+                                        }}
+                                      >
+                                        {curSys === 'VRV' ? (
+                                          <>
+                                            <option value="側吹單風扇">側吹單風扇</option>
+                                            <option value="側吹雙風扇">側吹雙風扇</option>
+                                            <option value="冷專上吹型">冷專上吹型</option>
+                                            <option value="冷暖上吹型">冷暖上吹型</option>
+                                          </>
+                                        ) : curSys === 'SA' ? (
+                                          <option value="側吹單風扇">側吹單風扇</option>
+                                        ) : (
+                                          <>
+                                            <option value="側吹單風扇">側吹單風扇</option>
+                                            <option value="側吹雙風扇">側吹雙風扇</option>
+                                          </>
+                                        )}
                                       </select>
                                     </td>
                                   );
@@ -4637,6 +4737,45 @@ function App() {
                                       <option value="1φ, 220V, 60Hz">1φ, 220V, 60Hz</option>
                                       <option value="3φ, 3P, 220V, 60Hz">3φ, 3P, 220V, 60Hz</option>
                                       <option value="3φ, 4P, 380V, 60Hz">3φ, 4P, 380V, 60Hz</option>
+                                    </select>
+                                  </td>
+                                );
+                              })()}
+
+                              {selectionMode === 'detail' && (() => {
+                                const curSys = row.system_type || fastSystem || 'VRV';
+                                const curOutType = row.outdoor_type || fastOutdoorType || (curSys === 'VRV' ? '冷暖上吹型' : '側吹單風扇');
+                                return (
+                                  <td style={styles.td}>
+                                    <select
+                                      value={curOutType}
+                                      onChange={(e) => handleCellChange(index, 'outdoor_type', e.target.value)}
+                                      style={{
+                                        backgroundColor: '#0f172a',
+                                        color: '#38bdf8',
+                                        border: '1px solid #38bdf8',
+                                        padding: '5px 8px',
+                                        borderRadius: '4px',
+                                        fontSize: '14.5px',
+                                        fontWeight: 'bold',
+                                        cursor: 'pointer'
+                                      }}
+                                    >
+                                      {curSys === 'VRV' ? (
+                                        <>
+                                          <option value="側吹單風扇">側吹單風扇</option>
+                                          <option value="側吹雙風扇">側吹雙風扇</option>
+                                          <option value="冷專上吹型">冷專上吹型</option>
+                                          <option value="冷暖上吹型">冷暖上吹型</option>
+                                        </>
+                                      ) : curSys === 'SA' ? (
+                                        <option value="側吹單風扇">側吹單風扇</option>
+                                      ) : (
+                                        <>
+                                          <option value="側吹單風扇">側吹單風扇</option>
+                                          <option value="側吹雙風扇">側吹雙風扇</option>
+                                        </>
+                                      )}
                                     </select>
                                   </td>
                                 );

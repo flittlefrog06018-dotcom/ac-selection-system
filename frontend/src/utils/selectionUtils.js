@@ -161,29 +161,32 @@ export const getFilteredModelsForDetailMode = (systemType, seriesName, totalDema
   return Array.from(new Set(sorted.map(m => m.model)));
 };
 
-export const getDynamicModelCandidates = (demandKw, system, series, unitType) => {
+export const getDynamicModelCandidates = (demandKw, system, series, unitType, currentModel = null) => {
   const sysKey = system || 'VRV';
   const allModels = EQUIPMENT_DB[sysKey] || EQUIPMENT_DB['VRV'] || [];
   let filtered = allModels;
 
   if (series) {
-    filtered = filtered.filter(m => m.series === series);
+    const sMatch = filtered.filter(m => m.series === series);
+    if (sMatch.length > 0) filtered = sMatch;
   }
   if (unitType) {
-    filtered = filtered.filter(m => m.unit_type === unitType);
+    const uMatch = filtered.filter(m => m.unit_type === unitType);
+    if (uMatch.length > 0) filtered = uMatch;
   }
   if (filtered.length === 0) {
     filtered = allModels;
   }
 
-  const kw = demandKw || 2.2;
-  const minKw = kw * 0.8;
-  const maxKw = kw * 1.2;
-  const inRange = filtered.filter(m => m.cap >= minKw && m.cap <= maxKw);
-  const result = inRange.length > 0 ? inRange : filtered;
-  const sorted = [...result].sort((a, b) => a.cap - b.cap);
+  // 依容量由小到大排序該系列與型式的所有機型，完整提供選擇
+  const sorted = [...filtered].sort((a, b) => a.cap - b.cap);
+  const models = sorted.map(m => m.model);
 
-  return sorted.map(m => m.model);
+  if (currentModel && !models.includes(currentModel)) {
+    models.unshift(currentModel);
+  }
+
+  return Array.from(new Set(models));
 };
 
 export const lookupModelCapKw = (modelName) => {
