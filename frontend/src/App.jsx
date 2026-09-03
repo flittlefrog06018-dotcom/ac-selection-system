@@ -3639,7 +3639,12 @@ function App() {
         <section style={{ ...styles.card, minWidth: 0, overflow: 'hidden' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '14px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-              <div style={styles.cardTitle}>📈 工程負荷試算與大金配機建議表</div>
+              <div style={{ ...styles.cardTitle, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>📈 工程負荷試算與大金配機建議表</span>
+                <span style={{ fontSize: '11.5px', color: '#94a3b8', fontWeight: 'bold', backgroundColor: '#1e293b', padding: '2px 8px', borderRadius: '4px', border: '1px solid #334155' }}>
+                  v2.7.0 (2026.09.04)
+                </span>
+              </div>
               
               {/* 🎯 切換按鈕：快速選機 vs 細緻選機 */}
               <div style={{ display: 'flex', backgroundColor: '#0f172a', borderRadius: '8px', padding: '3px', border: '1px solid #334155' }}>
