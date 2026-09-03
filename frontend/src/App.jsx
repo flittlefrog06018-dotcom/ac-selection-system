@@ -3934,27 +3934,37 @@ function App() {
                     🧹 重置全場一併
                   </button>
                 )}
-                <button
-                  onClick={handleCreateGroupFromSelection}
-                  title="點擊將表格中已勾選的空間組合為獨立的大金室外機系統"
-                  style={{
-                    backgroundColor: '#0284c7',
-                    color: '#ffffff',
-                    border: 'none',
-                    padding: '7px 16px',
-                    borderRadius: '6px',
-                    fontSize: '13px',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                    boxShadow: '0 2px 8px rgba(2, 132, 199, 0.4)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  🔗 將勾選空間併入同一台室外機
-                </button>
+                {selectionMode === 'detail' && (
+                  <button
+                    onClick={() => {
+                      const currentRows = rowsRef.current || rows;
+                      const selectedIndices = currentRows.map((r, i) => r.selected ? i : null).filter(i => i !== null);
+                      if (selectedIndices.length === 0) {
+                        toast.info('💡 請先勾選欲併入同一台室外機的空間！');
+                        return;
+                      }
+                      openOutdoorModalForSelection(selectedIndices);
+                    }}
+                    title="點擊將表格中已勾選的空間組合為獨立的大金室外機系統"
+                    style={{
+                      backgroundColor: '#0284c7',
+                      color: '#ffffff',
+                      border: 'none',
+                      padding: '7px 16px',
+                      borderRadius: '6px',
+                      fontSize: '13px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 8px rgba(2, 132, 199, 0.4)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    🔗 將勾選空間併入同一台室外機
+                  </button>
+                )}
                 <button
                   onClick={handleExportExcel}
                   disabled={exportLoading || rows.length === 0}
@@ -4045,7 +4055,6 @@ function App() {
                         onDragOver={(e) => handleRowDragOver(e, index)}
                         onDrop={(e) => handleRowDrop(e, index)}
                         onDragEnd={handleRowDragEnd}
-                        onContextMenu={(e) => handleTableContextMenu(e, index)}
                         onClick={(e) => {
                           if (e.ctrlKey || e.metaKey) {
                             lastCtrlPosRef.current = { x: e.clientX, y: e.clientY };
@@ -4906,126 +4915,6 @@ function App() {
               </button>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* 🎯 滑鼠右鍵快顯功能功能表 (一鍵將勾選空間併入同一台室外機 / 手動指定室外機型號) */}
-      {contextMenu.show && (
-        <div
-          style={{
-            position: 'fixed',
-            top: Math.min(contextMenu.y, (window.innerHeight || 800) - 280),
-            left: Math.min(contextMenu.x, (window.innerWidth || 1200) - 300),
-            backgroundColor: '#0f172a',
-            border: '1px solid #38bdf8',
-            borderRadius: '8px',
-            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.6)',
-            padding: '8px 0',
-            zIndex: 999999,
-            minWidth: '260px',
-            color: '#f8fafc'
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div style={{ padding: '6px 14px', fontSize: '11px', color: '#94a3b8', borderBottom: '1px solid #334155', fontWeight: 'bold' }}>
-            🎯 室外機系統右鍵選單 ({rows.filter(r => r.selected).length > 0 ? `已勾選 ${rows.filter(r => r.selected).length} 個空間` : `目標：${rows[contextMenu.targetRowIndex]?.space_name || '空間'}`})
-          </div>
-
-          <div
-            onClick={() => handleCreateGroupFromSelection()}
-            style={{
-              padding: '10px 14px',
-              fontSize: '13px',
-              fontWeight: 'bold',
-              color: '#38bdf8',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              transition: 'background-color 0.15s'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1e293b'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-          >
-            🔗 併入同一台室外機 (自動算 ≤115% 型號)
-          </div>
-
-          <div style={{ padding: '8px 14px', borderTop: '1px solid #334155' }}>
-            <div style={{ fontSize: '12px', color: '#a855f7', fontWeight: 'bold', marginBottom: '6px' }}>
-              ⚡ 手動選擇室外機系統型號:
-            </div>
-            <select
-              defaultValue=""
-              onChange={(e) => {
-                if (e.target.value) {
-                  handleCreateGroupWithSpecificModel(e.target.value);
-                }
-              }}
-              style={{
-                width: '100%',
-                backgroundColor: '#1e293b',
-                color: '#38bdf8',
-                border: '1px solid #38bdf8',
-                padding: '6px 10px',
-                borderRadius: '4px',
-                fontSize: '12px',
-                fontWeight: 'bold',
-                cursor: 'pointer'
-              }}
-            >
-              <option value="">-- 請選擇室外機型號 --</option>
-              {getOutdoorModelsForSystem(fastSystem || 'VRV', fastSeries || '中靜壓', fastOutdoorType || '上吹', fastOutdoorPower || '3φ, 4P, 380V, 60Hz').map((m, idx) => (
-                <option key={idx} value={m.model}>
-                  {m.model} ({m.cap_kw} kW / {m.cap_index} 指數)
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {contextMenu.targetRowIndex !== null && rows[contextMenu.targetRowIndex]?.outdoorGroupId && (
-            <div
-              onClick={() => handleRemoveRowFromGroup(contextMenu.targetRowIndex)}
-              style={{
-                padding: '10px 14px',
-                fontSize: '13px',
-                fontWeight: 'bold',
-                color: '#f87171',
-                cursor: 'pointer',
-                borderTop: '1px solid #334155',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1e293b'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-            >
-              ✂️ 將此空間從室外機群組拆分獨立
-            </div>
-          )}
-
-          {userHasCustomGroups && (
-            <div
-              onClick={() => {
-                handleResetAutoGrouping();
-                setContextMenu({ show: false, x: 0, y: 0, targetRowIndex: null });
-              }}
-              style={{
-                padding: '10px 14px',
-                fontSize: '13px',
-                fontWeight: 'bold',
-                color: '#94a3b8',
-                cursor: 'pointer',
-                borderTop: '1px solid #334155',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1e293b'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-            >
-              🧹 重置全場一併智慧併機
-            </div>
-          )}
         </div>
       )}
 
