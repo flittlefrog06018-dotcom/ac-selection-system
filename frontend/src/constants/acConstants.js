@@ -2364,13 +2364,11 @@ export const OUTDOOR_UNITS_DB = [
 export const SA_MATCHED_PAIRS = [
   {
     "col": "E",
-    "col_index": 5,
-    "system": "SA",
     "series": "商用冷專系列",
     "indoor": {
+      "model": "FAA71XVLT",
       "system": "SA",
       "series": "商用冷專系列",
-      "model": "FAA71XVLT",
       "cap_kw": 7.2,
       "nominal_cap": "-",
       "power_supply": "室外機供電",
@@ -2381,30 +2379,27 @@ export const SA_MATCHED_PAIRS = [
       "unit_type": "壁掛式"
     },
     "outdoor": {
+      "model": "RKF71XVLT",
       "system": "SA",
       "series": "商用冷專系列",
-      "model": "RKF71XVLT",
       "cap_kw": 7.2,
-      "cap_index": 0.0,
+      "nominal_cap": "-",
       "power_supply": "1φ, 220V, 60Hz",
       "power_consumption_kw": 2.23,
       "mca_a": 10.2,
-      "mfa_a": 15.0,
+      "mfa_a": 15,
       "esp_pa": "-",
       "dimensions_mm": "595×845×300",
-      "outdoor_type": "側吹單風扇",
-      "recommended_indoor_type": "壁掛式"
+      "outdoor_type": "側吹單風扇"
     }
   },
   {
     "col": "F",
-    "col_index": 6,
-    "system": "SA",
     "series": "商用冷專系列",
     "indoor": {
+      "model": "FAA100XVLT",
       "system": "SA",
       "series": "商用冷專系列",
-      "model": "FAA100XVLT",
       "cap_kw": 9.5,
       "nominal_cap": "-",
       "power_supply": "室外機供電",
@@ -2415,30 +2410,27 @@ export const SA_MATCHED_PAIRS = [
       "unit_type": "壁掛式"
     },
     "outdoor": {
+      "model": "RKF100XVLT",
       "system": "SA",
       "series": "商用冷專系列",
-      "model": "RKF100XVLT",
       "cap_kw": 9.5,
-      "cap_index": 0.0,
+      "nominal_cap": "-",
       "power_supply": "1φ, 220V, 60Hz",
       "power_consumption_kw": 2.8,
-      "mca_a": 15.0,
-      "mfa_a": 20.0,
+      "mca_a": 15,
+      "mfa_a": 20,
       "esp_pa": "-",
       "dimensions_mm": "990×940×320",
-      "outdoor_type": "側吹單風扇",
-      "recommended_indoor_type": "壁掛式"
+      "outdoor_type": "側吹單風扇"
     }
   },
   {
     "col": "G",
-    "col_index": 7,
-    "system": "SA",
     "series": "商用冷專系列",
     "indoor": {
+      "model": "FCA71DVLT",
       "system": "SA",
       "series": "商用冷專系列",
-      "model": "FCA71DVLT",
       "cap_kw": 7.2,
       "nominal_cap": "-",
       "power_supply": "室外機供電",
@@ -2449,30 +2441,27 @@ export const SA_MATCHED_PAIRS = [
       "unit_type": "全方吹"
     },
     "outdoor": {
+      "model": "RZF71DVLT",
       "system": "SA",
       "series": "商用冷專系列",
-      "model": "RZF71DVLT",
       "cap_kw": 7.2,
-      "cap_index": 0.0,
+      "nominal_cap": "-",
       "power_supply": "1φ, 220V, 60Hz",
       "power_consumption_kw": 1.9,
       "mca_a": 9.5,
-      "mfa_a": 16.0,
+      "mfa_a": 16,
       "esp_pa": "-",
       "dimensions_mm": "608×845×300",
-      "outdoor_type": "側吹單風扇",
-      "recommended_indoor_type": "全方吹"
+      "outdoor_type": "側吹單風扇"
     }
   },
   {
     "col": "H",
-    "col_index": 8,
-    "system": "SA",
     "series": "商用冷專系列",
     "indoor": {
+      "model": "FCA71CVLT",
       "system": "SA",
       "series": "商用冷專系列",
-      "model": "FCA71CVLT",
       "cap_kw": 7.2,
       "nominal_cap": "-",
       "power_supply": "室外機供電",
@@ -2483,30 +2472,27 @@ export const SA_MATCHED_PAIRS = [
       "unit_type": "全方吹"
     },
     "outdoor": {
+      "model": "RZF71CVLT",
       "system": "SA",
       "series": "商用冷專系列",
-      "model": "RZF71CVLT",
       "cap_kw": 7.2,
-      "cap_index": 0.0,
+      "nominal_cap": "-",
       "power_supply": "1φ, 220V, 60Hz",
       "power_consumption_kw": 1.9,
       "mca_a": 9.5,
-      "mfa_a": 16.0,
+      "mfa_a": 16,
       "esp_pa": "-",
       "dimensions_mm": "595×845×300",
-      "outdoor_type": "側吹單風扇",
-      "recommended_indoor_type": "全方吹"
+      "outdoor_type": "側吹單風扇"
     }
   },
   {
     "col": "I",
-    "col_index": 9,
-    "system": "SA",
     "series": "商用冷專系列",
     "indoor": {
+      "model": "FCA100CVLT",
       "system": "SA",
       "series": "商用冷專系列",
-      "model": "FCA100CVLT",
       "cap_kw": 10.1,
       "nominal_cap": "-",
       "power_supply": "室外機供電",
@@ -2517,30 +2503,27 @@ export const SA_MATCHED_PAIRS = [
       "unit_type": "全方吹"
     },
     "outdoor": {
+      "model": "RZF100CVLT",
       "system": "SA",
       "series": "商用冷專系列",
-      "model": "RZF100CVLT",
       "cap_kw": 10.1,
-      "cap_index": 0.0,
+      "nominal_cap": "-",
       "power_supply": "1φ, 220V, 60Hz",
       "power_consumption_kw": 2.88,
       "mca_a": 13.4,
-      "mfa_a": 32.0,
+      "mfa_a": 32,
       "esp_pa": "-",
       "dimensions_mm": "990×940×320",
-      "outdoor_type": "側吹單風扇",
-      "recommended_indoor_type": "全方吹"
+      "outdoor_type": "側吹單風扇"
     }
   },
   {
     "col": "J",
-    "col_index": 10,
-    "system": "SA",
     "series": "商用冷專系列",
     "indoor": {
+      "model": "FCA125CVLT",
       "system": "SA",
       "series": "商用冷專系列",
-      "model": "FCA125CVLT",
       "cap_kw": 12.5,
       "nominal_cap": "-",
       "power_supply": "室外機供電",
@@ -2551,30 +2534,27 @@ export const SA_MATCHED_PAIRS = [
       "unit_type": "全方吹"
     },
     "outdoor": {
+      "model": "RZF125CVLT",
       "system": "SA",
       "series": "商用冷專系列",
-      "model": "RZF125CVLT",
       "cap_kw": 12.5,
-      "cap_index": 0.0,
+      "nominal_cap": "-",
       "power_supply": "1φ, 220V, 60Hz",
-      "power_consumption_kw": 4.0,
+      "power_consumption_kw": 4,
       "mca_a": 18.3,
-      "mfa_a": 32.0,
+      "mfa_a": 32,
       "esp_pa": "-",
       "dimensions_mm": "990×940×320",
-      "outdoor_type": "側吹單風扇",
-      "recommended_indoor_type": "全方吹"
+      "outdoor_type": "側吹單風扇"
     }
   },
   {
     "col": "K",
-    "col_index": 11,
-    "system": "SA",
     "series": "商用冷專系列",
     "indoor": {
+      "model": "FCA140CVLT",
       "system": "SA",
       "series": "商用冷專系列",
-      "model": "FCA140CVLT",
       "cap_kw": 14.0,
       "nominal_cap": "-",
       "power_supply": "室外機供電",
@@ -2585,30 +2565,27 @@ export const SA_MATCHED_PAIRS = [
       "unit_type": "全方吹"
     },
     "outdoor": {
+      "model": "RZF140CVLT",
       "system": "SA",
       "series": "商用冷專系列",
-      "model": "RZF140CVLT",
       "cap_kw": 14.0,
-      "cap_index": 0.0,
+      "nominal_cap": "-",
       "power_supply": "1φ, 220V, 60Hz",
       "power_consumption_kw": 4.8,
-      "mca_a": 22.0,
-      "mfa_a": 32.0,
+      "mca_a": 22,
+      "mfa_a": 32,
       "esp_pa": "-",
       "dimensions_mm": "990×940×320",
-      "outdoor_type": "側吹單風扇",
-      "recommended_indoor_type": "全方吹"
+      "outdoor_type": "側吹單風扇"
     }
   },
   {
     "col": "L",
-    "col_index": 12,
-    "system": "SA",
     "series": "商用冷專系列",
     "indoor": {
+      "model": "FCA140DVLT",
       "system": "SA",
       "series": "商用冷專系列",
-      "model": "FCA140DVLT",
       "cap_kw": 14.0,
       "nominal_cap": "-",
       "power_supply": "室外機供電",
@@ -2619,30 +2596,27 @@ export const SA_MATCHED_PAIRS = [
       "unit_type": "全方吹"
     },
     "outdoor": {
+      "model": "RZF140DTLT",
       "system": "SA",
       "series": "商用冷專系列",
-      "model": "RZF140DTLT",
       "cap_kw": 14.0,
-      "cap_index": 0.0,
+      "nominal_cap": "-",
       "power_supply": "3φ, 3P, 220V, 60Hz",
       "power_consumption_kw": 4.8,
       "mca_a": 13.4,
-      "mfa_a": 32.0,
+      "mfa_a": 32,
       "esp_pa": "-",
       "dimensions_mm": "990×940×320",
-      "outdoor_type": "側吹單風扇",
-      "recommended_indoor_type": "全方吹"
+      "outdoor_type": "側吹單風扇"
     }
   },
   {
     "col": "M",
-    "col_index": 13,
-    "system": "SA",
     "series": "商用冷專系列",
     "indoor": {
+      "model": "FCA140CVLT",
       "system": "SA",
       "series": "商用冷專系列",
-      "model": "FCA140CVLT",
       "cap_kw": 14.0,
       "nominal_cap": "-",
       "power_supply": "室外機供電",
@@ -2653,234 +2627,213 @@ export const SA_MATCHED_PAIRS = [
       "unit_type": "全方吹"
     },
     "outdoor": {
+      "model": "RZF140CYLT",
       "system": "SA",
       "series": "商用冷專系列",
-      "model": "RZF140CYLT",
       "cap_kw": 14.0,
-      "cap_index": 0.0,
+      "nominal_cap": "-",
       "power_supply": "3φ, 4P, 380V, 60Hz",
       "power_consumption_kw": 4.8,
       "mca_a": 8.22,
-      "mfa_a": 20.0,
+      "mfa_a": 20,
       "esp_pa": "-",
       "dimensions_mm": "990×940×320",
-      "outdoor_type": "側吹單風扇",
-      "recommended_indoor_type": "全方吹"
+      "outdoor_type": "側吹單風扇"
     }
   },
   {
     "col": "N",
-    "col_index": 14,
-    "system": "SA",
     "series": "商用冷專系列",
     "indoor": {
+      "model": "FBA71BVLT",
       "system": "SA",
       "series": "商用冷專系列",
-      "model": "FBA71BVLT",
       "cap_kw": 7.2,
       "nominal_cap": "-",
       "power_supply": "1φ, 220V, 60Hz",
-      "power_consumption_kw": "0.23",
-      "rated_current_a": "1.4",
+      "power_consumption_kw": 0.23,
+      "rated_current_a": 1.4,
       "esp_pa": "-",
       "dimensions_mm": "245×1000×800",
       "unit_type": "吊隱式"
     },
     "outdoor": {
+      "model": "RZF71DVLT",
       "system": "SA",
       "series": "商用冷專系列",
-      "model": "RZF71DVLT",
       "cap_kw": 7.2,
-      "cap_index": 0.0,
+      "nominal_cap": "-",
       "power_supply": "1φ, 220V, 60Hz",
       "power_consumption_kw": 2.01,
-      "mca_a": 10.0,
-      "mfa_a": 20.0,
+      "mca_a": 10,
+      "mfa_a": 20,
       "esp_pa": "-",
       "dimensions_mm": "608×845×300",
-      "outdoor_type": "側吹單風扇",
-      "recommended_indoor_type": "吊隱式"
+      "outdoor_type": "側吹單風扇"
     }
   },
   {
     "col": "O",
-    "col_index": 15,
-    "system": "SA",
     "series": "商用冷專系列",
     "indoor": {
+      "model": "FBA100BVLT",
       "system": "SA",
       "series": "商用冷專系列",
-      "model": "FBA100BVLT",
       "cap_kw": 10.1,
       "nominal_cap": "-",
       "power_supply": "1φ, 220V, 60Hz",
-      "power_consumption_kw": "0.3",
-      "rated_current_a": "1.8",
+      "power_consumption_kw": 0.3,
+      "rated_current_a": 1.8,
       "esp_pa": "-",
       "dimensions_mm": "245×1400×800",
       "unit_type": "吊隱式"
     },
     "outdoor": {
+      "model": "RZF100CVLT",
       "system": "SA",
       "series": "商用冷專系列",
-      "model": "RZF100CVLT",
       "cap_kw": 10.1,
-      "cap_index": 0.0,
+      "nominal_cap": "-",
       "power_supply": "1φ, 220V, 60Hz",
       "power_consumption_kw": 3.04,
-      "mca_a": 14.0,
-      "mfa_a": 32.0,
+      "mca_a": 14,
+      "mfa_a": 32,
       "esp_pa": "-",
       "dimensions_mm": "990×940×320",
-      "outdoor_type": "側吹單風扇",
-      "recommended_indoor_type": "吊隱式"
+      "outdoor_type": "側吹單風扇"
     }
   },
   {
     "col": "P",
-    "col_index": 16,
-    "system": "SA",
     "series": "商用冷專系列",
     "indoor": {
+      "model": "FBA125BVLT",
       "system": "SA",
       "series": "商用冷專系列",
-      "model": "FBA125BVLT",
       "cap_kw": 12.5,
       "nominal_cap": "-",
       "power_supply": "1φ, 220V, 60Hz",
-      "power_consumption_kw": "0.3",
-      "rated_current_a": "2.3",
+      "power_consumption_kw": 0.3,
+      "rated_current_a": 2.3,
       "esp_pa": "-",
       "dimensions_mm": "245×1400×800",
       "unit_type": "吊隱式"
     },
     "outdoor": {
+      "model": "RZF125CVLT",
       "system": "SA",
       "series": "商用冷專系列",
-      "model": "RZF125CVLT",
       "cap_kw": 12.5,
-      "cap_index": 0.0,
+      "nominal_cap": "-",
       "power_supply": "1φ, 220V, 60Hz",
       "power_consumption_kw": 4.44,
       "mca_a": 20.3,
-      "mfa_a": 32.0,
+      "mfa_a": 32,
       "esp_pa": "-",
       "dimensions_mm": "990×940×320",
-      "outdoor_type": "側吹單風扇",
-      "recommended_indoor_type": "吊隱式"
+      "outdoor_type": "側吹單風扇"
     }
   },
   {
     "col": "Q",
-    "col_index": 17,
-    "system": "SA",
     "series": "商用冷專系列",
     "indoor": {
+      "model": "FBA140BVLT",
       "system": "SA",
       "series": "商用冷專系列",
-      "model": "FBA140BVLT",
       "cap_kw": 13.3,
       "nominal_cap": "-",
       "power_supply": "1φ, 220V, 60Hz",
-      "power_consumption_kw": "0.3",
-      "rated_current_a": "2.3",
+      "power_consumption_kw": 0.3,
+      "rated_current_a": 2.3,
       "esp_pa": "-",
       "dimensions_mm": "245×1400×800",
       "unit_type": "吊隱式"
     },
     "outdoor": {
+      "model": "RZF140CVLT",
       "system": "SA",
       "series": "商用冷專系列",
-      "model": "RZF140CVLT",
       "cap_kw": 13.3,
-      "cap_index": 0.0,
+      "nominal_cap": "-",
       "power_supply": "1φ, 220V, 60Hz",
       "power_consumption_kw": 5.41,
       "mca_a": 24.75,
-      "mfa_a": 32.0,
+      "mfa_a": 32,
       "esp_pa": "-",
       "dimensions_mm": "990×940×320",
-      "outdoor_type": "側吹單風扇",
-      "recommended_indoor_type": "吊隱式"
+      "outdoor_type": "側吹單風扇"
     }
   },
   {
     "col": "R",
-    "col_index": 18,
-    "system": "SA",
     "series": "商用冷專系列",
     "indoor": {
+      "model": "FBA140BVLT",
       "system": "SA",
       "series": "商用冷專系列",
-      "model": "FBA140BVLT",
       "cap_kw": 13.3,
       "nominal_cap": "-",
       "power_supply": "1φ, 220V, 60Hz",
-      "power_consumption_kw": "0.3",
-      "rated_current_a": "2.3",
+      "power_consumption_kw": 0.3,
+      "rated_current_a": 2.3,
       "esp_pa": "-",
       "dimensions_mm": "245×1400×800",
       "unit_type": "吊隱式"
     },
     "outdoor": {
+      "model": "RZF140DTLT",
       "system": "SA",
       "series": "商用冷專系列",
-      "model": "RZF140DTLT",
       "cap_kw": 13.3,
-      "cap_index": 0.0,
+      "nominal_cap": "-",
       "power_supply": "3φ, 3P, 220V, 60Hz",
       "power_consumption_kw": 5.41,
       "mca_a": 14.5,
-      "mfa_a": 25.0,
+      "mfa_a": 25,
       "esp_pa": "-",
       "dimensions_mm": "990×940×320",
-      "outdoor_type": "側吹單風扇",
-      "recommended_indoor_type": "吊隱式"
+      "outdoor_type": "側吹單風扇"
     }
   },
   {
     "col": "S",
-    "col_index": 19,
-    "system": "SA",
     "series": "商用冷專系列",
     "indoor": {
+      "model": "FBA140BVLT",
       "system": "SA",
       "series": "商用冷專系列",
-      "model": "FBA140BVLT",
       "cap_kw": 13.3,
       "nominal_cap": "-",
       "power_supply": "1φ, 220V, 60Hz",
-      "power_consumption_kw": "0.3",
-      "rated_current_a": "2.3",
+      "power_consumption_kw": 0.3,
+      "rated_current_a": 2.3,
       "esp_pa": "-",
       "dimensions_mm": "245×1400×800",
       "unit_type": "吊隱式"
     },
     "outdoor": {
+      "model": "RZF140CYLT",
       "system": "SA",
       "series": "商用冷專系列",
-      "model": "RZF140CYLT",
       "cap_kw": 13.3,
-      "cap_index": 0.0,
+      "nominal_cap": "-",
       "power_supply": "3φ, 4P, 380V, 60Hz",
       "power_consumption_kw": 5.41,
       "mca_a": 8.69,
-      "mfa_a": 16.0,
+      "mfa_a": 16,
       "esp_pa": "-",
       "dimensions_mm": "990×940×320",
-      "outdoor_type": "側吹單風扇",
-      "recommended_indoor_type": "吊隱式"
+      "outdoor_type": "側吹單風扇"
     }
   },
   {
     "col": "T",
-    "col_index": 20,
-    "system": "SA",
     "series": "商用冷暖系列",
     "indoor": {
+      "model": "FCA71DVLT",
       "system": "SA",
       "series": "商用冷暖系列",
-      "model": "FCA71DVLT",
       "cap_kw": 7.2,
       "nominal_cap": "-",
       "power_supply": "室外機供電",
@@ -2891,30 +2844,27 @@ export const SA_MATCHED_PAIRS = [
       "unit_type": "全方吹"
     },
     "outdoor": {
+      "model": "RZAC71EVLT",
       "system": "SA",
       "series": "商用冷暖系列",
-      "model": "RZAC71EVLT",
       "cap_kw": 7.2,
-      "cap_index": 0.0,
+      "nominal_cap": "-",
       "power_supply": "1φ, 220V, 60Hz",
       "power_consumption_kw": 1.88,
       "mca_a": 10.4,
-      "mfa_a": 20.0,
+      "mfa_a": 20,
       "esp_pa": "-",
       "dimensions_mm": "608×845×300",
-      "outdoor_type": "側吹單風扇",
-      "recommended_indoor_type": "全方吹"
+      "outdoor_type": "側吹單風扇"
     }
   },
   {
     "col": "U",
-    "col_index": 21,
-    "system": "SA",
     "series": "商用冷暖系列",
     "indoor": {
+      "model": "FCA100CVLT",
       "system": "SA",
       "series": "商用冷暖系列",
-      "model": "FCA100CVLT",
       "cap_kw": 10.4,
       "nominal_cap": "-",
       "power_supply": "室外機供電",
@@ -2925,30 +2875,27 @@ export const SA_MATCHED_PAIRS = [
       "unit_type": "全方吹"
     },
     "outdoor": {
+      "model": "RZAC100DVLT",
       "system": "SA",
       "series": "商用冷暖系列",
-      "model": "RZAC100DVLT",
       "cap_kw": 10.4,
-      "cap_index": 0.0,
+      "nominal_cap": "-",
       "power_supply": "1φ, 220V, 60Hz",
       "power_consumption_kw": 2.86,
       "mca_a": 13.2,
-      "mfa_a": 25.0,
+      "mfa_a": 25,
       "esp_pa": "-",
       "dimensions_mm": "990×940×320",
-      "outdoor_type": "側吹單風扇",
-      "recommended_indoor_type": "全方吹"
+      "outdoor_type": "側吹單風扇"
     }
   },
   {
     "col": "V",
-    "col_index": 22,
-    "system": "SA",
     "series": "商用冷暖系列",
     "indoor": {
+      "model": "FCA125CVLT",
       "system": "SA",
       "series": "商用冷暖系列",
-      "model": "FCA125CVLT",
       "cap_kw": 12.5,
       "nominal_cap": "-",
       "power_supply": "室外機供電",
@@ -2959,30 +2906,27 @@ export const SA_MATCHED_PAIRS = [
       "unit_type": "全方吹"
     },
     "outdoor": {
+      "model": "RZAC125DVLT",
       "system": "SA",
       "series": "商用冷暖系列",
-      "model": "RZAC125DVLT",
       "cap_kw": 12.5,
-      "cap_index": 0.0,
+      "nominal_cap": "-",
       "power_supply": "1φ, 220V, 60Hz",
       "power_consumption_kw": 3.75,
       "mca_a": 17.35,
-      "mfa_a": 32.0,
+      "mfa_a": 32,
       "esp_pa": "-",
       "dimensions_mm": "990×940×320",
-      "outdoor_type": "側吹單風扇",
-      "recommended_indoor_type": "全方吹"
+      "outdoor_type": "側吹單風扇"
     }
   },
   {
     "col": "W",
-    "col_index": 23,
-    "system": "SA",
     "series": "商用冷暖系列",
     "indoor": {
+      "model": "FCA140CVLT",
       "system": "SA",
       "series": "商用冷暖系列",
-      "model": "FCA140CVLT",
       "cap_kw": 14.0,
       "nominal_cap": "-",
       "power_supply": "室外機供電",
@@ -2993,30 +2937,27 @@ export const SA_MATCHED_PAIRS = [
       "unit_type": "全方吹"
     },
     "outdoor": {
+      "model": "RZAC140DVLT",
       "system": "SA",
       "series": "商用冷暖系列",
-      "model": "RZAC140DVLT",
       "cap_kw": 14.0,
-      "cap_index": 0.0,
+      "nominal_cap": "-",
       "power_supply": "1φ, 220V, 60Hz",
       "power_consumption_kw": 4.7,
       "mca_a": 21.8,
-      "mfa_a": 32.0,
+      "mfa_a": 32,
       "esp_pa": "-",
       "dimensions_mm": "990×940×320",
-      "outdoor_type": "側吹單風扇",
-      "recommended_indoor_type": "全方吹"
+      "outdoor_type": "側吹單風扇"
     }
   },
   {
     "col": "X",
-    "col_index": 24,
-    "system": "SA",
     "series": "商用冷暖系列",
     "indoor": {
+      "model": "FCA140DVLT",
       "system": "SA",
       "series": "商用冷暖系列",
-      "model": "FCA140DVLT",
       "cap_kw": 14.0,
       "nominal_cap": "-",
       "power_supply": "室外機供電",
@@ -3027,30 +2968,27 @@ export const SA_MATCHED_PAIRS = [
       "unit_type": "全方吹"
     },
     "outdoor": {
+      "model": "RZAC140ETLT",
       "system": "SA",
       "series": "商用冷暖系列",
-      "model": "RZAC140ETLT",
       "cap_kw": 14.0,
-      "cap_index": 0.0,
+      "nominal_cap": "-",
       "power_supply": "3φ, 3P, 220V, 60Hz",
       "power_consumption_kw": 4.7,
-      "mca_a": 13.0,
-      "mfa_a": 25.0,
+      "mca_a": 13,
+      "mfa_a": 25,
       "esp_pa": "-",
       "dimensions_mm": "990×940×320",
-      "outdoor_type": "側吹單風扇",
-      "recommended_indoor_type": "全方吹"
+      "outdoor_type": "側吹單風扇"
     }
   },
   {
     "col": "Y",
-    "col_index": 25,
-    "system": "SA",
     "series": "商用冷暖系列",
     "indoor": {
+      "model": "FCA140CVLT",
       "system": "SA",
       "series": "商用冷暖系列",
-      "model": "FCA140CVLT",
       "cap_kw": 14.0,
       "nominal_cap": "-",
       "power_supply": "室外機供電",
@@ -3061,223 +2999,206 @@ export const SA_MATCHED_PAIRS = [
       "unit_type": "全方吹"
     },
     "outdoor": {
+      "model": "RZAC140DYLT",
       "system": "SA",
       "series": "商用冷暖系列",
-      "model": "RZAC140DYLT",
       "cap_kw": 14.0,
-      "cap_index": 0.0,
+      "nominal_cap": "-",
       "power_supply": "3φ, 4P, 380V, 60Hz",
       "power_consumption_kw": 4.7,
       "mca_a": 7.31,
-      "mfa_a": 20.0,
+      "mfa_a": 20,
       "esp_pa": "-",
       "dimensions_mm": "990×940×320",
-      "outdoor_type": "側吹單風扇",
-      "recommended_indoor_type": "全方吹"
+      "outdoor_type": "側吹單風扇"
     }
   },
   {
     "col": "Z",
-    "col_index": 26,
-    "system": "SA",
     "series": "商用冷暖系列",
     "indoor": {
+      "model": "FBA71BVLT",
       "system": "SA",
       "series": "商用冷暖系列",
-      "model": "FBA71BVLT",
       "cap_kw": 7.2,
       "nominal_cap": "-",
       "power_supply": "1φ, 220V, 60Hz",
-      "power_consumption_kw": "0.23",
-      "rated_current_a": "1.4",
+      "power_consumption_kw": 0.23,
+      "rated_current_a": 1.4,
       "esp_pa": "-",
       "dimensions_mm": "245×1000×800",
       "unit_type": "吊隱式"
     },
     "outdoor": {
+      "model": "RZAC71EVLT",
       "system": "SA",
       "series": "商用冷暖系列",
-      "model": "RZAC71EVLT",
       "cap_kw": 7.2,
-      "cap_index": 0.0,
+      "nominal_cap": "-",
       "power_supply": "1φ, 220V, 60Hz",
       "power_consumption_kw": 2.1,
       "mca_a": 11.7,
-      "mfa_a": 20.0,
+      "mfa_a": 20,
       "esp_pa": "-",
       "dimensions_mm": "608×845×300",
-      "outdoor_type": "側吹單風扇",
-      "recommended_indoor_type": "吊隱式"
+      "outdoor_type": "側吹單風扇"
     }
   },
   {
     "col": "AA",
-    "col_index": 27,
-    "system": "SA",
     "series": "商用冷暖系列",
     "indoor": {
+      "model": "FBA100BVLT",
       "system": "SA",
       "series": "商用冷暖系列",
-      "model": "FBA100BVLT",
       "cap_kw": 10.1,
       "nominal_cap": "-",
       "power_supply": "1φ, 220V, 60Hz",
-      "power_consumption_kw": "0.3",
-      "rated_current_a": "1.8",
+      "power_consumption_kw": 0.3,
+      "rated_current_a": 1.8,
       "esp_pa": "-",
       "dimensions_mm": "245×1400×800",
       "unit_type": "吊隱式"
     },
     "outdoor": {
+      "model": "RZAC100DVLT",
       "system": "SA",
       "series": "商用冷暖系列",
-      "model": "RZAC100DVLT",
       "cap_kw": 10.1,
-      "cap_index": 0.0,
+      "nominal_cap": "-",
       "power_supply": "1φ, 220V, 60Hz",
       "power_consumption_kw": 2.85,
       "mca_a": 14.1,
-      "mfa_a": 25.0,
+      "mfa_a": 25,
       "esp_pa": "-",
       "dimensions_mm": "990×940×320",
-      "outdoor_type": "側吹單風扇",
-      "recommended_indoor_type": "吊隱式"
+      "outdoor_type": "側吹單風扇"
     }
   },
   {
     "col": "AB",
-    "col_index": 28,
-    "system": "SA",
     "series": "商用冷暖系列",
     "indoor": {
+      "model": "FBA125BVLT",
       "system": "SA",
       "series": "商用冷暖系列",
-      "model": "FBA125BVLT",
       "cap_kw": 12.5,
       "nominal_cap": "-",
       "power_supply": "1φ, 220V, 60Hz",
-      "power_consumption_kw": "0.3",
-      "rated_current_a": "2.3",
+      "power_consumption_kw": 0.3,
+      "rated_current_a": 2.3,
       "esp_pa": "-",
       "dimensions_mm": "245×1400×800",
       "unit_type": "吊隱式"
     },
     "outdoor": {
+      "model": "RZAC125DVLT",
       "system": "SA",
       "series": "商用冷暖系列",
-      "model": "RZAC125DVLT",
       "cap_kw": 12.5,
-      "cap_index": 0.0,
+      "nominal_cap": "-",
       "power_supply": "1φ, 220V, 60Hz",
       "power_consumption_kw": 4.3,
       "mca_a": 19.8,
-      "mfa_a": 32.0,
+      "mfa_a": 32,
       "esp_pa": "-",
       "dimensions_mm": "990×940×320",
-      "outdoor_type": "側吹單風扇",
-      "recommended_indoor_type": "吊隱式"
+      "outdoor_type": "側吹單風扇"
     }
   },
   {
     "col": "AC",
-    "col_index": 29,
-    "system": "SA",
     "series": "商用冷暖系列",
     "indoor": {
+      "model": "FBA140BVLT",
       "system": "SA",
       "series": "商用冷暖系列",
-      "model": "FBA140BVLT",
       "cap_kw": 13.3,
       "nominal_cap": "-",
       "power_supply": "1φ, 220V, 60Hz",
-      "power_consumption_kw": "0.3",
-      "rated_current_a": "2.3",
+      "power_consumption_kw": 0.3,
+      "rated_current_a": 2.3,
       "esp_pa": "-",
       "dimensions_mm": "245×1400×800",
       "unit_type": "吊隱式"
     },
     "outdoor": {
+      "model": "RZAC140DVLT",
       "system": "SA",
       "series": "商用冷暖系列",
-      "model": "RZAC140DVLT",
       "cap_kw": 13.3,
-      "cap_index": 0.0,
+      "nominal_cap": "-",
       "power_supply": "1φ, 220V, 60Hz",
       "power_consumption_kw": 4.86,
       "mca_a": 22.5,
-      "mfa_a": 32.0,
+      "mfa_a": 32,
       "esp_pa": "-",
       "dimensions_mm": "990×940×320",
-      "outdoor_type": "側吹單風扇",
-      "recommended_indoor_type": "吊隱式"
+      "outdoor_type": "側吹單風扇"
     }
   },
   {
     "col": "AD",
-    "col_index": 30,
-    "system": "SA",
     "series": "商用冷暖系列",
     "indoor": {
+      "model": "FBA140BVLT",
       "system": "SA",
       "series": "商用冷暖系列",
-      "model": "FBA140BVLT",
       "cap_kw": 13.3,
       "nominal_cap": "-",
       "power_supply": "1φ, 220V, 60Hz",
-      "power_consumption_kw": "0.3",
-      "rated_current_a": "2.3",
+      "power_consumption_kw": 0.3,
+      "rated_current_a": 2.3,
       "esp_pa": "-",
       "dimensions_mm": "245×1400×800",
       "unit_type": "吊隱式"
     },
     "outdoor": {
+      "model": "RZAC140DTLT",
       "system": "SA",
       "series": "商用冷暖系列",
-      "model": "RZAC140DTLT",
       "cap_kw": 13.3,
-      "cap_index": 0.0,
+      "nominal_cap": "-",
       "power_supply": "3φ, 3P, 220V, 60Hz",
       "power_consumption_kw": 4.9,
       "mca_a": 13.1,
-      "mfa_a": 25.0,
+      "mfa_a": 25,
       "esp_pa": "-",
       "dimensions_mm": "990×940×320",
-      "outdoor_type": "側吹單風扇",
-      "recommended_indoor_type": "吊隱式"
+      "outdoor_type": "側吹單風扇"
     }
   },
   {
     "col": "AE",
-    "col_index": 31,
-    "system": "SA",
     "series": "商用冷暖系列",
     "indoor": {
+      "model": "FBA140BVLT",
       "system": "SA",
       "series": "商用冷暖系列",
-      "model": "FBA140BVLT",
       "cap_kw": 13.3,
       "nominal_cap": "-",
       "power_supply": "1φ, 220V, 60Hz",
-      "power_consumption_kw": "0.3",
-      "rated_current_a": "2.3",
+      "power_consumption_kw": 0.3,
+      "rated_current_a": 2.3,
       "esp_pa": "-",
       "dimensions_mm": "245×1400×800",
       "unit_type": "吊隱式"
     },
     "outdoor": {
+      "model": "RZAC140DYLT",
       "system": "SA",
       "series": "商用冷暖系列",
-      "model": "RZAC140DYLT",
       "cap_kw": 13.3,
-      "cap_index": 0.0,
+      "nominal_cap": "-",
       "power_supply": "3φ, 4P, 380V, 60Hz",
       "power_consumption_kw": 4.89,
       "mca_a": 7.76,
-      "mfa_a": 16.0,
+      "mfa_a": 16,
       "esp_pa": "-",
       "dimensions_mm": "990×940×320",
-      "outdoor_type": "側吹單風扇",
-      "recommended_indoor_type": "吊隱式"
+      "outdoor_type": "側吹單風扇"
     }
   }
 ];
+
+
