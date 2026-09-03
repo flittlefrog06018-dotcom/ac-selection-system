@@ -2357,6 +2357,150 @@ export const OUTDOOR_UNITS_DB = [
     "model": "RXYQ60ANYLT",
     "cap_kw": 162.0,
     "cap_index": 1500.0
+  },
+  {
+    "system": "SA",
+    "series": "商用冷專系列",
+    "outdoor_type": "側吹單風扇",
+    "power_supply": "1φ, 220V, 60Hz",
+    "model": "RKF71XVLT",
+    "cap_kw": 7.2,
+    "cap_index": 72.0
+  },
+  {
+    "system": "SA",
+    "series": "商用冷專系列",
+    "outdoor_type": "側吹單風扇",
+    "power_supply": "1φ, 220V, 60Hz",
+    "model": "RKF100XVLT",
+    "cap_kw": 9.5,
+    "cap_index": 95.0
+  },
+  {
+    "system": "SA",
+    "series": "商用冷專系列",
+    "outdoor_type": "側吹單風扇",
+    "power_supply": "1φ, 220V, 60Hz",
+    "model": "RZF71DVLT",
+    "cap_kw": 7.2,
+    "cap_index": 72.0
+  },
+  {
+    "system": "SA",
+    "series": "商用冷專系列",
+    "outdoor_type": "側吹單風扇",
+    "power_supply": "1φ, 220V, 60Hz",
+    "model": "RZF71CVLT",
+    "cap_kw": 7.2,
+    "cap_index": 72.0
+  },
+  {
+    "system": "SA",
+    "series": "商用冷專系列",
+    "outdoor_type": "側吹單風扇",
+    "power_supply": "1φ, 220V, 60Hz",
+    "model": "RZF100CVLT",
+    "cap_kw": 10.1,
+    "cap_index": 101.0
+  },
+  {
+    "system": "SA",
+    "series": "商用冷專系列",
+    "outdoor_type": "側吹單風扇",
+    "power_supply": "1φ, 220V, 60Hz",
+    "model": "RZF125CVLT",
+    "cap_kw": 12.5,
+    "cap_index": 125.0
+  },
+  {
+    "system": "SA",
+    "series": "商用冷專系列",
+    "outdoor_type": "側吹單風扇",
+    "power_supply": "1φ, 220V, 60Hz",
+    "model": "RZF140CVLT",
+    "cap_kw": 14.0,
+    "cap_index": 140.0
+  },
+  {
+    "system": "SA",
+    "series": "商用冷專系列",
+    "outdoor_type": "側吹單風扇",
+    "power_supply": "3φ, 3P, 220V, 60Hz",
+    "model": "RZF140DTLT",
+    "cap_kw": 14.0,
+    "cap_index": 140.0
+  },
+  {
+    "system": "SA",
+    "series": "商用冷專系列",
+    "outdoor_type": "側吹單風扇",
+    "power_supply": "3φ, 4P, 380V, 60Hz",
+    "model": "RZF140CYLT",
+    "cap_kw": 14.0,
+    "cap_index": 140.0
+  },
+  {
+    "system": "SA",
+    "series": "商用冷暖系列",
+    "outdoor_type": "側吹單風扇",
+    "power_supply": "1φ, 220V, 60Hz",
+    "model": "RZAC71EVLT",
+    "cap_kw": 7.2,
+    "cap_index": 72.0
+  },
+  {
+    "system": "SA",
+    "series": "商用冷暖系列",
+    "outdoor_type": "側吹單風扇",
+    "power_supply": "1φ, 220V, 60Hz",
+    "model": "RZAC100DVLT",
+    "cap_kw": 10.4,
+    "cap_index": 104.0
+  },
+  {
+    "system": "SA",
+    "series": "商用冷暖系列",
+    "outdoor_type": "側吹單風扇",
+    "power_supply": "1φ, 220V, 60Hz",
+    "model": "RZAC125DVLT",
+    "cap_kw": 12.5,
+    "cap_index": 125.0
+  },
+  {
+    "system": "SA",
+    "series": "商用冷暖系列",
+    "outdoor_type": "側吹單風扇",
+    "power_supply": "1φ, 220V, 60Hz",
+    "model": "RZAC140DVLT",
+    "cap_kw": 14.0,
+    "cap_index": 140.0
+  },
+  {
+    "system": "SA",
+    "series": "商用冷暖系列",
+    "outdoor_type": "側吹單風扇",
+    "power_supply": "3φ, 3P, 220V, 60Hz",
+    "model": "RZAC140ETLT",
+    "cap_kw": 14.0,
+    "cap_index": 140.0
+  },
+  {
+    "system": "SA",
+    "series": "商用冷暖系列",
+    "outdoor_type": "側吹單風扇",
+    "power_supply": "3φ, 4P, 380V, 60Hz",
+    "model": "RZAC140DYLT",
+    "cap_kw": 14.0,
+    "cap_index": 140.0
+  },
+  {
+    "system": "SA",
+    "series": "商用冷暖系列",
+    "outdoor_type": "側吹單風扇",
+    "power_supply": "3φ, 3P, 220V, 60Hz",
+    "model": "RZAC140DTLT",
+    "cap_kw": 13.3,
+    "cap_index": 133.0
   }
 ];
 

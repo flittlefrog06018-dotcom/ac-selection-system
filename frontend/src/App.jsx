@@ -4449,7 +4449,7 @@ function App() {
                                        style={{ color: '#ef4444', fontSize: '12px', fontWeight: 'bold', marginTop: '4px', lineHeight: '1.2' }}
                                        title="提醒是否要放大室外機容量"
                                      >
-                                       ⚠️ 超過室外機能力 15%
+                                       ⚠️ 超過或低於外機能力15%
                                      </div>
                                    )}
                                  </td>
@@ -4490,8 +4490,9 @@ function App() {
                           const isNoModel = (!hasActiveSys || !isIndoorSelectionComplete || isSAPendingSpecs) ? false : (!selectedModelStr || selectedModelStr === '無此機型' || validCandidateList.length === 0);
                           const isPowerValid = (!hasActiveSys || isSAPendingSpecs) ? true : (isNoModel ? true : isValidOutdoorPower(selectedModelStr, targetPower));
                           const matchedOutdoorObj = OUTDOOR_UNITS_DB.find(m => m.model === selectedModelStr);
-                          const outdoorCapKw = (!isNoModel && isPowerValid && matchedOutdoorObj) ? matchedOutdoorObj.cap_kw : 0;
-                          const outdoorCapIndex = (!isNoModel && isPowerValid && matchedOutdoorObj) ? (matchedOutdoorObj.cap_index || 223.0) : 0;
+                          const saPair = isSASystem ? (getSaPairByOutdoorModel(selectedModelStr) || getSaPairByIndoorModel(row.best_match_model)) : null;
+                          const outdoorCapKw = (!isNoModel && isPowerValid) ? (matchedOutdoorObj ? matchedOutdoorObj.cap_kw : (saPair?.outdoor?.cap_kw || 0)) : 0;
+                          const outdoorCapIndex = (!isNoModel && isPowerValid) ? (matchedOutdoorObj?.cap_index || (saPair?.outdoor?.cap_kw ? saPair.outdoor.cap_kw * 10 : 223.0)) : 0;
 
                           const getModelMinUnitsSingle = (mName) => {
                             if (!mName) return 1;
@@ -4502,9 +4503,12 @@ function App() {
                           };
                           const singleIndoorKw = singleCapKw * singleUnitCount;
                           const totalOutdoorKw = outdoorCapKw * singleUnitCount;
-                          const isExceed15Percent = (!hasActiveSys || isNoModel || !isPowerValid || outdoorCapKw === 0 || isSAPendingSpecs) ? false : (singleIndoorKw > totalOutdoorKw * 1.15);
+                          const indoorDemandKw = row.cooling_load_kw || ((row.total_cooling_demand || (row.area_ping * (row.calc_basis || 500))) / 860.0) || 0;
+                          const isExceedOrBelow15Percent = (!hasActiveSys || isNoModel || !isPowerValid || totalOutdoorKw === 0 || isSAPendingSpecs)
+                            ? false
+                            : (indoorDemandKw > totalOutdoorKw * 1.15 || indoorDemandKw < totalOutdoorKw * 0.85);
                           const isSingleMinViolated = (!hasActiveSys || isSAPendingSpecs) ? false : ((selectionMode === 'detail' && !row.series) ? false : (!isNoModel && singleUnitCount < getModelMinUnitsSingle(selectedModelStr)));
-                          const isSingleSelectionError = (!hasActiveSys || !isIndoorSelectionComplete || isSAPendingSpecs) ? false : (isNoModel || !isPowerValid || isSingleMinViolated || isExceed15Percent);
+                          const isSingleSelectionError = (!hasActiveSys || !isIndoorSelectionComplete || isSAPendingSpecs) ? false : (isNoModel || !isPowerValid || isSingleMinViolated);
 
                           const singleIndoorIdx = lookupIndoorCapIndex(row.best_match_model);
                           const totalIndoorIdx = singleIndoorIdx * singleUnitCount;
@@ -4621,12 +4625,22 @@ function App() {
 
                               <td style={{ ...styles.td, textAlign: 'center', color: isSingleSelectionError ? '#ef4444' : (isPowerValid ? '#a855f7' : '#64748b'), fontWeight: 'bold', fontSize: '15px', backgroundColor: isSingleSelectionError ? '#450a0a' : undefined }}>
                                 {isPowerValid && outdoorCapKw ? `${(parseFloat(outdoorCapKw) * singleUnitCount).toFixed(1)} kW` : '-'}
-                                {isExceed15Percent && (
+                                {isExceedOrBelow15Percent && (
                                   <div
-                                    style={{ color: '#ef4444', fontSize: '12px', fontWeight: 'bold', marginTop: '4px', lineHeight: '1.2' }}
-                                    title="提醒是否要放大室外機容量"
+                                    style={{
+                                      color: '#f59e0b',
+                                      fontSize: '12px',
+                                      fontWeight: 'bold',
+                                      marginTop: '4px',
+                                      lineHeight: '1.2',
+                                      backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                                      padding: '2px 4px',
+                                      borderRadius: '3px',
+                                      border: '1px solid rgba(245, 158, 11, 0.4)'
+                                    }}
+                                    title="室內負荷值大於或小於室外機提供能力正負 15%"
                                   >
-                                    ⚠️ 超過室外機能力 15%
+                                    ⚠️ 超過或低於外機能力15%
                                   </div>
                                 )}
                               </td>
