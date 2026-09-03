@@ -179,6 +179,21 @@ function App() {
   // 🎯 室外機智慧配對與分組 UI State & 數據庫
   const [outdoorGroups, setOutdoorGroups] = useState([]);
   const [contextMenu, setContextMenu] = useState({ show: false, x: 0, y: 0, targetRowIndex: null });
+  const [outdoorModal, setOutdoorModal] = useState({
+    show: false,
+    selectedIndices: [],
+    recommendedModel: '',
+    chosenModel: '',
+    candidates: [],
+    sumKw: 0,
+    sumIdx: 0,
+    system: '',
+    power: '',
+    x: 0,
+    y: 0
+  });
+  const lastCtrlPosRef = useRef({ x: 0, y: 0 });
+  const hasCtrlClickedRef = useRef(false);
   const [userHasCustomGroups, setUserHasCustomGroups] = useState(false);
 
   // 🎯 空間拖曳排序 UI State 與 Handlers (取消箭頭，改為直接拖曳)
@@ -248,19 +263,70 @@ function App() {
     rowsRef.current = rows;
   }, [rows]);
 
+  const openOutdoorModalForSelection = (selectedIndices, pos = null) => {
+    const currentRows = rowsRef.current || [];
+    const selectedRows = selectedIndices.map(i => currentRows[i]).filter(Boolean);
+    if (selectedRows.length === 0) return;
+
+    const firstRow = selectedRows[0] || {};
+    const activeSys = firstRow.system_type || fastSystem || 'VRV';
+    const activeSeries = firstRow.series || fastSeries || '';
+    const activeOutType = firstRow.outdoor_type || fastOutdoorType || (activeSys === 'VRV' ? '冷暖上吹型' : '側吹單風扇');
+    const activeOutPower = firstRow.power_supply || fastOutdoorPower || (activeSys === 'RA' ? '1φ, 220V, 60Hz' : '3φ, 4P, 380V, 60Hz');
+
+    let candidates = getOutdoorModelsForSystem(activeSys, activeSeries, activeOutType, activeOutPower);
+    if (!candidates || candidates.length === 0) {
+      candidates = getOutdoorModelsForSystem(activeSys, '', activeOutType, activeOutPower);
+    }
+    if (!candidates || candidates.length === 0) {
+      candidates = OUTDOOR_UNITS_DB.filter(m => m.system === activeSys);
+    }
+
+    const sortedCandidates = [...candidates].sort((a, b) => (a.cap_index || a.cap_kw * 10) - (b.cap_index || b.cap_kw * 10));
+
+    const sumKw = selectedRows.reduce((acc, r) => acc + (parseFloat(r.cap_kw || lookupModelCapKw(r.best_match_model)) || 0) * (r.unit_count || 1), 0);
+    const sumIdx = selectedRows.reduce((acc, r) => acc + lookupIndoorCapIndex(r.best_match_model) * (r.unit_count || 1), 0);
+
+    let matched = null;
+    if (activeSys === 'VRV') {
+      matched = sortedCandidates.find(m => ((sumIdx / (m.cap_index || m.cap_kw * 10)) * 100.0) <= 115.0) || sortedCandidates[sortedCandidates.length - 1];
+    } else {
+      matched = sortedCandidates.find(m => m.cap_kw >= sumKw) || sortedCandidates[sortedCandidates.length - 1];
+    }
+
+    const defaultModel = matched ? matched.model : (sortedCandidates[0]?.model || '');
+
+    setOutdoorModal({
+      show: true,
+      selectedIndices,
+      recommendedModel: defaultModel,
+      chosenModel: defaultModel,
+      candidates: sortedCandidates,
+      sumKw,
+      sumIdx,
+      system: activeSys,
+      power: activeOutPower,
+      x: pos?.x || (typeof window !== 'undefined' ? window.innerWidth / 2 - 200 : 400),
+      y: pos?.y || (typeof window !== 'undefined' ? window.innerHeight / 2 - 160 : 300)
+    });
+  };
+
   useEffect(() => {
     const handleKeyUp = (e) => {
       if (e.key === 'Control' || e.key === 'Meta') {
-        const currentRows = rowsRef.current || [];
-        const selectedCount = currentRows.filter(r => r.selected).length;
-        if (selectedCount >= 1) {
-          handleCreateGroupFromSelection();
+        if (selectionMode === 'detail' && hasCtrlClickedRef.current) {
+          hasCtrlClickedRef.current = false;
+          const currentRows = rowsRef.current || [];
+          const selectedIndices = currentRows.map((r, i) => r.selected ? i : null).filter(i => i !== null);
+          if (selectedIndices.length >= 1) {
+            openOutdoorModalForSelection(selectedIndices, lastCtrlPosRef.current);
+          }
         }
       }
     };
     window.addEventListener('keyup', handleKeyUp);
     return () => window.removeEventListener('keyup', handleKeyUp);
-  }, [outdoorGroups, fastSystem, fastSeries, fastOutdoorType]);
+  }, [selectionMode, outdoorGroups, fastSystem, fastSeries, fastOutdoorType, fastOutdoorPower]);
 
   const GROUP_COLOR_PALETTE = [
     { name: "琥珀金", hex: "#f59e0b", bg: "rgba(245, 158, 11, 0.15)", border: "#f59e0b" },
@@ -942,9 +1008,12 @@ function App() {
     toast.success(`✨ 已成功為勾選空間建立 [${groupName}]！配對室外機 ${matchedOutdoor.model}`);
   };
 
-  const handleCreateGroupWithSpecificModel = (chosenModelStr) => {
+  const handleCreateGroupWithSpecificModel = (chosenModelStr, explicitIndices = null) => {
     setContextMenu({ show: false, x: 0, y: 0, targetRowIndex: null });
-    let selectedIndices = rows.map((r, idx) => r.selected ? idx : null).filter(idx => idx !== null);
+    setOutdoorModal(prev => ({ ...prev, show: false }));
+    let selectedIndices = (explicitIndices && explicitIndices.length > 0)
+      ? explicitIndices
+      : rows.map((r, idx) => r.selected ? idx : null).filter(idx => idx !== null);
 
     if (selectedIndices.length === 0 && contextMenu.targetRowIndex !== null) {
       selectedIndices = [contextMenu.targetRowIndex];
@@ -3979,6 +4048,8 @@ function App() {
                         onContextMenu={(e) => handleTableContextMenu(e, index)}
                         onClick={(e) => {
                           if (e.ctrlKey || e.metaKey) {
+                            lastCtrlPosRef.current = { x: e.clientX, y: e.clientY };
+                            hasCtrlClickedRef.current = true;
                             handleCellChange(index, 'selected', !row.selected);
                           }
                         }}
@@ -3996,7 +4067,18 @@ function App() {
                           <input
                             type="checkbox"
                             checked={row.selected}
-                            onChange={(e) => handleCellChange(index, 'selected', e.target.checked)}
+                            onChange={(e) => {
+                              if (selectionMode === 'detail') {
+                                hasCtrlClickedRef.current = true;
+                              }
+                              handleCellChange(index, 'selected', e.target.checked);
+                            }}
+                            onClick={(e) => {
+                              lastCtrlPosRef.current = { x: e.clientX, y: e.clientY };
+                              if (e.ctrlKey || e.metaKey) {
+                                hasCtrlClickedRef.current = true;
+                              }
+                            }}
                             style={{ cursor: 'pointer', scale: '1.15' }}
                           />
                         </td>
@@ -4660,6 +4742,172 @@ function App() {
           </div>
         </section>
       </div>
+
+      {/* 🎯 Ctrl 放開後自動彈出之室外機型號選擇彈窗 (細緻選機專用) */}
+      {outdoorModal.show && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.65)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 999999
+          }}
+          onClick={() => setOutdoorModal(prev => ({ ...prev, show: false }))}
+        >
+          <div
+            style={{
+              backgroundColor: '#0f172a',
+              border: '2px solid #38bdf8',
+              borderRadius: '12px',
+              padding: '24px',
+              width: '460px',
+              maxWidth: '90vw',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.8), 0 0 25px rgba(56, 189, 248, 0.25)',
+              color: '#f8fafc'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '20px' }}>❄️</span>
+                <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#38bdf8' }}>
+                  室外機型號配置
+                </span>
+                <span style={{ fontSize: '12px', backgroundColor: '#1e293b', color: '#94a3b8', padding: '2px 8px', borderRadius: '12px', border: '1px solid #475569' }}>
+                  已選 {outdoorModal.selectedIndices.length} 個空間
+                </span>
+              </div>
+              <button
+                onClick={() => setOutdoorModal(prev => ({ ...prev, show: false }))}
+                style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '20px', cursor: 'pointer', lineHeight: 1 }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Selected Spaces Chips */}
+            <div style={{ marginBottom: '14px' }}>
+              <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 'bold', marginBottom: '6px' }}>已選定空間：</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', maxHeight: '72px', overflowY: 'auto' }}>
+                {outdoorModal.selectedIndices.map(idx => {
+                  const sp = rows[idx];
+                  return (
+                    <span key={idx} style={{ fontSize: '12px', backgroundColor: '#1e293b', color: '#34d399', padding: '3px 8px', borderRadius: '4px', border: '1px solid #334155' }}>
+                      {sp?.space_name || `空間 #${idx+1}`} ({parseFloat(sp?.cap_kw || lookupModelCapKw(sp?.best_match_model) || 0).toFixed(1)} kW)
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Capacity Summary */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', backgroundColor: '#1e293b', padding: '10px 14px', borderRadius: '8px', marginBottom: '16px', border: '1px solid #334155' }}>
+              <div>
+                <div style={{ fontSize: '11px', color: '#94a3b8' }}>室內總負荷需求</div>
+                <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#a855f7' }}>{outdoorModal.sumKw.toFixed(1)} kW</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '11px', color: '#94a3b8' }}>總能力指數</div>
+                <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#38bdf8' }}>{outdoorModal.sumIdx.toFixed(0)}</div>
+              </div>
+            </div>
+
+            {/* Recommended Model Banner */}
+            {outdoorModal.recommendedModel && (
+              <div style={{ backgroundColor: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.4)', padding: '10px 14px', borderRadius: '8px', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <span style={{ fontSize: '12px', color: '#38bdf8', fontWeight: 'bold' }}>🌟 系統推薦最佳型號：</span>
+                  <span style={{ fontSize: '15px', fontWeight: 'bold', color: '#f8fafc', marginLeft: '6px' }}>{outdoorModal.recommendedModel}</span>
+                </div>
+                {outdoorModal.chosenModel !== outdoorModal.recommendedModel && (
+                  <button
+                    onClick={() => setOutdoorModal(prev => ({ ...prev, chosenModel: prev.recommendedModel }))}
+                    style={{ fontSize: '11px', backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '3px 8px', borderRadius: '4px', cursor: 'pointer' }}
+                  >
+                    選用此機型
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Dropdown Selection */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', fontSize: '13px', color: '#e2e8f0', fontWeight: 'bold', marginBottom: '8px' }}>
+                ⚡ 選擇室外機型號：
+              </label>
+              <select
+                value={outdoorModal.chosenModel}
+                onChange={(e) => setOutdoorModal(prev => ({ ...prev, chosenModel: e.target.value }))}
+                style={{
+                  width: '100%',
+                  backgroundColor: '#0f172a',
+                  color: '#38bdf8',
+                  border: '1.5px solid #38bdf8',
+                  padding: '10px 12px',
+                  borderRadius: '6px',
+                  fontSize: '14.5px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
+                }}
+              >
+                {outdoorModal.candidates.map((m, idx) => {
+                  const ratio = (outdoorModal.sumIdx && m.cap_index) ? Math.round((outdoorModal.sumIdx / m.cap_index) * 100) : null;
+                  const ratioStr = ratio !== null ? ` | 連結率: ${ratio}%` : '';
+                  const isRec = (m.model === outdoorModal.recommendedModel);
+                  return (
+                    <option key={idx} value={m.model}>
+                      {isRec ? '★ ' : ''}{m.model} ({m.cap_kw} kW{ratioStr}){isRec ? ' (推薦)' : ''}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
+            {/* Action Buttons */}
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setOutdoorModal(prev => ({ ...prev, show: false }))}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#334155',
+                  color: '#cbd5e1',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
+                }}
+              >
+                取消
+              </button>
+              <button
+                onClick={() => handleCreateGroupWithSpecificModel(outdoorModal.chosenModel, outdoorModal.selectedIndices)}
+                style={{
+                  padding: '8px 20px',
+                  backgroundColor: '#0284c7',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 10px rgba(2, 132, 199, 0.4)'
+                }}
+              >
+                ✓ 確認套用此室外機
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 🎯 滑鼠右鍵快顯功能功能表 (一鍵將勾選空間併入同一台室外機 / 手動指定室外機型號) */}
       {contextMenu.show && (
