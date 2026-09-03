@@ -396,7 +396,9 @@ function App() {
       return { updatedRows, groups: [] };
     }
     const activeOutType = outTypeVal || fastOutdoorType || (activeSys === 'VRV' ? '上吹' : '側吹單風扇');
-    const activeOutPower = outPowerVal || fastOutdoorPower || (activeSys === 'RA' ? '1φ, 220V, 60Hz' : '3φ, 4P, 380V, 60Hz');
+    const activeOutPower = (activeSys === 'SA')
+      ? (outPowerVal !== undefined ? outPowerVal : (fastOutdoorPower || ''))
+      : (outPowerVal || fastOutdoorPower || (activeSys === 'RA' ? '1φ, 220V, 60Hz' : '3φ, 4P, 380V, 60Hz'));
 
     const isMultiSeries = activeSys === 'RA' && (activeSeries === '家用MULTI系列' || activeSeries === 'SUPER MULTI系列' || activeSeries.includes('MULTI'));
 
@@ -4251,7 +4253,9 @@ function App() {
                         {(() => {
                           const hasActiveSys = Boolean(row.system_type || fastSystem);
                           const hasActiveSeries = Boolean(row.series || fastSeries);
-                          const targetPower = row.power_supply || (gCard ? (gCard.power_supply || fastOutdoorPower) : fastOutdoorPower);
+                          const targetPower = (selectionMode === 'fast')
+                            ? fastOutdoorPower
+                            : (row.power_supply || (gCard ? (gCard.power_supply || fastOutdoorPower) : fastOutdoorPower));
 
                           if (gCard) {
                             const gIndices = rows.map((r, i) => r.outdoorGroupId === gCard.id ? i : null).filter(i => i !== null);
