@@ -142,17 +142,29 @@ class ExportService:
             for i, room in enumerate(flat_rows_to_render):
                 row_idx = start_row + i
                 
-                name = room.get("room_name", room.get("space_name", "")).strip()
-                area_m2 = float(room.get("area_m2", 0.0))
-                ping_val = float(room.get("ping_val", room.get("area_ping", 0.0)))
+                # 🎯 空間名稱 (室名)：優先取得有文字的名稱，確保絕不為空白
+                name = str(room.get("space_name") or room.get("room_name") or room.get("name") or "").strip()
+                if not name:
+                    name = f"空間 {i + 1}"
                 
-                final_suggested_kcal_per_ping = float(room.get("final_suggested_kcal_per_ping", room.get("calc_basis", 500.0)))
-                kw_per_ping = float(room.get("kw_per_ping", round(final_suggested_kcal_per_ping / 860.0, 2)))
-                total_load_kcal = float(room.get("total_load_kcal", room.get("total_cooling_demand", round(ping_val * final_suggested_kcal_per_ping))))
-                total_load_kw = float(room.get("total_load_kw", round(total_load_kcal / 860.0, 2)))
+                # 🎯 面積 (㎡) 與 坪數 (P)：自動雙向補全與換算
+                area_m2 = float(room.get("area_m2") or 0.0)
+                raw_ping = room.get("area_ping") or room.get("ping_val") or room.get("ping")
+                ping_val = float(raw_ping) if raw_ping is not None and float(raw_ping) > 0 else (round(area_m2 * 0.3025, 2) if area_m2 > 0 else 0.0)
                 
-                matched_model = room.get("recommended_model") or room.get("indoor_model") or room.get("best_match_model") or ""
-                matched_model = str(matched_model).strip()
+                # 🎯 每坪負荷基準 (kcal/hr/坪)
+                final_suggested_kcal_per_ping = float(room.get("calc_basis") or room.get("final_suggested_kcal_per_ping") or room.get("base_suggested_load") or 500.0)
+                kw_per_ping = round(final_suggested_kcal_per_ping / 860.0, 2)
+                
+                # 🎯 總熱負荷 kcal/hr 與 kW
+                raw_total_kcal = room.get("total_cooling_load_kcal") or room.get("total_cooling_demand") or room.get("total_load_kcal")
+                total_load_kcal = float(raw_total_kcal) if raw_total_kcal is not None and float(raw_total_kcal) > 0 else round(ping_val * final_suggested_kcal_per_ping)
+                
+                raw_total_kw = room.get("total_load_kw")
+                total_load_kw = float(raw_total_kw) if raw_total_kw is not None and float(raw_total_kw) > 0 else round(total_load_kcal / 860.0, 2)
+                
+                # 🎯 室內機型號
+                matched_model = str(room.get("recommended_model") or room.get("indoor_model") or room.get("best_match_model") or "").strip()
                 matched_upper = matched_model.upper()
 
                 series_val = str(room.get("series", "")).strip().upper()
@@ -169,12 +181,18 @@ class ExportService:
                 )
                 system_type = "RA" if is_ra else ("VRV" if ("VRV" in sys_raw or series_val == "VRV" or matched_upper.startswith("FX")) else ("SA" if ("SA" in sys_raw or matched_upper.startswith(("FBA", "FCQ", "FHQ"))) else "VRV"))
                 
-                qty = int(room.get("qty", room.get("unit_count", 1)))
-                cap_kw = float(room.get("indoor_capacity_kw", room.get("cap_kw", 0.0)))
-                cap_kcal = float(room.get("indoor_capacity_kcal", round(cap_kw * 860.0, 1)))
+                # 🎯 台數
+                qty = int(room.get("qty") or room.get("unit_count") or 1)
                 
                 # 🎯 載入室內機 EQUIPMENT_Data 規格資訊
                 indoor_info = db_service.get_indoor_unit_info(matched_model)
+                
+                # 🎯 室內機冷房能力 (kW 與 kcal/hr)
+                raw_cap_kw = room.get("cap_kw") or room.get("indoor_capacity_kw")
+                cap_kw = float(raw_cap_kw) if raw_cap_kw is not None and float(raw_cap_kw) > 0 else (float(indoor_info.get("cap_kw", 0.0)) if indoor_info else 0.0)
+                
+                raw_cap_kcal = room.get("indoor_capacity_kcal")
+                cap_kcal = float(raw_cap_kcal) if raw_cap_kcal is not None and float(raw_cap_kcal) > 0 else round(cap_kw * 860.0, 1)
                 
                 # 🎯 經理指定室內機電源判斷規則：
                 # 只有室內機為 VRV 系統，或是商用 1 對 1 的風管型 (型號是 FBA) 時會需要使用獨立電源 (1φ, 220V, 60Hz)，

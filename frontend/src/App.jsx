@@ -2614,13 +2614,13 @@ function App() {
       flatRowsToRender.forEach((row, i) => {
         const rowIdx = startRow + i;
 
-        let displayName = row.space_name || `空間 ${i + 1}`;
+        let displayName = (row.space_name || row.room_name || row.name || `空間 ${i + 1}`).trim();
         if (displayName.includes("檔率")) {
           displayName = displayName.replace(/檔率/g, "檔案室");
         }
 
         const areaM2 = parseFloat(row.area_m2) || 0;
-        const ping = parseFloat(row.area_ping) || Math.round(areaM2 * 0.3025 * 100) / 100;
+        const ping = parseFloat(row.area_ping) || parseFloat(row.ping) || parseFloat(row.ping_val) || (areaM2 > 0 ? Math.round(areaM2 * 0.3025 * 100) / 100 : 0);
 
         let basis = parseFloat(row.calc_basis);
         if (!basis || basis === 0) basis = 500;
@@ -2881,22 +2881,36 @@ function App() {
             ? (row.outdoor_model || autoOutdoor)
             : (row.series ? (row.outdoor_model || autoOutdoor) : "");
 
+          const spaceTitle = (row.space_name || row.room_name || row.name || "空間").trim();
           return {
-            space_name: row.space_name || "空間",
+            space_name: spaceTitle,
+            room_name: spaceTitle,
+            name: spaceTitle,
             area_m2: parseFloat(row.area_m2) || 0,
             area_ping: ping,
+            ping_val: ping,
+            ping: ping,
             system_type: activeSys,
             series: activeSeries,
             unit_type: selectionMode === 'fast' ? fastUnitType : (row.unit_type || ""),
             exposures_str: "",
             base_suggested_load: basis,
+            calc_basis: basis,
+            final_suggested_kcal_per_ping: basis,
             final_kcal_per_ping: basis,
             special_kw: parseFloat(row.special_kw) || 0,
             special_heat_kcal: 0,
             total_cooling_load_kcal: demandKcal,
+            total_load_kcal: demandKcal,
+            total_load_kw: parseFloat((demandKcal / 860.0).toFixed(2)),
             recommended_model: indoorModelStr,
+            indoor_model: indoorModelStr,
+            best_match_model: indoorModelStr,
             qty: qty,
+            unit_count: qty,
             cap_kw: singleCap,
+            indoor_capacity_kw: singleCap,
+            indoor_capacity_kcal: parseFloat((singleCap * 860.0).toFixed(1)),
             outdoor_model: outdoorModelStr,
             power_supply: row.power_supply || (activeSys === 'RA' ? '1φ, 220V, 60Hz' : '3φ, 4P, 380V, 60Hz'),
             outdoorGroupId: (selectionMode === 'detail' && !userHasCustomGroups) ? null : row.outdoorGroupId
