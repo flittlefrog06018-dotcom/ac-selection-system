@@ -2691,6 +2691,8 @@ function App() {
         excelRow.getCell(5).value = areaM2;                                   // Col E: 面積 (㎡)
         excelRow.getCell(6).value = ping;                                     // Col F: 坪數 (P)
         excelRow.getCell(8).value = basis;                                    // Col H: 每坪建議負荷值 (kcal/hr/坪)
+        excelRow.getCell(9).value = { formula: `H${rowIdx}*0.3025`, result: Math.round(basis * 0.3025) }; // Col I: 每坪建議負荷值 (kcal/hr/㎡)
+        excelRow.getCell(10).value = { formula: `H${rowIdx}/0.86*0.3025`, result: parseFloat(((basis / 0.86) * 0.3025).toFixed(2)) }; // Col J: 每坪建議負荷值 (W/㎡)
         excelRow.getCell(11).value = kwPerPing;                               // Col K: (kW/坪)
         excelRow.getCell(12).value = demandKw;                                // Col L: 總熱負荷 (kW)
         excelRow.getCell(13).value = demandKcal;                              // Col M: 總熱負荷 (kcal/hr)
@@ -2707,6 +2709,7 @@ function App() {
         excelRow.getCell(24).value = totalCapKw;                             // Col X: 室內冷房總能力 (kW)
         excelRow.getCell(25).value = nominalSubtotal;                         // Col Y (25): 標稱能力小計 (僅 VRV 為小計，RA/SA 為 -)
         excelRow.getCell(26).value = pwrConSubtotal;                          // Col Z (26): 耗電量小計 kW
+        excelRow.getCell(27).value = { formula: `AB${rowIdx}*0.3025`, result: Math.round(actualKcalPerPing * 0.3025) }; // Col AA: 每坪平均負荷值 (kcal/hr/㎡)
         excelRow.getCell(28).value = actualKcalPerPing;                       // Col AB
         excelRow.getCell(29).value = actualKwPerPing;                         // Col AC
         excelRow.getCell(30).value = pingPerUsrt;                             // Col AD
@@ -2798,6 +2801,13 @@ function App() {
           }
         }
       });
+
+      // 🎯 若有載入模板底稿且勾選空間少於 49 列，刪除多餘的未填模板列
+      const templateCapacity = 49;
+      if (isTemplateLoaded && flatRowsToRender.length < templateCapacity) {
+        const extraCount = templateCapacity - flatRowsToRender.length;
+        ws.spliceRows(startRow + flatRowsToRender.length, extraCount);
+      }
 
       const outBuffer = await wb.xlsx.writeBuffer();
       const blob = new Blob([outBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });

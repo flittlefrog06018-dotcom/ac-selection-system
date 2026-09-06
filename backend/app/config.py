@@ -60,7 +60,13 @@ class Settings:
     PER_PING_KW_AC_COL: int = 29   # AC
     PING_PER_USRT_AD_COL: int = 30 # AD
     
+    LOAD_I_COL: int = 9            # I (每坪建議負荷值 kcal/hr/㎡)
+    LOAD_J_COL: int = 10           # J (每坪建議負荷值 W/㎡)
+    SUBTOTAL_NOMINAL_Y_COL: int = 25 # Y (標稱能力小計)
+    SUBTOTAL_POWER_Z_COL: int = 26   # Z (耗電量小計 kW)
+    PER_M2_KCAL_AA_COL: int = 27     # AA (每坪平均負荷值 kcal/hr/㎡)
+    
     START_ROW: int = 9
-    TEMPLATE_ROWS: int = 5
+    TEMPLATE_ROWS: int = 49
 
 settings = Settings()

@@ -103,16 +103,31 @@ class ExportService:
                     room["_in_group"] = False
                     i += 1
 
-            # 🎯 依據實際勾選空間數量動態調整模板列，多退少補，精準防呆！
-            template_rows = settings.TEMPLATE_ROWS
-            if len(flat_rows_to_render) > template_rows:
-                for _ in range(len(flat_rows_to_render) - template_rows):
-                    ws.insert_rows(start_row + template_rows - 1)
+            # 🎯 動態偵測官方底稿中原本預設的空間列數（預設為 49 列，從第 9 列至第 57 列）
+            template_rows = 0
+            for r in range(start_row, ws.max_row + 1):
+                if ws.cell(row=r, column=9).value or ws.cell(row=r, column=33).value:
+                    template_rows += 1
+                else:
+                    break
+            if template_rows == 0:
+                template_rows = settings.TEMPLATE_ROWS or 49
+
+            actual_count = len(flat_rows_to_render)
+            if actual_count > template_rows:
+                insert_count = actual_count - template_rows
+                ws.insert_rows(start_row + template_rows, insert_count)
+                for r_offset in range(insert_count):
+                    target_row = start_row + template_rows + r_offset
                     for c in range(1, ws.max_column + 1):
-                        ws.cell(row=start_row + template_rows - 1, column=c)._style = ws.cell(row=start_row, column=c)._style
-            elif len(flat_rows_to_render) < template_rows:
-                extra_rows = template_rows - len(flat_rows_to_render)
-                ws.delete_rows(start_row + len(flat_rows_to_render), extra_rows)
+                        ws.cell(row=target_row, column=c)._style = ws.cell(row=start_row, column=c)._style
+            elif actual_count < template_rows:
+                for m in list(ws.merged_cells.ranges):
+                    if m.min_row > start_row + actual_count - 1:
+                        ws.merged_cells.remove(m)
+                extra_rows = ws.max_row - (start_row + actual_count) + 1
+                if extra_rows > 0:
+                    ws.delete_rows(start_row + actual_count, extra_rows)
                         
             # Write rooms data
             for i, room in enumerate(flat_rows_to_render):
@@ -170,8 +185,17 @@ class ExportService:
                 ws.cell(row=row_idx, column=settings.NAME_COL).value = name             # D: 室名
                 ws.cell(row=row_idx, column=settings.AREA_COL).value = area_m2          # E: 面積 ㎡
                 ws.cell(row=row_idx, column=settings.PING_COL).value = ping_val         # F: 坪數 P
-                ws.cell(row=row_idx, column=settings.LOAD_H_COL).value = final_suggested_kcal_per_ping # H: 建議負荷
+                ws.cell(row=row_idx, column=settings.LOAD_H_COL).value = final_suggested_kcal_per_ping # H: 建議負荷 (kcal/hr/坪)
                 
+                # 🎯 補足 Col I 與 Col J 公式與數值，確保絕不出現空白
+                cell_i = ws.cell(row=row_idx, column=settings.LOAD_I_COL)               # I: 每坪建議負荷值 (kcal/hr/㎡)
+                cell_i.value = f"=H{row_idx}*0.3025"
+                cell_i.number_format = '0'
+                
+                cell_j = ws.cell(row=row_idx, column=settings.LOAD_J_COL)               # J: 每坪建議負荷值 (W/㎡)
+                cell_j.value = f"=H{row_idx}/0.86*0.3025"
+                cell_j.number_format = '#,##0.00_ '
+
                 cell_k = ws.cell(row=row_idx, column=settings.LOAD_K_COL)
                 cell_k.value = kw_per_ping
                 cell_k.number_format = '0.00'
@@ -193,6 +217,28 @@ class ExportService:
                 ws.cell(row=row_idx, column=settings.TOTAL_KCAL_W_COL).value = float(qty * cap_kcal)
                 ws.cell(row=row_idx, column=settings.TOTAL_KW_X_COL).value = float(qty * cap_kw)
                 
+                # 🎯 標稱能力小計 (Col Y, 25)：僅 VRV 有能力指數小計，其餘系統為 "-"
+                cell_y = ws.cell(row=row_idx, column=settings.SUBTOTAL_NOMINAL_Y_COL)
+                if "VRV" in system_type and isinstance(nominal_cap_val, (int, float)):
+                    cell_y.value = f"=R{row_idx}*O{row_idx}"
+                    cell_y.number_format = 'General'
+                else:
+                    cell_y.value = "-"
+
+                # 🎯 耗電量小計 kW (Col Z, 26)
+                cell_z = ws.cell(row=row_idx, column=settings.SUBTOTAL_POWER_Z_COL)
+                try:
+                    pwr_f = float(power_consumption_kw)
+                    cell_z.value = f"=O{row_idx}*T{row_idx}"
+                    cell_z.number_format = '0.0'
+                except (ValueError, TypeError):
+                    cell_z.value = "-"
+
+                # 🎯 每坪平均負荷值 (Col AA, 27) (kcal/hr/㎡)
+                cell_aa = ws.cell(row=row_idx, column=settings.PER_M2_KCAL_AA_COL)
+                cell_aa.value = f"=AB{row_idx}*0.3025"
+                cell_aa.number_format = '0'
+
                 if ping_val > 0:
                     ws.cell(row=row_idx, column=settings.PER_PING_KCAL_AB_COL).value = int(round(cap_kcal / ping_val, 0))
                     ws.cell(row=row_idx, column=settings.PER_PING_KW_AC_COL).value = round(cap_kw / ping_val, 1)
