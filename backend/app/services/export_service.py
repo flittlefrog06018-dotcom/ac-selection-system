@@ -85,6 +85,14 @@ class ExportService:
                         conn_ratio = round((sum_indoor_kw / out_kw) * 100, 1) if out_kw > 0 else 0.0
                         conn_ratio_str = f"{conn_ratio}%" if out_kw > 0 else "-"
                         
+                        group_is_ra = any(
+                            str(s.get("series", "")).strip().upper() == "RA"
+                            or "RA" in str(s.get("system_type", s.get("system", ""))).strip().upper()
+                            or str(s.get("recommended_model") or s.get("indoor_model") or "").upper().startswith(("FTX", "CTX"))
+                            or out_model.upper().startswith(("2MX", "3MX", "4MX", "5MX", "RX"))
+                            for s in group_spaces
+                        )
+                        
                         group_spans.append({
                             "start_row": s_r,
                             "end_row": e_r,
@@ -93,7 +101,8 @@ class ExportService:
                             "conn_ratio_str": conn_ratio_str,
                             "outdoor_info": outdoor_info,
                             "fallback_cap_kw": out_kw,
-                            "system_type": room.get("system_type", "VRV")
+                            "is_ra": group_is_ra,
+                            "system_type": "RA" if group_is_ra else "VRV"
                         })
                         i = j + 1
                     else:
@@ -144,7 +153,22 @@ class ExportService:
                 
                 matched_model = room.get("recommended_model") or room.get("indoor_model") or room.get("best_match_model") or ""
                 matched_model = str(matched_model).strip()
-                system_type = str(room.get("system_type", room.get("system", "VRV"))).strip().upper()
+                matched_upper = matched_model.upper()
+
+                series_val = str(room.get("series", "")).strip().upper()
+                sys_raw = str(room.get("system_type", room.get("system", ""))).strip().upper()
+                
+                # 🎯 嚴謹判斷是否為 RA 系統 (家用壁掛/家用多聯)
+                is_ra = (
+                    series_val == "RA"
+                    or "RA" in sys_raw
+                    or matched_upper.startswith("FTX")
+                    or matched_upper.startswith("CTX")
+                    or str(room.get("indoor_type", "")).find("壁掛") != -1
+                    or str(room.get("outdoor_model", "")).upper().startswith(("RX", "2MX", "3MX", "4MX", "5MX"))
+                )
+                system_type = "RA" if is_ra else ("VRV" if ("VRV" in sys_raw or series_val == "VRV" or matched_upper.startswith("FX")) else ("SA" if ("SA" in sys_raw or matched_upper.startswith(("FBA", "FCQ", "FHQ"))) else "VRV"))
+                
                 qty = int(room.get("qty", room.get("unit_count", 1)))
                 cap_kw = float(room.get("indoor_capacity_kw", room.get("cap_kw", 0.0)))
                 cap_kcal = float(room.get("indoor_capacity_kcal", round(cap_kw * 860.0, 1)))
@@ -155,14 +179,13 @@ class ExportService:
                 # 🎯 經理指定室內機電源判斷規則：
                 # 只有室內機為 VRV 系統，或是商用 1 對 1 的風管型 (型號是 FBA) 時會需要使用獨立電源 (1φ, 220V, 60Hz)，
                 # 其餘的室內機皆使用外機供電，所以在室內機的電源欄位中以 "-" 標示即可。
-                matched_upper = matched_model.upper()
                 if "VRV" in system_type or matched_upper.startswith("FX") or matched_upper.startswith("FBA"):
                     power_supply = "1φ, 220V, 60Hz"
                 else:
                     power_supply = "-"
                     
                 # 🎯 標稱能力 (能力指數)：僅在 VRV 系統時存在與填寫，RA (家用) / SA (商用) 系統統一為 "-"
-                if "VRV" in system_type:
+                if not is_ra and "VRV" in system_type:
                     raw_nom = indoor_info.get("nominal_cap") if indoor_info else None
                     if raw_nom is not None and str(raw_nom).strip() not in ["-", "None", ""]:
                         try:
@@ -177,8 +200,15 @@ class ExportService:
                 else:
                     nominal_cap_val = "-"
 
-                power_consumption_kw = room.get("power_consumption_kw") if room.get("power_consumption_kw") and room.get("power_consumption_kw") != "-" else (indoor_info.get("power_consumption_kw", "-") if indoor_info else "-")
-                indoor_current_a = indoor_info.get("mca", "-") if indoor_info else "-"
+                # 🎯 經理指示 1：家用壁掛式 (RA系統) 無標稱能力和耗電量數值，維持 "-" 即可
+                if is_ra:
+                    nominal_cap_val = "-"
+                    power_consumption_kw = "-"
+                    indoor_current_a = "-"
+                else:
+                    power_consumption_kw = room.get("power_consumption_kw") if room.get("power_consumption_kw") and room.get("power_consumption_kw") != "-" else (indoor_info.get("power_consumption_kw", "-") if indoor_info else "-")
+                    indoor_current_a = indoor_info.get("mca", "-") if indoor_info else "-"
+
                 dimensions = room.get("dimensions") if room.get("dimensions") and room.get("dimensions") != "-" else (indoor_info.get("dimensions", "-") if indoor_info else "-")
 
                 # Write to exact column mappings (Aligned with user screenshot)
@@ -217,21 +247,24 @@ class ExportService:
                 ws.cell(row=row_idx, column=settings.TOTAL_KCAL_W_COL).value = float(qty * cap_kcal)
                 ws.cell(row=row_idx, column=settings.TOTAL_KW_X_COL).value = float(qty * cap_kw)
                 
-                # 🎯 標稱能力小計 (Col Y, 25)：僅 VRV 有能力指數小計，其餘系統為 "-"
+                # 🎯 標稱能力小計 (Col Y, 25)：僅 VRV 有能力指數小計，其餘系統 (RA/SA) 維持 "-"
                 cell_y = ws.cell(row=row_idx, column=settings.SUBTOTAL_NOMINAL_Y_COL)
-                if "VRV" in system_type and isinstance(nominal_cap_val, (int, float)):
+                if not is_ra and "VRV" in system_type and isinstance(nominal_cap_val, (int, float)):
                     cell_y.value = f"=R{row_idx}*O{row_idx}"
                     cell_y.number_format = 'General'
                 else:
                     cell_y.value = "-"
 
-                # 🎯 耗電量小計 kW (Col Z, 26)
+                # 🎯 耗電量小計 kW (Col Z, 26)：RA (家用壁掛) 或無耗電量者維持 "-"
                 cell_z = ws.cell(row=row_idx, column=settings.SUBTOTAL_POWER_Z_COL)
-                try:
-                    pwr_f = float(power_consumption_kw)
-                    cell_z.value = f"=O{row_idx}*T{row_idx}"
-                    cell_z.number_format = '0.0'
-                except (ValueError, TypeError):
+                if not is_ra and power_consumption_kw not in ["-", "", "None", None]:
+                    try:
+                        pwr_f = float(power_consumption_kw)
+                        cell_z.value = f"=O{row_idx}*T{row_idx}"
+                        cell_z.number_format = '0.0'
+                    except (ValueError, TypeError):
+                        cell_z.value = "-"
+                else:
                     cell_z.value = "-"
 
                 # 🎯 每坪平均負荷值 (Col AA, 27) (kcal/hr/㎡)
@@ -261,6 +294,9 @@ class ExportService:
                             out_model = matched_upper
                             
                     out_info = db_service.get_outdoor_unit_info(out_model)
+                    if not out_info and out_model:
+                        out_info = db_service.get_outdoor_unit_info(out_model.strip().upper())
+
                     out_cap_kw = float(out_info.get("cap_kw", cap_kw)) if out_info else cap_kw
                     out_cap_kcal = round(out_cap_kw * 860.0, 1) if out_cap_kw > 0 else "-"
                     out_nominal = out_info.get("nominal_cap", "-") if (out_info and "VRV" in system_type) else "-"
@@ -275,12 +311,34 @@ class ExportService:
                     ws.cell(row=row_idx, column=33).value = out_cap_kcal                     # AG: 冷房能力 (kcal/hr)
                     ws.cell(row=row_idx, column=34).value = out_cap_kw                       # AH: 冷房能力 (kW) (第5列)
                     ws.cell(row=row_idx, column=35).value = out_nominal                      # AI: 標稱能力 (僅 VRV 填寫能力指數，RA/SA 為 -)
-                    ws.cell(row=row_idx, column=36).value = "100%"                           # AJ: 連結率 % (以選型計算結果為主)
-                    ws.cell(row=row_idx, column=37).value = out_pwr_con                      # AK: 耗電量 (kW) (第8列)
-                    ws.cell(row=row_idx, column=38).value = out_pwr_sup                      # AL: 電源 (第7列)
-                    ws.cell(row=row_idx, column=39).value = out_mca                          # AM: 電路最大電流 (A) (第9列)
-                    ws.cell(row=row_idx, column=40).value = out_mfa                          # AN: 保險絲最大電流 (A) (第10列)
-                    ws.cell(row=row_idx, column=41).value = out_dim                          # AO: 尺寸 mm (H×W×D) (第12列)
+                    
+                    # 🎯 經理指示 2：RA 系統不需要提供連結率，請維持 "-" 即可
+                    ws.cell(row=row_idx, column=36).value = "-" if (is_ra or "RA" in system_type) else "100%"
+
+                    # 🎯 經理指示 3：提供室外機耗電量、電源、電路最大電流、保險絲最大電流及尺寸 (參照 EQUIPMENT_Data)
+                    cell_ak = ws.cell(row=row_idx, column=37)
+                    try:
+                        cell_ak.value = float(out_pwr_con)
+                        cell_ak.number_format = '0.00'
+                    except (ValueError, TypeError):
+                        cell_ak.value = out_pwr_con
+
+                    ws.cell(row=row_idx, column=38).value = out_pwr_sup
+
+                    cell_am = ws.cell(row=row_idx, column=39)
+                    try:
+                        cell_am.value = float(out_mca)
+                        cell_am.number_format = '0.0'
+                    except (ValueError, TypeError):
+                        cell_am.value = out_mca
+
+                    cell_an = ws.cell(row=row_idx, column=40)
+                    try:
+                        cell_an.value = int(float(out_mfa))
+                    except (ValueError, TypeError):
+                        cell_an.value = out_mfa
+
+                    ws.cell(row=row_idx, column=41).value = out_dim
 
             # 🎯 執行室外機群組縱向跨列合併與 EQUIPMENT_Data 對應填入 (openpyxl Rowspan Engine)
             for span in group_spans:
@@ -302,18 +360,40 @@ class ExportService:
                 out_mfa = out_info.get("mfa", "-") if out_info else "-"
                 out_dim = out_info.get("dimensions", "-") if out_info else "-"
 
+                # 🎯 經理指示 2：RA 系統不需要提供連結率，維持 "-" 即可
+                conn_ratio_display = "-" if "RA" in group_sys else conn_ratio_str
+
                 # 填寫室外機專屬 11 個欄位 (AE ~ AO, Columns 31 ~ 41)
                 ws.cell(row=s_r, column=31).value = out_model       # AE: 室外機型號 (第4列)
                 ws.cell(row=s_r, column=32).value = out_qty         # AF: 室外機台數 (以選型台數為主)
                 ws.cell(row=s_r, column=33).value = out_cap_kcal     # AG: 冷房能力 (kcal/hr)
                 ws.cell(row=s_r, column=34).value = out_cap_kw       # AH: 冷房能力 (kW) (第5列)
                 ws.cell(row=s_r, column=35).value = out_nominal      # AI: 標稱能力 (第6列)
-                ws.cell(row=s_r, column=36).value = conn_ratio_str   # AJ: 連結率 % (以選型計算結果為主)
-                ws.cell(row=s_r, column=37).value = out_pwr_con      # AK: 耗電量 (kW) (第8列)
-                ws.cell(row=s_r, column=38).value = out_pwr_sup      # AL: 電源 (第7列)
-                ws.cell(row=s_r, column=39).value = out_mca          # AM: 電路最大電流 (A) (第9列)
-                ws.cell(row=s_r, column=40).value = out_mfa          # AN: 保險絲最大電流 (A) (第10列)
-                ws.cell(row=s_r, column=41).value = out_dim          # AO: 尺寸 mm (H×W×D) (第12列)
+                ws.cell(row=s_r, column=36).value = conn_ratio_display # AJ: 連結率 %
+                
+                cell_ak = ws.cell(row=s_r, column=37)
+                try:
+                    cell_ak.value = float(out_pwr_con)
+                    cell_ak.number_format = '0.00'
+                except (ValueError, TypeError):
+                    cell_ak.value = out_pwr_con
+
+                ws.cell(row=s_r, column=38).value = out_pwr_sup
+
+                cell_am = ws.cell(row=s_r, column=39)
+                try:
+                    cell_am.value = float(out_mca)
+                    cell_am.number_format = '0.0'
+                except (ValueError, TypeError):
+                    cell_am.value = out_mca
+
+                cell_an = ws.cell(row=s_r, column=40)
+                try:
+                    cell_an.value = int(float(out_mfa))
+                except (ValueError, TypeError):
+                    cell_an.value = out_mfa
+
+                ws.cell(row=s_r, column=41).value = out_dim
                 
                 # 縱向跨列合併對齊
                 for col_c in range(31, 42):

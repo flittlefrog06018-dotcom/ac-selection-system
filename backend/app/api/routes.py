@@ -80,23 +80,40 @@ def lookup_cap_kw(model_name: str) -> float:
 # --- 🎯 精準對齊前端欄位格式的 Export 結構定義 ---
 class ExportRowModel(BaseModel):
     space_name: str = ""
+    room_name: str = ""
     area_m2: float = 0.0
     area_ping: float = 0.0
+    ping_val: float = 0.0
     system_type: str = "VRV"
+    series: str = ""
+    unit_type: str = ""
     exposures_str: str = ""
     base_suggested_load: float = 0.0
+    calc_basis: float = 500.0
+    final_suggested_kcal_per_ping: float = 500.0
     final_kcal_per_ping: float = 0.0
     special_kw: float = 0.0
     special_heat_kcal: float = 0.0
     total_cooling_load_kcal: float = 0.0
+    total_load_kcal: float = 0.0
+    total_load_kw: float = 0.0
     recommended_model: str = ""
     indoor_model: str = ""
+    best_match_model: str = ""
     qty: int = 1
+    unit_count: int = 1
     cap_kw: float = 0.0
+    indoor_capacity_kw: float = 0.0
+    indoor_capacity_kcal: float = 0.0
     nominal_cap: str = "-"
     power_supply: str = "-"
     power_consumption_kw: str = "-"
     dimensions: str = "-"
+    max_current_a: str = "-"
+    outdoor_model: str = ""
+    outdoor_qty: int = 1
+    outdoorGroupId: Optional[str] = None
+    outdoor_group_id: Optional[str] = None
 
 class ExportRequest(BaseModel):
     filename: str = ""

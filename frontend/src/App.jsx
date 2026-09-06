@@ -2659,6 +2659,7 @@ function App() {
           powerSupply = "1φ, 220V, 60Hz";
         }
 
+        const isRa = (sysUpper === 'RA');
         let nominalCapVal = "-";
         if (sysUpper.includes("VRV")) {
           let rawNominal = indoorInfo ? indoorInfo.nominal_cap : row.nominal_cap;
@@ -2670,8 +2671,16 @@ function App() {
           }
         }
 
-        const powerConsumption = saPair ? (saPair.indoor.power_consumption_kw || "-") : ((indoorInfo && indoorInfo.power_consumption_kw !== "-") ? indoorInfo.power_consumption_kw : (row.power_consumption_kw || "-"));
-        const maxCurrent = saPair ? (saPair.indoor.rated_current_a || "-") : ((indoorInfo && indoorInfo.mca !== "-") ? indoorInfo.mca : (row.max_current_a || "-"));
+        let powerConsumption = "-";
+        if (!isRa) {
+          powerConsumption = saPair ? (saPair.indoor.power_consumption_kw || "-") : ((indoorInfo && indoorInfo.power_consumption_kw !== "-") ? indoorInfo.power_consumption_kw : (row.power_consumption_kw || "-"));
+        }
+
+        let maxCurrent = "-";
+        if (!isRa) {
+          maxCurrent = saPair ? (saPair.indoor.rated_current_a || "-") : ((indoorInfo && indoorInfo.mca !== "-") ? indoorInfo.mca : (row.max_current_a || "-"));
+        }
+
         const dimensions = saPair ? (saPair.indoor.dimensions_mm || "-") : ((indoorInfo && indoorInfo.dimensions !== "-") ? indoorInfo.dimensions : (row.dimensions || "-"));
 
         let nominalSubtotal = "-";
@@ -2680,7 +2689,7 @@ function App() {
         }
 
         let pwrConSubtotal = "-";
-        if (powerConsumption !== "-") {
+        if (!isRa && powerConsumption !== "-" && powerConsumption !== "" && powerConsumption !== "None") {
           const pVal = parseFloat(powerConsumption);
           if (!isNaN(pVal)) pwrConSubtotal = parseFloat((qty * pVal).toFixed(2));
         }
@@ -2736,15 +2745,17 @@ function App() {
             const autoOutdoor = autoMatchOutdoorModelForRow(row.system_type || fastSystem, row.series || fastSeries, singleCapKw, fastOutdoorType, fastOutdoorPower, 1, modelStr);
             outModelStr = row.outdoor_model || autoOutdoor;
             const outUpper = (outModelStr || "").trim().toUpperCase();
-            const outObj = (EQUIPMENT_FULL_DB.outdoor_units && EQUIPMENT_FULL_DB.outdoor_units[outUpper])
-              || OUTDOOR_UNITS_DB.find((m) => m.model === outModelStr);
+            let outObj = (EQUIPMENT_FULL_DB.outdoor_units && EQUIPMENT_FULL_DB.outdoor_units[outUpper]);
+            if (!outObj) {
+              outObj = OUTDOOR_UNITS_DB.find((m) => (m.model || "").toUpperCase() === outUpper);
+            }
 
             outCapKw = outObj ? parseFloat(outObj.cap_kw) : singleCapKw;
-            outPwrCon = outObj ? (outObj.power_consumption_kw || "-") : "-";
-            outPwrSup = outObj ? (outObj.power_supply || "-") : "-";
-            outMca = outObj ? (outObj.mca || "-") : "-";
-            outMfa = outObj ? (outObj.mfa || "-") : "-";
-            outDim = outObj ? (outObj.dimensions || "-") : "-";
+            outPwrCon = outObj && outObj.power_consumption_kw !== "-" && outObj.power_consumption_kw !== undefined ? (parseFloat(outObj.power_consumption_kw) || outObj.power_consumption_kw) : "-";
+            outPwrSup = outObj && outObj.power_supply ? outObj.power_supply : "-";
+            outMca = outObj && outObj.mca !== "-" && outObj.mca !== undefined ? (parseFloat(outObj.mca) || outObj.mca) : "-";
+            outMfa = outObj && outObj.mfa !== "-" && outObj.mfa !== undefined ? (parseInt(outObj.mfa) || outObj.mfa) : "-";
+            outDim = outObj && outObj.dimensions ? outObj.dimensions : "-";
           }
 
           const outCapKcal = outCapKw > 0 ? parseFloat((outCapKw * qty * 860.0).toFixed(1)) : "-";
@@ -2755,7 +2766,7 @@ function App() {
           excelRow.getCell(33).value = outCapKcal;                            // Col AG (33): 冷房總能力 (kcal/hr)
           excelRow.getCell(34).value = parseFloat((outCapKw * qty).toFixed(1)); // Col AH (34): 冷房總能力 (kW)
           excelRow.getCell(35).value = outNominal;                            // Col AI (35): 標稱能力 (僅 VRV 為能力指數，RA/SA 為 -)
-          excelRow.getCell(36).value = "100%";                                // Col AJ (36): 連結率 %
+          excelRow.getCell(36).value = isRa ? "-" : "100%";                  // Col AJ (36): 連結率 % (RA 系統維持 "-")
           excelRow.getCell(37).value = outPwrCon;                             // Col AK (37): 耗電量 (kW)
           excelRow.getCell(38).value = outPwrSup;                             // Col AL (38): 電源
           excelRow.getCell(39).value = outMca;                                // Col AM (39): 電路最大電流 (A)
@@ -2777,6 +2788,7 @@ function App() {
         const outNominal = outSysUpper.includes("VRV")
           ? (outInfo?.nominal_cap || outInfo?.cap_index || span.outdoor_cap_index || "-")
           : "-";
+        const isRaGroup = outSysUpper === 'RA';
 
         const topRow = ws.getRow(sR);
         topRow.getCell(31).value = span.outdoor_model || "-";
@@ -2784,12 +2796,12 @@ function App() {
         topRow.getCell(33).value = outCapKcal;
         topRow.getCell(34).value = outCapKw;
         topRow.getCell(35).value = outNominal;
-        topRow.getCell(36).value = span.conn_ratio_str;
-        topRow.getCell(37).value = outInfo ? (outInfo.power_consumption_kw || "-") : "-";
-        topRow.getCell(38).value = outInfo ? (outInfo.power_supply || "-") : "-";
-        topRow.getCell(39).value = outInfo ? (outInfo.mca || "-") : "-";
-        topRow.getCell(40).value = outInfo ? (outInfo.mfa || "-") : "-";
-        topRow.getCell(41).value = outInfo ? (outInfo.dimensions || "-") : "-";
+        topRow.getCell(36).value = isRaGroup ? "-" : span.conn_ratio_str;
+        topRow.getCell(37).value = outInfo && outInfo.power_consumption_kw !== "-" && outInfo.power_consumption_kw !== undefined ? (parseFloat(outInfo.power_consumption_kw) || outInfo.power_consumption_kw) : "-";
+        topRow.getCell(38).value = outInfo?.power_supply || "-";
+        topRow.getCell(39).value = outInfo && outInfo.mca !== "-" && outInfo.mca !== undefined ? (parseFloat(outInfo.mca) || outInfo.mca) : "-";
+        topRow.getCell(40).value = outInfo && outInfo.mfa !== "-" && outInfo.mfa !== undefined ? (parseInt(outInfo.mfa) || outInfo.mfa) : "-";
+        topRow.getCell(41).value = outInfo?.dimensions || "-";
         topRow.commit();
 
         // 若群組包含 2 個以上空間，執行 ExcelJS 跨列合併與居中對齊
