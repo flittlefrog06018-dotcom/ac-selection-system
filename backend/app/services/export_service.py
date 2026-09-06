@@ -419,6 +419,13 @@ class ExportService:
                         ws.merge_cells(start_row=s_r, end_row=e_r, start_column=col_c, end_column=col_c)
                     ws.cell(row=s_r, column=col_c).alignment = align_center
 
+            # 🎯 整合設備統計總表、系統套數樹狀拓撲、D3-NET 分析分頁 (獨立模組化調用)
+            try:
+                from app.services.equipment_summary_service import EquipmentSummaryService
+                EquipmentSummaryService.append_summary_sheets(wb, flat_rows_to_render, outdoor_groups)
+            except Exception as summary_err:
+                logger.error(f"Failed to generate summary sheets: {summary_err}")
+
             output = io.BytesIO()
             wb.save(output)
             output.seek(0)
