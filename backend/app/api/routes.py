@@ -622,9 +622,6 @@ async def export_excel(payload: ExportRequest):
     try:
         from app.services.export_service import ExportService
         raw_rooms_data = [r.dict() for r in payload.data]
-        print("[DEBUG export_excel] raw_rooms_data count:", len(raw_rooms_data))
-        if raw_rooms_data:
-            print("[DEBUG export_excel] row[0]:", raw_rooms_data[0])
         output = ExportService.generate_excel_report(raw_rooms_data, payload.outdoor_groups)
 
         raw_case_name = payload.filename.strip() if payload.filename else ""
