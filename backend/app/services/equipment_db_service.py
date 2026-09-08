@@ -88,8 +88,13 @@ class EquipmentDBService:
                 raw_power_sup = ws.cell(row=7, column=col).value
                 raw_power_con = ws.cell(row=8, column=col).value
                 raw_current = ws.cell(row=9, column=col).value
+                raw_esp = ws.cell(row=10, column=col).value
                 raw_dim = ws.cell(row=11, column=col).value
                 raw_type = ws.cell(row=12, column=col).value
+                raw_remote = ws.cell(row=13, column=col).value
+                raw_p_board = ws.cell(row=14, column=col).value
+                raw_wireless = ws.cell(row=15, column=col).value
+                raw_central = ws.cell(row=16, column=col).value
                 
                 # Check if model or system is empty (stop condition)
                 if not raw_model and not raw_cap_kw and not raw_system:
@@ -123,11 +128,67 @@ class EquipmentDBService:
                     "power_supply": clean_raw_val(raw_power_sup),
                     "power_consumption_kw": clean_raw_val(raw_power_con),
                     "mca": clean_raw_val(raw_current),
+                    "esp_pa": clean_raw_val(raw_esp),
                     "dimensions": clean_raw_val(raw_dim),
                     "unit_type": unit_type_str,
+                    "remote_model": clean_raw_val(raw_remote),
+                    "adapter_p_board": clean_raw_val(raw_p_board),
+                    "wireless_receiver": clean_raw_val(raw_wireless),
+                    "central_adapter_board": clean_raw_val(raw_central),
                     "col_index": col
                 }
                 units_list.append(unit_obj)
+
+            # Also read indoor_units_SA only if present
+            if "indoor_units_SA only" in sheet_names:
+                ws_sa = wb["indoor_units_SA only"]
+                for col in range(5, ws_sa.max_column + 1):
+                    raw_system = ws_sa.cell(row=2, column=col).value
+                    raw_series = ws_sa.cell(row=3, column=col).value
+                    raw_model = ws_sa.cell(row=4, column=col).value
+                    raw_cap_kw = ws_sa.cell(row=5, column=col).value
+                    raw_nominal = ws_sa.cell(row=6, column=col).value
+                    raw_power_sup = ws_sa.cell(row=7, column=col).value
+                    raw_power_con = ws_sa.cell(row=8, column=col).value
+                    raw_current = ws_sa.cell(row=9, column=col).value
+                    raw_esp = ws_sa.cell(row=10, column=col).value
+                    raw_dim = ws_sa.cell(row=11, column=col).value
+                    raw_type = ws_sa.cell(row=12, column=col).value
+                    raw_remote = ws_sa.cell(row=13, column=col).value
+                    raw_p_board = ws_sa.cell(row=14, column=col).value
+                    raw_wireless = ws_sa.cell(row=15, column=col).value
+                    raw_central = ws_sa.cell(row=16, column=col).value
+
+                    if not raw_model and not raw_cap_kw and not raw_system:
+                        continue
+                    model_str = str(raw_model).strip().upper() if raw_model else ""
+                    if not model_str or model_str == "NONE":
+                        continue
+
+                    try:
+                        cap_kw_val = float(raw_cap_kw)
+                    except (ValueError, TypeError):
+                        cap_kw_val = 2.2
+
+                    unit_obj = {
+                        "system": str(raw_system).strip().upper() if raw_system else "SA",
+                        "series": str(raw_series).strip() if raw_series else "標準系列",
+                        "model": model_str,
+                        "cap_kw": cap_kw_val,
+                        "nominal_cap": clean_raw_val(raw_nominal),
+                        "power_supply": clean_raw_val(raw_power_sup),
+                        "power_consumption_kw": clean_raw_val(raw_power_con),
+                        "mca": clean_raw_val(raw_current),
+                        "esp_pa": clean_raw_val(raw_esp),
+                        "dimensions": clean_raw_val(raw_dim),
+                        "unit_type": str(raw_type).strip() if raw_type else "壁掛式",
+                        "remote_model": clean_raw_val(raw_remote),
+                        "adapter_p_board": clean_raw_val(raw_p_board),
+                        "wireless_receiver": clean_raw_val(raw_wireless),
+                        "central_adapter_board": clean_raw_val(raw_central),
+                        "col_index": col
+                    }
+                    units_list.append(unit_obj)
                 
             self.units = units_list
             self._indoor_units_map = {u["model"].upper(): u for u in units_list}

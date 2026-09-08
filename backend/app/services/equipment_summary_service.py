@@ -72,6 +72,9 @@ class EquipmentSummaryService:
                 if is_out:
                     weight = cls.get_sys_weight(sys_name)
                     disp_name = f"[{sys_name}] {m}" if sys_name else m
+                elif sys_name in ["冷媒分歧頭", "控制介面"]:
+                    weight = 7 if sys_name == "冷媒分歧頭" else 8
+                    disp_name = m
                 else:
                     pref, weight = cls.get_in_label(m)
                     disp_name = f"{pref} {m}"
@@ -198,6 +201,76 @@ class EquipmentSummaryService:
                     "sys": g_data["sys_name"]
                 })
 
+        # 🎯 收集轉接小P板、無線接收器、集控轉接基板統計清單
+        adapter_board_items = []
+        try:
+            from app.services.equipment_db_service import EquipmentDBService
+            db_srv = EquipmentDBService.get_instance()
+            for r in rooms_data:
+                m_in = str(r.get("recommended_model") or r.get("indoor_model") or r.get("best_match_model") or "").strip()
+                q_in = int(r.get("qty") or r.get("unit_count") or 1)
+                ctrl_mode = str(r.get("control_mode") or r.get("ctrl_mode") or "").strip()
+                if not m_in or m_in in ["-", "NONE", ""]:
+                    continue
+                in_spec = db_srv.get_indoor_unit_info(m_in) or {}
+                p_board = in_spec.get("adapter_p_board", "-")
+                w_recv = in_spec.get("wireless_receiver", "-")
+                c_board = in_spec.get("central_adapter_board", "-")
+
+                # 若選 APP 控制
+                if "APP" in ctrl_mode.upper():
+                    if p_board and p_board not in ["-", "內建", "None", ""]:
+                        adapter_board_items.append({"model": f"轉接小P板 ({p_board})", "qty": q_in, "sys": "控制介面"})
+                    if w_recv and w_recv not in ["-", "內建", "None", ""]:
+                        adapter_board_items.append({"model": f"無線接收器 ({w_recv})", "qty": q_in, "sys": "控制介面"})
+                # 若選集控控制
+                if "集控" in ctrl_mode or "CENTRAL" in ctrl_mode.upper():
+                    if p_board and p_board not in ["-", "內建", "None", ""]:
+                        adapter_board_items.append({"model": f"轉接小P板 ({p_board})", "qty": q_in, "sys": "控制介面"})
+                    if c_board and c_board not in ["-", "None", ""]:
+                        adapter_board_items.append({"model": f"集控轉接基板 ({c_board})", "qty": q_in, "sys": "控制介面"})
+        except Exception as act_err:
+            logger.warning(f"Failed to extract control accessories: {act_err}")
+
+        # 🎯 利用 DaikinHVACCalculator 獨立運算管徑與分歧頭
+        joint_items = []
+        try:
+            from app.services.daikin_pipe_sizing_service import DaikinHVACCalculator, HVACNode
+            pipe_calc = DaikinHVACCalculator()
+            for sys_k, g_data in grouped_by_outdoor.items():
+                out_m = g_data["outdoor_model"] or ""
+                if not out_m or out_m == "-":
+                    continue
+                root_node = HVACNode('main', out_m, qty=g_data["outdoor_qty"], model=out_m)
+                child_nodes = []
+                for in_item in g_data["indoor_list"]:
+                    in_m = in_item["model"]
+                    in_q = in_item["qty"]
+                    is_ra_unit = any(k in in_m.upper() for k in ['FTX', 'CTX', 'FTHF', 'FDXV'])
+                    n_type = 'ra' if is_ra_unit else 'vrv'
+                    c_idx = pipe_calc.extract_capacity_index(in_m)
+                    child_nodes.append(HVACNode(n_type, in_m, capacity=c_idx, qty=in_q, model=in_m))
+                
+                # 自動 BP 箱分組 (每 3 台 RA 壁掛聚類)
+                grouped_children = pipe_calc.build_system_with_bp_boxes(child_nodes)
+                for ch in grouped_children:
+                    root_node.add_child(ch)
+                
+                # 遞迴運算管徑與分歧頭
+                pipe_calc.evaluate_tree(root_node, is_root=True)
+                g_data["evaluated_tree"] = root_node
+
+                # 提取分歧頭進行數量清點
+                def collect_joints(node: HVACNode):
+                    if node.joint_model:
+                        for j_single in node.joint_model.split('+'):
+                            joint_items.append({"model": j_single.strip(), "qty": 1, "sys": "冷媒分歧頭"})
+                    for c_node in node.children:
+                        collect_joints(c_node)
+                collect_joints(root_node)
+        except Exception as pipe_err:
+            logger.warning(f"Failed to evaluate pipe sizing: {pipe_err}")
+
         # ========================================================
         # 1. 建立分頁【設備統計總表】
         # ========================================================
@@ -207,16 +280,20 @@ class EquipmentSummaryService:
         t_in = cls.process_units_table(indoor_items, is_out=False)
         t_out = cls.process_units_table(outdoor_items, is_out=True)
         t_hrv = cls.process_units_table(hrv_items, is_out=False)
+        t_joint = cls.process_units_table(joint_items, is_out=False)
+        t_adapter = cls.process_units_table(adapter_board_items, is_out=False)
 
         # 標題
-        ws1.cell(row=2, column=2).value = "大金空調設備統計總表"
+        ws1.cell(row=2, column=2).value = "大金空調設備與配件統計總表"
         ws1.cell(row=2, column=2).font = Font(name="微軟正黑體", size=14, bold=True, color="0F172A")
         
-        # 欄位抬頭：室內機 (B, C)、室外機 (E, F)、全熱 (H, I)
+        # 欄位抬頭：室內機 (B, C)、室外機 (E, F)、全熱 (H, I)、分歧頭 (K, L)、控制配件 (N, O)
         headers = [
             (2, "室內機型號"), (3, "室內機台數"),
             (5, "室外機型號"), (6, "室外機台數"),
-            (8, "全熱型號"), (9, "全熱台數")
+            (8, "全熱型號"), (9, "全熱台數"),
+            (11, "冷媒分歧頭型號"), (12, "分歧頭數量"),
+            (14, "控制/轉接配件型號"), (15, "配件數量")
         ]
         for col_idx, h_text in headers:
             c = ws1.cell(row=4, column=col_idx)
@@ -226,7 +303,7 @@ class EquipmentSummaryService:
             c.alignment = align_center
             c.border = border_thin
 
-        max_rows = max(len(t_in), len(t_out), len(t_hrv), 1)
+        max_rows = max(len(t_in), len(t_out), len(t_hrv), len(t_joint), len(t_adapter), 1)
 
         for idx in range(max_rows):
             r_idx = 5 + idx
@@ -251,6 +328,20 @@ class EquipmentSummaryService:
                 c_m.font = font_data; c_m.alignment = align_left; c_m.border = border_thin
                 c_q.font = font_data; c_q.alignment = align_center; c_q.border = border_thin
 
+            # 冷媒分歧頭
+            if idx < len(t_joint):
+                c_m = ws1.cell(row=r_idx, column=11, value=t_joint[idx]["display_name"])
+                c_q = ws1.cell(row=r_idx, column=12, value=t_joint[idx]["qty"])
+                c_m.font = font_data; c_m.alignment = align_left; c_m.border = border_thin
+                c_q.font = font_data; c_q.alignment = align_center; c_q.border = border_thin
+
+            # 控制/轉接配件
+            if idx < len(t_adapter):
+                c_m = ws1.cell(row=r_idx, column=14, value=t_adapter[idx]["display_name"])
+                c_q = ws1.cell(row=r_idx, column=15, value=t_adapter[idx]["qty"])
+                c_m.font = font_data; c_m.alignment = align_left; c_m.border = border_thin
+                c_q.font = font_data; c_q.alignment = align_center; c_q.border = border_thin
+
         # 合計列
         tot_row = 5 + max_rows
         ws1.cell(row=tot_row, column=2, value="合計").font = font_bold
@@ -259,24 +350,28 @@ class EquipmentSummaryService:
         ws1.cell(row=tot_row, column=6, value=sum(x["qty"] for x in t_out)).font = font_bold
         ws1.cell(row=tot_row, column=8, value="合計").font = font_bold
         ws1.cell(row=tot_row, column=9, value=sum(x["qty"] for x in t_hrv)).font = font_bold
+        ws1.cell(row=tot_row, column=11, value="合計").font = font_bold
+        ws1.cell(row=tot_row, column=12, value=sum(x["qty"] for x in t_joint)).font = font_bold
+        ws1.cell(row=tot_row, column=14, value="合計").font = font_bold
+        ws1.cell(row=tot_row, column=15, value=sum(x["qty"] for x in t_adapter)).font = font_bold
 
-        for col_idx in [2, 3, 5, 6, 8, 9]:
+        for col_idx in [2, 3, 5, 6, 8, 9, 11, 12, 14, 15]:
             cell = ws1.cell(row=tot_row, column=col_idx)
             cell.fill = fill_subtotal
             cell.border = border_total
-            if col_idx in [3, 6, 9]:
+            if col_idx in [3, 6, 9, 12, 15]:
                 cell.alignment = align_center
 
         # ========================================================
-        # 2. 建立分頁【系統套數】(樹狀結構)
+        # 2. 建立分頁【系統套數】(樹狀結構與冷媒管徑分歧頭)
         # ========================================================
         ws2 = wb.create_sheet(title="系統套數")
         ws2.views.sheetView[0].showGridLines = True
 
-        ws2.cell(row=2, column=2).value = "空調系統套數與樹狀結構配比"
+        ws2.cell(row=2, column=2).value = "空調系統套數、樹狀結構與冷媒管徑選用"
         ws2.cell(row=2, column=2).font = Font(name="微軟正黑體", size=14, bold=True, color="0F172A")
 
-        c1 = ws2.cell(row=4, column=2, value="系統結構 (室外機 -> 配接室內機)")
+        c1 = ws2.cell(row=4, column=2, value="系統結構與配管規格 (室外機 -> 主管/分歧頭 -> 配接室內機)")
         c2 = ws2.cell(row=4, column=3, value="台數")
         c1.font = font_header; c1.fill = fill_header; c1.alignment = align_left; c1.border = border_thin
         c2.font = font_header; c2.fill = fill_header; c2.alignment = align_center; c2.border = border_thin
@@ -289,29 +384,51 @@ class EquipmentSummaryService:
             out_q = g_data["outdoor_qty"]
             sys_lbl = g_data["sys_name"]
 
-            # 外機主節點
-            cell_node = ws2.cell(row=curr_r, column=2, value=f"{sys_counter}. [{sys_lbl}] {out_m}")
-            cell_q = ws2.cell(row=curr_r, column=3, value=out_q)
-            cell_node.font = font_bold; cell_node.border = border_thin; cell_node.fill = fill_subtotal
-            cell_q.font = font_bold; cell_q.alignment = align_center; cell_q.border = border_thin; cell_q.fill = fill_subtotal
-            curr_r += 1
-
-            # 聚合室內機型號
-            in_grouped = {}
-            for in_item in g_data["indoor_list"]:
-                m = in_item["model"]
-                in_grouped[m] = in_grouped.get(m, 0) + in_item["qty"]
-
-            in_list = [{"model": m, "qty": q, "series": cls.get_model_series(m), "cap": cls.get_cap(m)} for m, q in in_grouped.items()]
-            in_list.sort(key=lambda x: (x["series"], -x["cap"]))
-
-            for j, in_node in enumerate(in_list):
-                pref = "    └─ " if j == len(in_list) - 1 else "    ├─ "
-                c_tree = ws2.cell(row=curr_r, column=2, value=f"{pref}{in_node['model']}")
-                c_tree_q = ws2.cell(row=curr_r, column=3, value=in_node["qty"])
-                c_tree.font = font_data; c_tree.border = border_thin
-                c_tree_q.font = font_data; c_tree_q.alignment = align_center; c_tree_q.border = border_thin
+            # 若有樹狀運算結果
+            tree_root = g_data.get("evaluated_tree")
+            if tree_root:
+                try:
+                    from app.services.daikin_pipe_sizing_service import DaikinHVACCalculator
+                    pipe_calc = DaikinHVACCalculator()
+                    flat_rows = pipe_calc.flatten_tree_to_rows(tree_root)
+                    for r_item in flat_rows:
+                        is_main = (r_item["node"].node_type == "main")
+                        cell_node = ws2.cell(row=curr_r, column=2, value=f"{sys_counter}. [{sys_lbl}] {r_item['結構']}" if is_main else r_item['結構'])
+                        cell_q = ws2.cell(row=curr_r, column=3, value=r_item["數量"])
+                        cell_node.font = font_bold if is_main else font_data
+                        cell_node.border = border_thin
+                        cell_node.fill = fill_subtotal if is_main else PatternFill(fill_type=None)
+                        cell_q.font = font_bold if is_main else font_data
+                        cell_q.alignment = align_center
+                        cell_q.border = border_thin
+                        cell_q.fill = fill_subtotal if is_main else PatternFill(fill_type=None)
+                        curr_r += 1
+                except Exception as tr_err:
+                    logger.warning(f"Flatten tree failed: {tr_err}")
+            else:
+                # 外機主節點
+                cell_node = ws2.cell(row=curr_r, column=2, value=f"{sys_counter}. [{sys_lbl}] {out_m}")
+                cell_q = ws2.cell(row=curr_r, column=3, value=out_q)
+                cell_node.font = font_bold; cell_node.border = border_thin; cell_node.fill = fill_subtotal
+                cell_q.font = font_bold; cell_q.alignment = align_center; cell_q.border = border_thin; cell_q.fill = fill_subtotal
                 curr_r += 1
+
+                # 聚合室內機型號
+                in_grouped = {}
+                for in_item in g_data["indoor_list"]:
+                    m = in_item["model"]
+                    in_grouped[m] = in_grouped.get(m, 0) + in_item["qty"]
+
+                in_list = [{"model": m, "qty": q, "series": cls.get_model_series(m), "cap": cls.get_cap(m)} for m, q in in_grouped.items()]
+                in_list.sort(key=lambda x: (x["series"], -x["cap"]))
+
+                for j, in_node in enumerate(in_list):
+                    pref = "    └─ " if j == len(in_list) - 1 else "    ├─ "
+                    c_tree = ws2.cell(row=curr_r, column=2, value=f"{pref}{in_node['model']}")
+                    c_tree_q = ws2.cell(row=curr_r, column=3, value=in_node["qty"])
+                    c_tree.font = font_data; c_tree.border = border_thin
+                    c_tree_q.font = font_data; c_tree_q.alignment = align_center; c_tree_q.border = border_thin
+                    curr_r += 1
 
             # 空行隔開不同系統
             curr_r += 1

@@ -358,6 +358,35 @@ class ExportService:
 
                     ws.cell(row=row_idx, column=41).value = out_dim
 
+                # 🎯 填入備註 (Col 42, AP)：若選 APP 或集控，帶入轉接小P板與無線接收器/集控轉接基板型號
+                ctrl_mode = str(room.get("control_mode") or room.get("ctrl_mode") or "").strip()
+                if ctrl_mode and ctrl_mode != "無" and indoor_info:
+                    p_board = indoor_info.get("adapter_p_board", "-")
+                    w_recv = indoor_info.get("wireless_receiver", "-")
+                    c_board = indoor_info.get("central_adapter_board", "-")
+                    notes = []
+                    if "APP" in ctrl_mode.upper():
+                        sub = []
+                        if p_board and p_board not in ["-", "內建", "None", ""]:
+                            sub.append(f"小P板:{p_board}")
+                        if w_recv and w_recv not in ["-", "None", ""]:
+                            sub.append(f"無線接收:{w_recv}")
+                        if sub:
+                            notes.append(f"APP({', '.join(sub)})")
+                        elif w_recv == "內建":
+                            notes.append("APP(內建無線)")
+                    if "集控" in ctrl_mode or "CENTRAL" in ctrl_mode.upper():
+                        sub = []
+                        if p_board and p_board not in ["-", "內建", "None", ""]:
+                            sub.append(f"小P板:{p_board}")
+                        if c_board and c_board not in ["-", "None", ""]:
+                            sub.append(f"集控板:{c_board}")
+                        if sub:
+                            notes.append(f"集控({', '.join(sub)})")
+                    if notes:
+                        ws.cell(row=row_idx, column=42).value = " | ".join(notes)
+                        ws.cell(row=row_idx, column=42).alignment = align_center
+
             # 🎯 執行室外機群組縱向跨列合併與 EQUIPMENT_Data 對應填入 (openpyxl Rowspan Engine)
             for span in group_spans:
                 s_r = span["start_row"]

@@ -114,6 +114,7 @@ class ExportRowModel(BaseModel):
     outdoor_qty: int = 1
     outdoorGroupId: Optional[str] = None
     outdoor_group_id: Optional[str] = None
+    control_mode: Optional[str] = "無"
 
 class ExportRequest(BaseModel):
     filename: str = ""

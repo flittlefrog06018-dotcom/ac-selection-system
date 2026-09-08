@@ -1,0 +1,16 @@
+Row 01 | Col A: 欄位名稱  (Excel 第一行)         | FTXV22:                 | FTXV28: 
+Row 02 | Col A: 系統                        | FTXV22: RA              | FTXV28: RA
+Row 03 | Col A: 系列別                       | FTXV22: 橫綱X系列           | FTXV28: 橫綱X系列
+Row 04 | Col A: 室內機型號                     | FTXV22: FTXV22XVLT      | FTXV28: FTXV28XVLT
+Row 05 | Col A: 冷房能力(kW)                  | FTXV22: 2.2             | FTXV28: 2.8
+Row 06 | Col A: 標稱能力                      | FTXV22: -               | FTXV28: -
+Row 07 | Col A: 電源                        | FTXV22: 室外機供電           | FTXV28: 室外機供電
+Row 08 | Col A: 額定耗電量(kW)                 | FTXV22: -               | FTXV28: -
+Row 09 | Col A: 額定電流                      | FTXV22: -               | FTXV28: -
+Row 10 | Col A: 機外靜壓                      | FTXV22: -               | FTXV28: -
+Row 11 | Col A: 尺寸(高x寬x深) (mm)            | FTXV22: 299×838×275     | FTXV28: 299×838×275
+Row 12 | Col A: 室內機型式                     | FTXV22: 壁掛式             | FTXV28: 壁掛式
+Row 13 | Col A: 遙控器型號                     | FTXV22:                 | FTXV28: 
+Row 14 | Col A: 轉接小P版                     | FTXV22: -               | FTXV28: -
+Row 15 | Col A: 無線接收器                     | FTXV22: BRC084C45       | FTXV28: BRC084C45
+Row 16 | Col A: 集控轉接基板                    | FTXV22: KRP928BB2S      | FTXV28: KRP928BB2S
