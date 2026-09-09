@@ -1464,6 +1464,41 @@ function App() {
   const modalImgRef = useRef(null);
   const modalSvgRef = useRef(null);
 
+  // 🎯 核心連動：底圖縮小或視窗尺寸變化時，強制 SVG 塗層與底圖像素 100% 同步縮放對齊
+  useEffect(() => {
+    const syncSize = () => {
+      const img = imgRef.current;
+      const container = imgContainerRef.current;
+      if (img && container) {
+        const w = img.clientWidth || img.offsetWidth;
+        const h = img.clientHeight || img.offsetHeight;
+        if (w > 0 && h > 0) {
+          container.style.width = `${w}px`;
+          container.style.height = `${h}px`;
+        }
+      }
+    };
+
+    syncSize();
+
+    let ro = null;
+    if (typeof ResizeObserver !== 'undefined' && imgRef.current) {
+      ro = new ResizeObserver(() => {
+        syncSize();
+      });
+      ro.observe(imgRef.current);
+    }
+
+    const timer = setTimeout(syncSize, 100);
+    window.addEventListener('resize', syncSize);
+
+    return () => {
+      clearTimeout(timer);
+      if (ro) ro.disconnect();
+      window.removeEventListener('resize', syncSize);
+    };
+  }, [previewUrl, currentStep, isSidebarCollapsed]);
+
   // 🎯 局部圖片裁切與 OCR 自動辨識房間名稱
   const cropRoomImageBase64 = (polygonPts) => {
     try {
@@ -3864,7 +3899,7 @@ function App() {
                 ref={imgContainerRef}
                 style={{
                   position: 'relative',
-                  display: 'inline-block',
+                  display: 'inline-flex',
                   lineHeight: 0,
                   fontSize: 0,
                   maxWidth: '100%',
@@ -3875,7 +3910,7 @@ function App() {
                 }}
               >
                 {file && file.type === "application/pdf" && previewUrl && !previewUrl.startsWith("data:image") ? (
-                  <object data={previewUrl} type="application/pdf" style={{ width: '100%', height: currentStep === 1 ? 'calc(100vh - 300px)' : '540px', border: 'none', pointerEvents: 'none' }} />
+                  <object data={previewUrl} type="application/pdf" style={{ maxWidth: '100%', maxHeight: '100%', border: 'none', pointerEvents: 'none' }} />
                 ) : (
                   <img
                     ref={imgRef}
@@ -3883,9 +3918,19 @@ function App() {
                     alt="Preview"
                     draggable={false}
                     onDragStart={(e) => e.preventDefault()}
+                    onLoad={() => {
+                      if (imgRef.current && imgContainerRef.current) {
+                        const w = imgRef.current.clientWidth || imgRef.current.offsetWidth;
+                        const h = imgRef.current.clientHeight || imgRef.current.offsetHeight;
+                        if (w > 0 && h > 0) {
+                          imgContainerRef.current.style.width = `${w}px`;
+                          imgContainerRef.current.style.height = `${h}px`;
+                        }
+                      }
+                    }}
                     style={{
                       maxWidth: '100%',
-                      maxHeight: currentStep === 1 ? 'calc(100vh - 300px)' : '540px',
+                      maxHeight: '100%',
                       width: 'auto',
                       height: 'auto',
                       display: 'block',
