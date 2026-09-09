@@ -173,11 +173,11 @@ function App() {
   const [fastControlMode, setFastControlMode] = useState('無'); // 預設 '無' (可選 '無', 'APP', '集控')
 
   const WIZARD_STEPS = [
-    { id: 1, title: '第一步：圖面辨識', icon: '🖼️', desc: '匯入圖面、比例放樣與空間框選' },
-    { id: 2, title: '第二步：室內負荷與室內機選型', icon: '❄️', desc: '冷房負荷估算與室內機配置' },
-    { id: 3, title: '第三步：室外機選型', icon: '🏢', desc: '室外機智慧配對與多聯分組' },
-    { id: 4, title: '第四步：決定控制需求(無/APP/集控)', icon: '📱', desc: '智慧控制方案與集中控制系統' },
-    { id: 5, title: '第五步：匯出選機與報價表', icon: '📊', desc: '冷媒管徑估算與官方報價表' }
+    { id: 1, title: '圖面辨識', icon: '🖼️', desc: '匯入圖面、比例放樣與空間框選' },
+    { id: 2, title: '負荷估算與內機選擇', icon: '❄️', desc: '冷房負荷估算與室內機配置' },
+    { id: 3, title: '室外機選型', icon: '🏢', desc: '室外機智慧配對與多聯分組' },
+    { id: 4, title: '決定控制需求', icon: '📱', desc: '智慧控制方案與集中控制系統' },
+    { id: 5, title: '匯出選機與報價表', icon: '📊', desc: '冷媒管徑估算與官方報價表' }
   ];
 
   // 🎯 快速選機 vs 細緻選機 模式切換與全域控制 State (快速選機預設帶入 VRV / 中靜壓 / 吊隱式 / 上吹 / 3φ, 4P, 380V, 60Hz)
@@ -3109,15 +3109,14 @@ function App() {
       <ToastContainer theme="dark" position="top-right" autoClose={4000} />
 
       <header style={styles.header}>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={styles.logoBox}>DAIKIN</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <span style={{ ...styles.logoBox, fontSize: '24px', padding: '6px 14px' }}>DAIKIN</span>
           <div>
-            <h1 style={{ margin: 0, fontSize: '18px', color: '#ffffff' }}>空調選機自動化系統</h1>
-            <p style={{ margin: 0, fontSize: '11px', color: '#94a3b8' }}>高精準商用版 (VV17 核心引擎)</p>
+            <h1 style={{ margin: 0, fontSize: '36px', color: '#ffffff', fontWeight: 'bold' }}>空調選機自動化系統</h1>
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '12px', color: '#64748b' }}>Backend: Connected</span>
+          <span style={{ fontSize: '13px', color: '#64748b' }}>Backend: Connected</span>
         </div>
       </header>
 
