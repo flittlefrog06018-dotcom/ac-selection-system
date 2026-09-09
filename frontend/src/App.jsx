@@ -4289,8 +4289,8 @@ function App() {
                 );
               })()}
 
-              {/* 🎯 4. 室外機型式 (RA 與 SA 固定為 側吹單風扇；VRV 提供 側吹單風扇、側吹雙風扇、冷專上吹型、冷暖上吹型) */}
-              {(() => {
+              {/* 🎯 4. 室外機型式 (RA 與 SA 固定為 側吹單風扇；VRV 提供 側吹單風扇、側吹雙風扇、冷專上吹型、冷暖上吹型) - 僅在第三步及之後顯示 */}
+              {currentStep >= 3 && (() => {
                 const isOutdoorLocked = (fastSystem === 'RA' || fastSystem === 'SA');
                 return (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -4338,8 +4338,8 @@ function App() {
                 );
               })()}
 
-              {/* 🎯 5. 室外機電源 (RA 系統自動固定為 1φ, 220V, 60Hz 時改為不可編輯灰底) */}
-              {(() => {
+              {/* 🎯 5. 室外機電源 (RA 系統自動固定為 1φ, 220V, 60Hz 時改為不可編輯灰底) - 僅在第三步及之後顯示 */}
+              {currentStep >= 3 && (() => {
                 const isPowerLocked = (fastSystem === 'RA');
                 return (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -4376,9 +4376,9 @@ function App() {
                 );
               })()}
 
-              {/* 🎯 6. 一鍵將勾選空間併入獨立室外機系統與重置按鈕 */}
+              {/* 🎯 6. 操作按鈕區 */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto' }}>
-                {userHasCustomGroups && (
+                {userHasCustomGroups && currentStep >= 3 && (
                   <button
                     onClick={handleResetAutoGrouping}
                     title="點擊重置所有自訂分組，恢復全場一併智慧配對"
@@ -4397,7 +4397,7 @@ function App() {
                     🧹 重置全場一併
                   </button>
                 )}
-                {selectionMode === 'detail' && (
+                {selectionMode === 'detail' && currentStep >= 3 && (
                   <button
                     onClick={() => {
                       const currentRows = rowsRef.current || rows;
@@ -4428,26 +4428,32 @@ function App() {
                     🔗 將勾選空間併入同一台室外機
                   </button>
                 )}
+                {/* 🎯 第2步選定室內機後的「確定」按鈕 */}
                 {currentStep === 2 && (
                   <button
                     type="button"
-                    onClick={() => setCurrentStep(3)}
+                    onClick={() => {
+                      setCurrentStep(3);
+                      toast.success('✨ 室內機已確定！進入第三步：室外機選型');
+                    }}
+                    title="確定室內機選型，接續第三步室外機選型"
                     style={{
-                      backgroundColor: '#0284c7',
+                      backgroundColor: '#10b981',
                       color: '#ffffff',
                       border: 'none',
-                      padding: '7px 18px',
+                      padding: '7px 24px',
                       borderRadius: '6px',
-                      fontSize: '13px',
+                      fontSize: '14px',
                       fontWeight: 'bold',
                       cursor: 'pointer',
-                      boxShadow: '0 2px 8px rgba(2, 132, 199, 0.4)',
+                      boxShadow: '0 2px 10px rgba(16, 185, 129, 0.4)',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '6px'
+                      gap: '6px',
+                      transition: 'all 0.2s ease'
                     }}
                   >
-                    室內機確認無誤，前往「第三步：室外機選型」➔
+                    <span>確定</span>
                   </button>
                 )}
                 {currentStep === 3 && (
@@ -4494,17 +4500,6 @@ function App() {
                     控制需求設定完成，前往「第五步：匯出選機與報價表」➔
                   </button>
                 )}
-                <button
-                  onClick={handleExportExcel}
-                  disabled={exportLoading || rows.length === 0}
-                  style={{
-                    ...styles.btnSecondary,
-                    padding: '7px 16px',
-                    fontSize: '13px'
-                  }}
-                >
-                  {exportLoading ? "⏳ 正在產生檔案..." : "📊 導出至官方「選機表-.xlsx」"}
-                </button>
               </div>
             </div>
           )}
