@@ -3169,13 +3169,13 @@ function App() {
               >
                 {/* 步驟序號徽章 */}
                 <div style={{
-                  width: '30px',
-                  height: '30px',
+                  width: '46px',
+                  height: '46px',
                   borderRadius: '50%',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '13.5px',
+                  fontSize: '22px',
                   fontWeight: 'bold',
                   flexShrink: 0,
                   backgroundColor: isActive ? '#ffffff' : (isPassed ? '#10b981' : '#334155'),
@@ -3185,10 +3185,10 @@ function App() {
                   {isPassed ? '✓' : step.id}
                 </div>
 
-                {/* 步驟名稱與說明 */}
+                {/* 步驟名稱與說明 (字體放大1倍) */}
                 <div style={{ minWidth: 0 }}>
                   <div style={{
-                    fontSize: '13.5px',
+                    fontSize: '22px',
                     fontWeight: 'bold',
                     color: isActive ? '#ffffff' : (isPassed ? '#34d399' : '#cbd5e1'),
                     whiteSpace: 'nowrap',
@@ -3198,12 +3198,12 @@ function App() {
                     {step.title}
                   </div>
                   <div style={{
-                    fontSize: '11px',
-                    color: isActive ? 'rgba(255,255,255,0.9)' : '#64748b',
+                    fontSize: '18px',
+                    color: isActive ? 'rgba(255,255,255,0.9)' : '#94a3b8',
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
-                    marginTop: '2px'
+                    marginTop: '3px'
                   }}>
                     {step.desc}
                   </div>
@@ -3309,22 +3309,22 @@ function App() {
           <section style={styles.card}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', ...styles.cardTitle, flexWrap: 'wrap', gap: '8px' }}>
               <span>🖼️ 實時圖面比對核對視窗</span>
-              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <button
                   type="button"
                   onClick={() => setIsSidebarCollapsed(true)}
                   style={{
                     backgroundColor: '#1e293b',
                     color: '#f59e0b',
-                    border: '1px solid #f59e0b',
-                    padding: '4px 10px',
-                    borderRadius: '4px',
-                    fontSize: '13px',
+                    border: '1.5px solid #f59e0b',
+                    padding: '8px 16px',
+                    borderRadius: '6px',
+                    fontSize: '22px',
                     cursor: 'pointer',
                     fontWeight: 'bold',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '4px'
+                    gap: '6px'
                   }}
                   title="點擊收折圖面視窗，讓右側配對表格擴展至全螢幕"
                 >
@@ -3335,10 +3335,10 @@ function App() {
                   style={{
                     backgroundColor: '#334155',
                     color: '#38bdf8',
-                    border: '1px solid #475569',
-                    padding: '4px 10px',
-                    borderRadius: '4px',
-                    fontSize: '13px',
+                    border: '1.5px solid #475569',
+                    padding: '8px 16px',
+                    borderRadius: '6px',
+                    fontSize: '22px',
                     cursor: 'pointer',
                     fontWeight: 'bold'
                   }}
@@ -3588,20 +3588,20 @@ function App() {
                     </button>
                   </div>
 
-                  {/* 比例尺狀態 badge */}
+                  {/* 比例尺狀態 badge (字體放大1倍) */}
                   <div style={{
                     backgroundColor: pixelToMeterRatio ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
                     color: pixelToMeterRatio ? '#34d399' : '#f59e0b',
-                    border: pixelToMeterRatio ? '1px solid #10b981' : '1px solid #f59e0b',
-                    fontSize: isCompactWindow ? '11px' : '15px',
+                    border: pixelToMeterRatio ? '1.5px solid #10b981' : '1.5px solid #f59e0b',
+                    fontSize: isCompactWindow ? '13px' : '22px',
                     fontWeight: 'bold',
-                    padding: isCompactWindow ? '3px 8px' : '6px 14px',
+                    padding: isCompactWindow ? '4px 10px' : '8px 18px',
                     borderRadius: tbRadius,
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '4px'
+                    gap: '6px'
                   }}>
-                    {pixelToMeterRatio ? `📏 比例: 1px = ${(pixelToMeterRatio * 100).toFixed(2)}cm` : '⚠️ 未設尺寸'}
+                    {pixelToMeterRatio ? `📏 比例已標定: 1px = ${(pixelToMeterRatio * 100).toFixed(2)}cm` : '⚠️ 尚未設定參考尺寸'}
                   </div>
                 </div>
               );
