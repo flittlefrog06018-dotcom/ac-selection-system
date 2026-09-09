@@ -3106,7 +3106,7 @@ function App() {
 
   return (
     <div style={styles.container}>
-      <ToastContainer theme="dark" position="top-right" autoClose={4000} />
+      {/* 🎯 已取消畫面上所有彈出提示詞通知 */}
 
       <header style={styles.header}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
