@@ -3109,31 +3109,32 @@ function App() {
       <ToastContainer theme="dark" position="top-right" autoClose={4000} />
 
       <header style={styles.header}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <span style={{ ...styles.logoBox, fontSize: '24px', padding: '6px 14px' }}>DAIKIN</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ ...styles.logoBox, fontSize: '17px', padding: '4px 10px' }}>DAIKIN</span>
           <div>
-            <h1 style={{ margin: 0, fontSize: '36px', color: '#ffffff', fontWeight: 'bold' }}>空調選機自動化系統</h1>
+            <h1 style={{ margin: 0, fontSize: '25px', color: '#ffffff', fontWeight: 'bold' }}>空調選機自動化系統</h1>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '13px', color: '#64748b' }}>Backend: Connected</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '12px', color: '#64748b' }}>Backend: Connected</span>
         </div>
       </header>
 
-      {/* 🚀 5 步標準選機流程導引列 (顯眼位置、專屬選取底色、即時標記目前步驟) */}
+      {/* 🚀 5 步標準選機流程導引列 (字體縮小為 70%，維持緊湊精緻滿版) */}
       <div style={{
         backgroundColor: '#0f172a',
         border: '1.5px solid #1e293b',
-        borderRadius: '12px',
-        padding: '12px 16px',
-        marginBottom: '16px',
-        boxShadow: '0 8px 24px rgba(0, 0, 0, 0.45)',
-        userSelect: 'none'
+        borderRadius: '10px',
+        padding: '6px 12px',
+        marginBottom: '10px',
+        boxShadow: '0 6px 18px rgba(0, 0, 0, 0.45)',
+        userSelect: 'none',
+        flexShrink: 0
       }}>
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '10px'
+          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+          gap: '8px'
         }}>
           {WIZARD_STEPS.map((step) => {
             const isActive = currentStep === step.id;
@@ -3146,9 +3147,9 @@ function App() {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '10px',
-                  padding: '12px 14px',
-                  borderRadius: '10px',
+                  gap: '8px',
+                  padding: '8px 10px',
+                  borderRadius: '8px',
                   border: isActive
                     ? '2px solid #38bdf8'
                     : (isPassed ? '1.5px solid #10b981' : '1px solid #334155'),
@@ -3156,7 +3157,7 @@ function App() {
                     ? 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)'
                     : (isPassed ? 'rgba(16, 185, 129, 0.12)' : '#1e293b'),
                   boxShadow: isActive
-                    ? '0 4px 18px rgba(2, 132, 199, 0.55), inset 0 1px 0 rgba(255,255,255,0.25)'
+                    ? '0 3px 12px rgba(2, 132, 199, 0.55), inset 0 1px 0 rgba(255,255,255,0.25)'
                     : 'none',
                   cursor: 'pointer',
                   textAlign: 'left',
@@ -3166,28 +3167,28 @@ function App() {
                 }}
                 title={`點擊切換至：${step.title}`}
               >
-                {/* 步驟序號徽章 */}
+                {/* 步驟序號徽章 (縮小至原本 70%) */}
                 <div style={{
-                  width: '46px',
-                  height: '46px',
+                  width: '32px',
+                  height: '32px',
                   borderRadius: '50%',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '22px',
+                  fontSize: '15px',
                   fontWeight: 'bold',
                   flexShrink: 0,
                   backgroundColor: isActive ? '#ffffff' : (isPassed ? '#10b981' : '#334155'),
                   color: isActive ? '#0284c7' : (isPassed ? '#ffffff' : '#94a3b8'),
-                  boxShadow: isActive ? '0 2px 8px rgba(0,0,0,0.3)' : 'none'
+                  boxShadow: isActive ? '0 2px 6px rgba(0,0,0,0.3)' : 'none'
                 }}>
                   {isPassed ? '✓' : step.id}
                 </div>
 
-                {/* 步驟名稱與說明 (字體放大1倍) */}
+                {/* 步驟名稱與說明 (字體縮小至原本 70%) */}
                 <div style={{ minWidth: 0 }}>
                   <div style={{
-                    fontSize: '22px',
+                    fontSize: '15px',
                     fontWeight: 'bold',
                     color: isActive ? '#ffffff' : (isPassed ? '#34d399' : '#cbd5e1'),
                     whiteSpace: 'nowrap',
@@ -3197,12 +3198,12 @@ function App() {
                     {step.title}
                   </div>
                   <div style={{
-                    fontSize: '18px',
+                    fontSize: '12px',
                     color: isActive ? 'rgba(255,255,255,0.9)' : '#94a3b8',
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
-                    marginTop: '3px'
+                    marginTop: '2px'
                   }}>
                     {step.desc}
                   </div>
@@ -3212,13 +3213,13 @@ function App() {
                 {isActive && (
                   <div style={{
                     position: 'absolute',
-                    top: '8px',
-                    right: '10px',
-                    width: '8px',
-                    height: '8px',
+                    top: '6px',
+                    right: '8px',
+                    width: '6px',
+                    height: '6px',
                     borderRadius: '50%',
                     backgroundColor: '#38bdf8',
-                    boxShadow: '0 0 10px #38bdf8'
+                    boxShadow: '0 0 8px #38bdf8'
                   }} />
                 )}
               </button>
@@ -3236,9 +3237,12 @@ function App() {
       />
 
       <div style={{
+        flex: 1,
+        minHeight: 0,
         display: 'grid',
         gridTemplateColumns: currentStep === 1 ? '1fr' : (isSidebarCollapsed ? '52px 1fr' : '450px 1fr'),
-        gap: '15px',
+        gap: '12px',
+        overflow: 'hidden',
         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
       }}>
         {isSidebarCollapsed ? (
@@ -3307,16 +3311,25 @@ function App() {
           /* 🎯 正常展開狀態：完整獨立視圖與收折按鈕 */
           (() => {
             const isCompactWindow = currentStep > 1;
-            const tbFontSize = isCompactWindow ? '13px' : '20px';
-            const tbPadding = isCompactWindow ? '4px 8px' : '9px 18px';
-            const tbAnalyzePadding = isCompactWindow ? '5px 12px' : '9px 22px';
-            const tbGap = isCompactWindow ? '5px' : '10px';
-            const tbRadius = isCompactWindow ? '6px' : '8px';
+            const tbFontSize = isCompactWindow ? '11.5px' : '14px';
+            const tbPadding = isCompactWindow ? '3px 8px' : '6px 12px';
+            const tbAnalyzePadding = isCompactWindow ? '4px 10px' : '6px 16px';
+            const tbGap = isCompactWindow ? '4px' : '8px';
+            const tbRadius = '6px';
 
             return (
-              <section style={styles.card}>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '10px' }}>
-                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <section style={{
+                ...styles.card,
+                height: '100%',
+                minHeight: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                padding: '10px 12px',
+                boxSizing: 'border-box',
+                overflow: 'hidden'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px', flexShrink: 0 }}>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <button
                       type="button"
                       onClick={() => setIsSidebarCollapsed(true)}
@@ -3324,14 +3337,14 @@ function App() {
                         backgroundColor: '#1e293b',
                         color: '#f59e0b',
                         border: '1.5px solid #f59e0b',
-                        padding: isCompactWindow ? '4px 10px' : '9px 18px',
+                        padding: isCompactWindow ? '3px 8px' : '6px 12px',
                         borderRadius: tbRadius,
                         fontSize: tbFontSize,
                         cursor: 'pointer',
                         fontWeight: 'bold',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '6px',
+                        gap: '5px',
                         transition: 'all 0.2s ease'
                       }}
                       title="點擊收折圖面視窗，讓右側配對表格擴展至全螢幕"
@@ -3344,14 +3357,14 @@ function App() {
                         backgroundColor: '#334155',
                         color: '#38bdf8',
                         border: '1.5px solid #475569',
-                        padding: isCompactWindow ? '4px 10px' : '9px 18px',
+                        padding: isCompactWindow ? '3px 8px' : '6px 12px',
                         borderRadius: tbRadius,
                         fontSize: tbFontSize,
                         cursor: 'pointer',
                         fontWeight: 'bold',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '6px',
+                        gap: '5px',
                         transition: 'all 0.2s ease'
                       }}
                     >
@@ -3669,8 +3682,9 @@ function App() {
           <div
             style={{
               ...styles.previewBox,
-              height: currentStep === 1 ? 'calc(100vh - 280px)' : '560px',
-              minHeight: currentStep === 1 ? '650px' : '560px',
+              flex: 1,
+              height: '100%',
+              minHeight: 0,
               cursor: isPanning ? 'grabbing' : (file ? (drawToolMode === 'view' ? 'default' : 'crosshair') : 'pointer'),
               position: 'relative',
               borderColor: isDragOver ? '#34d399' : (file ? '#475569' : '#3b82f6'),
@@ -4038,12 +4052,12 @@ function App() {
                 </svg>
               </div>
             ) : (
-              <div style={{ textAlign: 'center', padding: '30px', userSelect: 'none' }}>
-                <div style={{ fontSize: '64px', marginBottom: '14px' }}>📁</div>
-                <div style={{ color: '#38bdf8', fontSize: '28px', fontWeight: 'bold', marginBottom: '10px' }}>
+              <div style={{ textAlign: 'center', padding: '20px', userSelect: 'none' }}>
+                <div style={{ fontSize: '44px', marginBottom: '10px' }}>📁</div>
+                <div style={{ color: '#38bdf8', fontSize: '18px', fontWeight: 'bold', marginBottom: '8px' }}>
                   點擊此處選擇圖面檔案，或直接將檔案拖曳至此
                 </div>
-                <div style={{ color: '#94a3b8', fontSize: '22px' }}>
+                <div style={{ color: '#94a3b8', fontSize: '14px' }}>
                   支援格式：圖片 (JPG, PNG) 或 PDF 檔
                 </div>
               </div>
@@ -4055,10 +4069,19 @@ function App() {
         )}
 
         {currentStep > 1 && (
-        <section style={{ ...styles.card, minWidth: 0, overflow: 'hidden' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '14px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-              <div style={{ ...styles.cardTitle, display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <section style={{
+          ...styles.card,
+          minWidth: 0,
+          height: '100%',
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          padding: '10px 14px',
+          overflow: 'hidden'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '10px', flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ ...styles.cardTitle, marginBottom: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span>📈 工程負荷試算與大金配機建議表</span>
                 <span style={{ fontSize: '11.5px', color: '#94a3b8', fontWeight: 'bold', backgroundColor: '#1e293b', padding: '2px 8px', borderRadius: '4px', border: '1px solid #334155' }}>
                   v2.10.0 (2026.09.09)
@@ -4619,7 +4642,7 @@ function App() {
             </div>
           )}
 
-          <div className="table-scroll-container" style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '72vh', borderRadius: '8px', border: '1px solid #334155', backgroundColor: '#0b1329', position: 'relative' }}>
+          <div className="table-scroll-container" style={{ flex: 1, minHeight: 0, overflowX: 'auto', overflowY: 'auto', borderRadius: '8px', border: '1px solid #334155', backgroundColor: '#0b1329', position: 'relative' }}>
             <table style={styles.table}>
               <thead>
                 <tr>
@@ -5673,20 +5696,25 @@ function App() {
 
 const styles = {
   container: {
-    minHeight: '100vh',
+    height: '100vh',
+    maxHeight: '100vh',
+    display: 'flex',
+    flexDirection: 'column',
     backgroundColor: '#020617',
     color: '#f8fafc',
     fontFamily: '"Outfit", "Noto Sans TC", sans-serif',
-    padding: '16px 24px',
-    boxSizing: 'border-box'
+    padding: '10px 16px',
+    boxSizing: 'border-box',
+    overflow: 'hidden'
   },
   header: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingBottom: '16px',
+    paddingBottom: '8px',
     borderBottom: '1px solid #1e293b',
-    marginBottom: '16px'
+    marginBottom: '8px',
+    flexShrink: 0
   },
   logoBox: {
     backgroundColor: '#0284c7',
