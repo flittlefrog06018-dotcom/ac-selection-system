@@ -3305,62 +3305,62 @@ function App() {
           </section>
         ) : (
           /* 🎯 正常展開狀態：完整獨立視圖與收折按鈕 */
-          <section style={styles.card}>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '10px' }}>
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                <button
-                  type="button"
-                  onClick={() => setIsSidebarCollapsed(true)}
-                  style={{
-                    backgroundColor: '#1e293b',
-                    color: '#f59e0b',
-                    border: '1.5px solid #f59e0b',
-                    padding: isCompactWindow ? '4px 10px' : '9px 18px',
-                    borderRadius: tbRadius,
-                    fontSize: tbFontSize,
-                    cursor: 'pointer',
-                    fontWeight: 'bold',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    transition: 'all 0.2s ease'
-                  }}
-                  title="點擊收折圖面視窗，讓右側配對表格擴展至全螢幕"
-                >
-                  ◀ 收折圖面
-                </button>
-                <button
-                  onClick={triggerFileSelect}
-                  style={{
-                    backgroundColor: '#334155',
-                    color: '#38bdf8',
-                    border: '1.5px solid #475569',
-                    padding: isCompactWindow ? '4px 10px' : '9px 18px',
-                    borderRadius: tbRadius,
-                    fontSize: tbFontSize,
-                    cursor: 'pointer',
-                    fontWeight: 'bold',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  📁 更換圖檔
-                </button>
-              </div>
-            </div>
+          (() => {
+            const isCompactWindow = currentStep > 1;
+            const tbFontSize = isCompactWindow ? '13px' : '20px';
+            const tbPadding = isCompactWindow ? '4px 8px' : '9px 18px';
+            const tbAnalyzePadding = isCompactWindow ? '5px 12px' : '9px 22px';
+            const tbGap = isCompactWindow ? '5px' : '10px';
+            const tbRadius = isCompactWindow ? '6px' : '8px';
 
-            {/* 📐 圖面編輯工具列 (實時圖面比對核對視窗縮小至450px時縮小70%，更換圖面回到Step 1時放大) */}
-            {(() => {
-              const isCompactWindow = currentStep > 1;
-              const tbFontSize = isCompactWindow ? '13px' : '20px';
-              const tbPadding = isCompactWindow ? '4px 8px' : '9px 18px';
-              const tbAnalyzePadding = isCompactWindow ? '5px 12px' : '9px 22px';
-              const tbGap = isCompactWindow ? '5px' : '10px';
-              const tbRadius = isCompactWindow ? '6px' : '8px';
+            return (
+              <section style={styles.card}>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '10px' }}>
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <button
+                      type="button"
+                      onClick={() => setIsSidebarCollapsed(true)}
+                      style={{
+                        backgroundColor: '#1e293b',
+                        color: '#f59e0b',
+                        border: '1.5px solid #f59e0b',
+                        padding: isCompactWindow ? '4px 10px' : '9px 18px',
+                        borderRadius: tbRadius,
+                        fontSize: tbFontSize,
+                        cursor: 'pointer',
+                        fontWeight: 'bold',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        transition: 'all 0.2s ease'
+                      }}
+                      title="點擊收折圖面視窗，讓右側配對表格擴展至全螢幕"
+                    >
+                      ◀ 收折圖面
+                    </button>
+                    <button
+                      onClick={triggerFileSelect}
+                      style={{
+                        backgroundColor: '#334155',
+                        color: '#38bdf8',
+                        border: '1.5px solid #475569',
+                        padding: isCompactWindow ? '4px 10px' : '9px 18px',
+                        borderRadius: tbRadius,
+                        fontSize: tbFontSize,
+                        cursor: 'pointer',
+                        fontWeight: 'bold',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      📁 更換圖檔
+                    </button>
+                  </div>
+                </div>
 
-              return (
+                {/* 📐 圖面編輯工具列 (實時圖面比對核對視窗縮小至450px時縮小70%，更換圖面回到Step 1時放大) */}
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -3607,10 +3607,8 @@ function App() {
                     {pixelToMeterRatio ? `📏 比例已標定: 1px = ${(pixelToMeterRatio * 100).toFixed(2)}cm` : '⚠️ 尚未設定參考尺寸'}
                   </div>
                 </div>
-              );
-            })()}
 
-            {/* 💡 操作教學與快捷鍵指南面板 */}
+                {/* 💡 操作教學與快捷鍵指南面板 */}
             {showHelpGuide && (
               <div style={{
                 backgroundColor: '#0b1329',
@@ -4051,9 +4049,9 @@ function App() {
               </div>
             )}
           </div>
-
-          
         </section>
+            );
+          })()
         )}
 
         {currentStep > 1 && (
