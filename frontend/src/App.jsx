@@ -1464,41 +1464,6 @@ function App() {
   const modalImgRef = useRef(null);
   const modalSvgRef = useRef(null);
 
-  // 🎯 核心連動：底圖縮小或視窗尺寸變化時，強制 SVG 塗層與底圖像素 100% 同步縮放對齊
-  useEffect(() => {
-    const syncSize = () => {
-      const img = imgRef.current;
-      const container = imgContainerRef.current;
-      if (img && container) {
-        const w = img.clientWidth || img.offsetWidth;
-        const h = img.clientHeight || img.offsetHeight;
-        if (w > 0 && h > 0) {
-          container.style.width = `${w}px`;
-          container.style.height = `${h}px`;
-        }
-      }
-    };
-
-    syncSize();
-
-    let ro = null;
-    if (typeof ResizeObserver !== 'undefined' && imgRef.current) {
-      ro = new ResizeObserver(() => {
-        syncSize();
-      });
-      ro.observe(imgRef.current);
-    }
-
-    const timer = setTimeout(syncSize, 100);
-    window.addEventListener('resize', syncSize);
-
-    return () => {
-      clearTimeout(timer);
-      if (ro) ro.disconnect();
-      window.removeEventListener('resize', syncSize);
-    };
-  }, [previewUrl, currentStep, isSidebarCollapsed]);
-
   // 🎯 局部圖片裁切與 OCR 自動辨識房間名稱
   const cropRoomImageBase64 = (polygonPts) => {
     try {
@@ -1605,6 +1570,41 @@ function App() {
   const [draggingBox, setDraggingBox] = useState(null); // { rowIdx, startPos: [x,y], initialPoly: [...] }
   const [isSnapshotBaked, setIsSnapshotBaked] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  // 🎯 核心連動：底圖縮小或視窗尺寸變化時，強制 SVG 塗層與底圖像素 100% 同步縮放對齊
+  useEffect(() => {
+    const syncSize = () => {
+      const img = imgRef.current;
+      const container = imgContainerRef.current;
+      if (img && container) {
+        const w = img.clientWidth || img.offsetWidth;
+        const h = img.clientHeight || img.offsetHeight;
+        if (w > 0 && h > 0) {
+          container.style.width = `${w}px`;
+          container.style.height = `${h}px`;
+        }
+      }
+    };
+
+    syncSize();
+
+    let ro = null;
+    if (typeof ResizeObserver !== 'undefined' && imgRef.current) {
+      ro = new ResizeObserver(() => {
+        syncSize();
+      });
+      ro.observe(imgRef.current);
+    }
+
+    const timer = setTimeout(syncSize, 100);
+    window.addEventListener('resize', syncSize);
+
+    return () => {
+      clearTimeout(timer);
+      if (ro) ro.disconnect();
+      window.removeEventListener('resize', syncSize);
+    };
+  }, [previewUrl, currentStep, isSidebarCollapsed]);
 
   // 🎯 新增圖面實體紙張與比例標定 (A3 / A4 / 1:100 / 1:200 自圖面設定)
   const [paperSize, setPaperSize] = useState('A3'); // Options: 'A3', 'A4', 'A2', '自訂'
