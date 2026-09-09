@@ -3306,9 +3306,8 @@ function App() {
         ) : (
           /* 🎯 正常展開狀態：完整獨立視圖與收折按鈕 */
           <section style={styles.card}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', ...styles.cardTitle, flexWrap: 'wrap', gap: '8px' }}>
-              <span>🖼️ 實時圖面比對核對視窗</span>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '10px' }}>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                 <button
                   type="button"
                   onClick={() => setIsSidebarCollapsed(true)}
@@ -3316,14 +3315,15 @@ function App() {
                     backgroundColor: '#1e293b',
                     color: '#f59e0b',
                     border: '1.5px solid #f59e0b',
-                    padding: '8px 16px',
-                    borderRadius: '6px',
-                    fontSize: '22px',
+                    padding: isCompactWindow ? '4px 10px' : '9px 18px',
+                    borderRadius: tbRadius,
+                    fontSize: tbFontSize,
                     cursor: 'pointer',
                     fontWeight: 'bold',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '6px'
+                    gap: '6px',
+                    transition: 'all 0.2s ease'
                   }}
                   title="點擊收折圖面視窗，讓右側配對表格擴展至全螢幕"
                 >
@@ -3335,14 +3335,18 @@ function App() {
                     backgroundColor: '#334155',
                     color: '#38bdf8',
                     border: '1.5px solid #475569',
-                    padding: '8px 16px',
-                    borderRadius: '6px',
-                    fontSize: '22px',
+                    padding: isCompactWindow ? '4px 10px' : '9px 18px',
+                    borderRadius: tbRadius,
+                    fontSize: tbFontSize,
                     cursor: 'pointer',
-                    fontWeight: 'bold'
+                    fontWeight: 'bold',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    transition: 'all 0.2s ease'
                   }}
                 >
-                  📁 {file ? "更換圖面" : "選擇圖檔"}
+                  📁 更換圖檔
                 </button>
               </div>
             </div>
@@ -3587,14 +3591,14 @@ function App() {
                     </button>
                   </div>
 
-                  {/* 比例尺狀態 badge (字體放大1倍) */}
+                  {/* 比例尺狀態 badge (與 🚀 執行圖面自動解析 大小完全一致) */}
                   <div style={{
                     backgroundColor: pixelToMeterRatio ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
                     color: pixelToMeterRatio ? '#34d399' : '#f59e0b',
                     border: pixelToMeterRatio ? '1.5px solid #10b981' : '1.5px solid #f59e0b',
-                    fontSize: isCompactWindow ? '13px' : '22px',
+                    fontSize: tbFontSize,
                     fontWeight: 'bold',
-                    padding: isCompactWindow ? '4px 10px' : '8px 18px',
+                    padding: tbPadding,
                     borderRadius: tbRadius,
                     display: 'flex',
                     alignItems: 'center',
@@ -4036,34 +4040,19 @@ function App() {
                 </svg>
               </div>
             ) : (
-              <div style={{ textAlign: 'center', padding: '20px', userSelect: 'none' }}>
-                <div style={{ fontSize: '36px', marginBottom: '10px' }}>📁</div>
-                <div style={{ color: '#38bdf8', fontSize: '14px', fontWeight: 'bold', marginBottom: '6px' }}>
+              <div style={{ textAlign: 'center', padding: '30px', userSelect: 'none' }}>
+                <div style={{ fontSize: '64px', marginBottom: '14px' }}>📁</div>
+                <div style={{ color: '#38bdf8', fontSize: '28px', fontWeight: 'bold', marginBottom: '10px' }}>
                   點擊此處選擇圖面檔案，或直接將檔案拖曳至此
                 </div>
-                <div style={{ color: '#64748b', fontSize: '12px' }}>
+                <div style={{ color: '#94a3b8', fontSize: '22px' }}>
                   支援格式：圖片 (JPG, PNG) 或 PDF 檔
                 </div>
               </div>
             )}
           </div>
 
-          <div style={{
-            marginTop: '12px',
-            display: 'flex',
-            alignItems: 'center',
-            justify: 'space-between',
-            flexWrap: 'wrap',
-            gap: '10px',
-            backgroundColor: '#0f172a',
-            padding: '10px 14px',
-            borderRadius: '8px',
-            border: '1px solid #334155'
-          }}>
-            <span style={{ fontSize: '13px', color: file ? '#34d399' : '#94a3b8', fontWeight: file ? 'bold' : 'normal' }}>
-              {file ? `📄 已選取：${file.name}` : '⚠️ 尚未選擇圖檔 (點選更換或拖曳圖檔)'}
-            </span>
-          </div>
+          
         </section>
         )}
 
