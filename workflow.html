@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>大金空調 AI 智慧選機自動化系統 - 研發歷程、技術挑戰與操作全景</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Noto+Sans+TC:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-main: #060b18;
+      --bg-card: rgba(15, 23, 42, 0.75);
+      --bg-card-hover: rgba(30, 41, 59, 0.85);
+      --border-color: rgba(51, 65, 85, 0.6);
+      --border-glow: rgba(56, 189, 248, 0.4);
+      --primary: #0284c7;
+      --primary-light: #38bdf8;
+      --primary-glow: rgba(2, 132, 199, 0.25);
+      --accent-green: #10b981;
+      --accent-purple: #8b5cf6;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      font-family: 'Plus Jakarta Sans', 'Noto Sans TC', sans-serif;
+      line-height: 1.65;
+      overflow-x: hidden;
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(2, 132, 199, 0.12) 0%, transparent 40%),
+        radial-gradient(circle at 85% 70%, rgba(139, 92, 246, 0.1) 0%, transparent 45%),
+        radial-gradient(circle at 50% 95%, rgba(16, 185, 129, 0.08) 0%, transparent 50%);
+      background-attachment: fixed;
+    }
+
+    /* Container */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 24px 100px;
+    }
+
+    /* Header & Hero */
+    header {
+      text-align: center;
+      padding: 40px 0 60px;
+      position: relative;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(2, 132, 199, 0.18);
+      border: 1px solid var(--primary-light);
+      color: var(--primary-light);
+      padding: 6px 16px;
+      border-radius: 9999px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      margin-bottom: 20px;
+      box-shadow: 0 0 20px rgba(56, 189, 248, 0.25);
+    }
+
+    h1 {
+      font-size: clamp(32px, 4.5vw, 54px);
+      font-weight: 900;
+      line-height: 1.2;
+      background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 50%, #38bdf8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 18px;
+    }
+
+    .subtitle {
+      font-size: clamp(16px, 1.8vw, 20px);
+      color: var(--text-muted);
+      max-width: 820px;
+      margin: 0 auto 30px;
+      font-weight: 400;
+    }
+
+    /* Section Title */
+    .section-title-wrap {
+      margin: 70px 0 35px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .section-num {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--primary), var(--accent-purple));
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: 800;
+      box-shadow: 0 4px 15px rgba(2, 132, 199, 0.4);
+      flex-shrink: 0;
+    }
+
+    .section-title {
+      font-size: 26px;
+      font-weight: 800;
+      color: #f8fafc;
+      letter-spacing: -0.5px;
+    }
+
+    /* Cards Grid */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 24px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 24px;
+    }
+
+    .card {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 30px 26px;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, var(--border-glow), transparent);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      border-color: var(--border-glow);
+      background: var(--bg-card-hover);
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.45);
+    }
+
+    .card:hover::before {
+      opacity: 1;
+    }
+
+    .card-icon {
+      font-size: 32px;
+      margin-bottom: 16px;
+      display: inline-block;
+    }
+
+    .card-title {
+      font-size: 19px;
+      font-weight: 700;
+      color: #f1f5f9;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-text {
+      color: var(--text-muted);
+      font-size: 14.5px;
+      line-height: 1.7;
+    }
+
+    /* Pain vs Gain comparison */
+    .pain-badge {
+      background: rgba(244, 63, 94, 0.15);
+      color: #fb7185;
+      border: 1px solid rgba(244, 63, 94, 0.35);
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .gain-badge {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    /* Step flow */
+    .flow-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      position: relative;
+    }
+
+    .flow-step {
+      display: grid;
+      grid-template-columns: 80px 1fr;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 24px;
+      transition: all 0.3s ease;
+      align-items: start;
+    }
+
+    .flow-step:hover {
+      border-color: var(--primary-light);
+      box-shadow: 0 8px 30px var(--primary-glow);
+    }
+
+    .step-marker {
+      font-size: 20px;
+      font-weight: 900;
+      color: var(--primary-light);
+      background: rgba(2, 132, 199, 0.15);
+      border: 1.5px solid var(--primary);
+      width: 54px;
+      height: 54px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .step-content h3 {
+      font-size: 18px;
+      color: #f8fafc;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .step-desc {
+      color: var(--text-muted);
+      font-size: 14px;
+      line-height: 1.65;
+    }
+
+    .step-tags {
+      margin-top: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .tag {
+      font-size: 12px;
+      background: #1e293b;
+      color: #94a3b8;
+      border: 1px solid #334155;
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Architecture / Limitation Table */
+    .table-box {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      margin-top: 16px;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--border-color);
+      background: var(--bg-card);
+    }
+
+    .table-box th, .table-box td {
+      padding: 16px 20px;
+      font-size: 14px;
+      text-align: left;
+    }
+
+    .table-box th {
+      background: #1e293b;
+      color: #f8fafc;
+      font-weight: 700;
+      border-bottom: 1px solid #334155;
+    }
+
+    .table-box td {
+      border-bottom: 1px solid rgba(51, 65, 85, 0.4);
+      color: var(--text-muted);
+    }
+
+    .table-box tr:last-child td {
+      border-bottom: none;
+    }
+
+    .table-box tr:hover td {
+      background: rgba(30, 41, 59, 0.4);
+    }
+
+    /* Key Value Banner */
+    .highlight-banner {
+      margin-top: 50px;
+      background: linear-gradient(135deg, rgba(2, 132, 199, 0.2) 0%, rgba(139, 92, 246, 0.15) 100%);
+      border: 1.5px solid var(--primary-light);
+      border-radius: 20px;
+      padding: 36px 32px;
+      text-align: center;
+      position: relative;
+    }
+
+    .highlight-banner h2 {
+      font-size: 24px;
+      font-weight: 800;
+      margin-bottom: 12px;
+      color: #fff;
+    }
+
+    .highlight-banner p {
+      color: #cbd5e1;
+      font-size: 15px;
+      max-width: 780px;
+      margin: 0 auto 20px;
+    }
+
+    .cta-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: linear-gradient(135deg, #0284c7, #0369a1);
+      color: #fff;
+      text-decoration: none;
+      font-weight: 700;
+      padding: 12px 28px;
+      border-radius: 10px;
+      box-shadow: 0 4px 20px rgba(2, 132, 199, 0.5);
+      transition: all 0.2s ease;
+    }
+
+    .cta-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 25px rgba(2, 132, 199, 0.7);
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 80px;
+      padding-top: 30px;
+      border-top: 1px solid rgba(51, 65, 85, 0.4);
+      color: var(--text-dim);
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- Header -->
+  <header>
+    <div class="badge">
+      <span>🚀 DAIKIN HVAC INTELLIGENT SELECTION ENGINE</span>
+    </div>
+    <h1>大金空調 AI 智慧選機自動化系統</h1>
+    <p class="subtitle">
+      從傳統人工圖面算量痛點，到零 CAD 依賴的次世代 AI 空調選型與五大工作表官方底稿生成全流程解析
+    </p>
+  </header>
+
+  <!-- SECTION 1: 研發背景與傳統痛點 -->
+  <div class="section-title-wrap">
+    <div class="section-num">1</div>
+    <h2 class="section-title">為何打造此系統？傳統作業痛點 (Pain Points)</h2>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-icon">📐</div>
+      <div class="card-title">
+        <span>專業繪圖軟體綁定門檻高</span>
+        <span class="pain-badge">傳統痛點</span>
+      </div>
+      <p class="card-text">
+        過往計算空間面積，同仁必須具備 AutoCAD 專業技能並安裝高昂授權軟體。若客戶僅提供平面圖片 (JPG/PNG) 或 PDF 圖檔，常須耗費數小時手動描點量測或用比例尺手算，門檻極高且外勤業務無法就地作業。
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">🤯</div>
+      <div class="card-title">
+        <span>空調負荷試算繁瑣且易算錯</span>
+        <span class="pain-badge">傳統痛點</span>
+      </div>
+      <p class="card-text">
+        各空間因西曬、頂樓、大片玻璃或高熱源需微調不同熱負荷基準（500 ~ 900 kcal/hr/坪）。手動換算平方公尺、坪數、總冷房需求 (kW / kcal/hr) 過程冗長，容易因計算機失誤導致配機噸數不足或過度超配。
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">📚</div>
+      <div class="card-title">
+        <span>全產品規格繁雜，配對極度耗時</span>
+        <span class="pain-badge">傳統痛點</span>
+      </div>
+      <p class="card-text">
+        大金涵蓋家用 (RA)、商用 (SA)、VRV 頂級多聯，上百種室內外機型號。不同系列具備不同供電規格 (單相 220V / 三相 380V)、能力指數、連結率限制（50%~130%）與風扇型式，手動查閱厚重目錄極易搭配錯誤。
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">📑</div>
+      <div class="card-title">
+        <span>配件與基板漏選、報價重複謄寫</span>
+        <span class="pain-badge">傳統痛點</span>
+      </div>
+      <p class="card-text">
+        當業主指定「APP 遠端控制」或「中央集中控制」時，各室內機型號對應之專用轉接小P板 (如 BRP067A42)、APP卡 (如 BRP072C42) 或集控基板 (如 KRP928BB2S) 極易遺漏，且須手動謄寫 Excel 官方底稿，耗費大量工時。
+      </p>
+    </div>
+  </div>
+
+  <!-- SECTION 2: 技術架構與克服挑戰 -->
+  <div class="section-title-wrap">
+    <div class="section-num">2</div>
+    <h2 class="section-title">核心架構與技術克服 (Technical Highlights)</h2>
+  </div>
+
+  <div class="grid-3">
+    <div class="card">
+      <div class="card-icon">⚡</div>
+      <div class="card-title">雙軌幾何影像引擎</div>
+      <p class="card-text">
+        整合 **漆桶洪泛發散 (Flood Fill)**、**矩形拉框**、**多邊形 (PLine)** 與 **門寬基準比例尺校正**。系統直接在一般網頁照片上演算真實世界幾何邊界，**完全不依賴 CAD 軟體**即可高精度換算真實面積與坪數。
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">🧠</div>
+      <div class="card-title">零死背動態空間配對</div>
+      <p class="card-text">
+        嚴格遵守無硬編碼原則，透過空間幾何座標距離與拓撲鄰近性，動態將辨識出的房間名稱（如客廳、主臥）與面積框選連鎖匹配，自動過濾非空調管道間雜訊，維持高強健度。
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">🛡️</div>
+      <div class="card-title">前後端雙軌容錯匯出</div>
+      <p class="card-text">
+        後端 Python openpyxl 與前端 ExcelJS 採用一致之資料字典拓撲。即便在純靜態雲端環境 (如 Vercel) 離線或逾時，前端備援引擎亦能無縫產出格式 100% 對齊的 5 大工作表專業 Excel 選機底稿。
+      </p>
+    </div>
+  </div>
+
+  <!-- SECTION 3: 運行環境與使用限制 -->
+  <div class="section-title-wrap">
+    <div class="section-num">3</div>
+    <h2 class="section-title">雲端環境 (Vercel) 與 Antigravity 使用限制說明</h2>
+  </div>
+
+  <table class="table-box">
+    <thead>
+      <tr>
+        <th style="width: 25%;">層面 / 模組</th>
+        <th style="width: 35%;">運行限制與特性</th>
+        <th style="width: 40%;">系統應對策略與克服方案</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>雲端靜態託管 (Vercel)</strong></td>
+        <td>Vercel 預設為純前端靜態環境，無法常駐執行 Python 後端運算程序，所有 `/api` 請求在純靜態下會直接由前端路由承接。</td>
+        <td>建構「前端 ExcelJS 完整備援拓撲引擎」，將設備資料庫全數打包至前端 JSON，不依賴後端即可產出完整 5 大工作表。</td>
+      </tr>
+      <tr>
+        <td><strong>圖面畫質與比例標定</strong></td>
+        <td>照片可能存在透視變形、解析度過低、或未標記尺寸之草圖，純演算法難以百分之百推敲絕對比例。</td>
+        <td>開發「門寬 / 參考尺寸一鍵標定桿」，使用者只要點擊已知寬度（如 90cm 房門），系統即秒級鎖定像素/米換算比率。</td>
+      </tr>
+      <tr>
+        <td><strong>複雜開放空間格局</strong></td>
+        <td>大坪數豪宅常出現客廳、餐廳、玄關連通無實體隔間牆，自動漆桶會一次填滿過大面積。</td>
+        <td>提供「劃線任意分割」與「多邊形 PLine」手動畫定工具，可隨意虛擬切分客廳、走道與餐廳個別負擔之空調配額。</td>
+      </tr>
+      <tr>
+        <td><strong>離線資料同步 (Antigravity)</strong></td>
+        <td>本機開發與雲端正式站需確保演算法核心與產出樣式完全一致，避免版本漂移。</td>
+        <td>透過自動化 Build 流程（Vite Rollup Bundle + 跨目錄同步腳本）與 Git Tag 雙軌機制，保證線上站點即時獲得最新版次。</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- SECTION 4: AI 智慧選機 5 步極簡操作流程 -->
+  <div class="section-title-wrap">
+    <div class="section-num">4</div>
+    <h2 class="section-title">AI 智慧選機標準操作流程 (5-Step Workflow)</h2>
+  </div>
+
+  <div class="flow-wrapper">
+    <div class="flow-step">
+      <div class="step-marker">01</div>
+      <div class="step-content">
+        <h3>第一步：載入平面圖面與校正比例尺</h3>
+        <p class="step-desc">
+          拖曳或上傳任何建築平面圖（JPG、PNG 或 PDF 截圖）。點選「1. 參考尺寸」，在圖面上點選一段已知長度的門寬（如 90cm）或標註尺寸，系統立即自動計算全圖像素比，完成空間幾何座標初始化。
+        </p>
+        <div class="step-tags">
+          <span class="tag">免裝 AutoCAD</span>
+          <span class="tag">支援手機照片</span>
+          <span class="tag">自適應高解析縮放</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow-step">
+      <div class="step-marker">02</div>
+      <div class="step-content">
+        <h3>第二步：空間框選與面積/坪數自動運算</h3>
+        <p class="step-desc">
+          使用「2. 漆桶發散」無視家具線條點擊房間內部自動辨識邊界，或使用「3. 矩形拉框」、「4. 多邊形 PLine」精準圈出空間。系統即時換算平方公尺 (㎡) 與坪數 (P)，並列入下方動態負載表格中。
+        </p>
+        <div class="step-tags">
+          <span class="tag">漆桶智能穿透</span>
+          <span class="tag">面積雙指標高對比標籤</span>
+          <span class="tag">開放空間可劃線切分</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow-step">
+      <div class="step-marker">03</div>
+      <div class="step-content">
+        <h3>第三步：冷房熱負荷估算與室內機智慧配置</h3>
+        <p class="step-desc">
+          系統依據各空間性質自動帶入建議之每坪熱負荷基準（一般 500 kcal/hr，頂樓/西曬可一鍵提升至 650~750 kcal/hr）。全自動計算總熱需求 (kW / kcal)，並由大金全機型資料庫秒級比對出最合適之室內機型號與台數。
+        </p>
+        <div class="step-tags">
+          <span class="tag">RA/SA/VRV 規格一鍵切換</span>
+          <span class="tag">冷暖/冷專自動推薦</span>
+          <span class="tag">壁掛/吊隱式動態鎖定</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow-step">
+      <div class="step-marker">04</div>
+      <div class="step-content">
+        <h3>第四步：室外機智慧配對與單雙聯分組</h3>
+        <p class="step-desc">
+          系統支援「單台 1對1 自動配對」、「家用多聯 (Multi) 智慧合併」與「VRV 集中大系統」。可透過右鍵快捷選單「將勾選空間併入同一台室外機」，自動計算室內外機總容量指數與連結率防呆（如 100%~130%），確保冷房能力充沛。
+        </p>
+        <div class="step-tags">
+          <span class="tag">商用 SA 電源防呆鎖定</span>
+          <span class="tag">VRV 併機縱向跨列合併</span>
+          <span class="tag">冷媒分歧頭自動精算</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="flow-step">
+      <div class="step-marker">05</div>
+      <div class="step-content">
+        <h3>第五步：決定控制需求與一鍵匯出官方底稿 (.xlsx)</h3>
+        <p class="step-desc">
+          選擇全案控制方案：一般遙控器、**APP 遠端控制**、或**集中控制器**。點擊「立即匯出完整選機與報價表」，系統自動生成包含 5 大工作表的官方 Excel 活頁簿：選機表、設備報價單（精準附帶小P板與APP控制卡）、設備統計總表、系統套數拓撲、D3-NET通訊分析。
+        </p>
+        <div class="step-tags">
+          <span class="tag">官方 Excel 5 大分頁全開</span>
+          <span class="tag">報價單取消項次首欄為系統類別</span>
+          <span class="tag">公式全自動連動</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 5: 核心優勢與商業效益 -->
+  <div class="section-title-wrap">
+    <div class="section-num">5</div>
+    <h2 class="section-title">核心優勢與效益 (Core Value)</h2>
+  </div>
+
+  <div class="grid-3">
+    <div class="card">
+      <div class="card-icon">🚀</div>
+      <div class="card-title">
+        <span>效率提升 90%</span>
+        <span class="gain-badge">高價值</span>
+      </div>
+      <p class="card-text">
+        原本資深規劃工程師需耗時 2~4 小時的開圖、算量、查目錄、排系統、填 Excel 報價單流程，現在業務或規劃助理**只要 3~5 分鐘**即可產出專業官方級規劃書。
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">✨</div>
+      <div class="card-title">
+        <span>零門檻與零授權包袱</span>
+        <span class="gain-badge">全平台</span>
+      </div>
+      <p class="card-text">
+        任何同仁使用 Chrome、Safari 或平板電腦即可連線操作，**完全免裝 AutoCAD、免專業圖面軟體**，只要看得懂格局圖就能完成高品質選機。
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">🎯</div>
+      <div class="card-title">
+        <span>零人為失誤，全自動防呆</span>
+        <span class="gain-badge">高品質</span>
+      </div>
+      <p class="card-text">
+        電源供電防呆、室外機風扇規格鎖定、VRV 連結率試算、APP 小P板與集控轉接基板自動連鎖帶入，報價單金額與稅額由公式自動計算，杜絕人為漏報配件的虧損風險。
+      </p>
+    </div>
+  </div>
+
+  <!-- Banner -->
+  <div class="highlight-banner">
+    <h2>立即體驗現代化空調選機自動化系統</h2>
+    <p>
+      線上正式站已全面同步最新 v2.13.1 版次，支援完整 5 大工作表匯出、APP 智慧控制基板動態配對與即時全案規格同步。
+    </p>
+    <a href="https://ac-selection-system.vercel.app/" target="_blank" class="cta-btn">
+      🌐 前往正式系統平台 (ac-selection-system.vercel.app)
+    </a>
+  </div>
+
+  <footer>
+    <p>© 2026 大金空調選機自動化系統研發專案 · 專利級全流程技術架構報告書 · 版本：v2.13.1</p>
+  </footer>
+
+</div>
+
+</body>
+</html>
