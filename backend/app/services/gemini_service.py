@@ -178,7 +178,7 @@ class GeminiService:
                     try:
                         client = genai.Client(api_key=api_key)
                         prompt = get_prompt_rule_4()
-                        result = cls._call_gemini_structured(client, pil_image, prompt)
+                        result = cls._call_gemini_structured(client, pil_image, prompt, filename)
                         if result and len(result) > 0:
                             cls.last_quota_exceeded = False
                             return cls._apply_jpg_adjustments(result)
@@ -246,7 +246,7 @@ class GeminiService:
                         else:
                             prompt = get_prompt_rule_3()
                             
-                        result = cls._call_gemini_structured(client, pil_image, prompt)
+                        result = cls._call_gemini_structured(client, pil_image, prompt, filename)
                         if result:
                             cls.last_quota_exceeded = False
                             return result
@@ -282,7 +282,7 @@ class GeminiService:
                     pass
 
     @classmethod
-    def _call_gemini_structured(cls, client: Any, image: Image.Image, prompt: str, max_retries: int = 2) -> List[Dict[str, Any]]:
+    def _call_gemini_structured(cls, client: Any, image: Image.Image, prompt: str, filename: str = "", max_retries: int = 2) -> List[Dict[str, Any]]:
         """
         Calls Gemini 3.6 Flash using structured JSON response.
         Robustly parses any JSON shape and auto-scales 0-100% coordinates to 0-1000.

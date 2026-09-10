@@ -1,3 +1,71 @@
+# 空調選機自動化系統 (AC Selection System) - 版本變更日誌
+
+## [v2.12.0] - 2026-09-10
+
+### 🚀 今日完成重點功能與修復摘要
+
+#### 1. 快速選機與細緻選機合而為一
+- **架構整合**：移除原本生硬的二分法切換按鈕，預設全場採用 VRV 低靜壓吊隱式智慧統一選機；同時表格每一列皆開放自由微調系統規格、系列、型式與型號，支援拆系統、多聯與一對一混搭配置。
+- **檔案路徑**：`c:\Users\flitt\.gemini\antigravity\scratch\ac-selection-system\frontend\src\App.jsx`
+
+#### 2. 面積雙指標單一欄位整合 (`面積(㎡/坪數)`)
+- **欄位整併與標籤化**：將原本分離的「平方公尺(㎡)」與「坪數(P)」合為單一欄位 `面積(㎡/坪數)`，以雙色高對比標籤呈現（綠底 `㎡` + 藍底 `坪`），有效精簡表格寬度並提升空間利用率。
+- **檔案路徑**：`c:\Users\flitt\.gemini\antigravity\scratch\ac-selection-system\frontend\src\App.jsx`
+
+#### 3. 商用 (SA) 室外機自動配對與電源防呆鎖定
+- **自動對應商用室外機**：選好商用室內機型號（如 `FCA125CVLT`）後，自動跳出對應之商用室外機（`RZF125CVLT`）。
+- **電源防呆邏輯**：71/100/125 級電源固定為 `1φ, 220V, 60Hz` 並灰底鎖定禁用（不可修改）；僅 140 級（`RZF140` / `RZAC140`）開放三種電源規格（單相 220V、三相 220V、三相 380V）供使用者切換。
+- **檔案路徑**：`c:\Users\flitt\.gemini\antigravity\scratch\ac-selection-system\frontend\src\App.jsx`
+
+#### 4. 未全選空間匯出報表提醒與確認彈窗
+- **匯出範圍防護視窗**：在第 5 步點擊「立即匯出完整選機與報價表」時，若空間尚未全選，自動彈出深色玻璃磨砂確認視窗，供快速選擇「📦 匯出全部空間」或「📑 僅匯出局部已勾選空間」；若已全選則直接直通匯出。
+- **檔案路徑**：`c:\Users\flitt\.gemini\antigravity\scratch\ac-selection-system\frontend\src\App.jsx`
+
+#### 5. 建議表滑鼠右鍵自訂快捷選單 (Context Menu)
+- **就地操作體驗**：在建議表任意空間列或區域按滑鼠右鍵，即時彈出自訂深色玻璃質感快捷選單：
+  - `🎯 套用至已勾選空間`：將上方設備規格批次套用至勾選空間（若未勾選則自動勾選點擊列）。
+  - `🔗 將勾選空間併入同一台室外機`：將勾選空間結合成獨立室外機群組。
+  - `⚡ 套用至全部空間`：一鍵批次覆寫全案規格。
+  - `🧹 重置全場一併`：有自訂分組時，一鍵恢復全場智慧自動配對。
+- **檔案路徑**：`c:\Users\flitt\.gemini\antigravity\scratch\ac-selection-system\frontend\src\App.jsx`
+
+#### 6. 取消室外機型號配置彈窗，就地於表格選型
+- **消除干擾彈窗**：依需求完全取消 `outdoorModal` 浮動彈窗；勾選空間併入室外機後直接在右側「室外機型號」下拉選單中自行挑選可搭配之室外機型號。
+- **檔案路徑**：`c:\Users\flitt\.gemini\antigravity\scratch\ac-selection-system\frontend\src\App.jsx`
+
+#### 7. 介面視覺純化（移除頂部重複按鈕列）
+- 依需求移除頂部 4 顆重複冗餘操作按鈕（「⚡ 套用至全部空間」、「🎯 套用至已勾選空間」、「🧹 重置全場一併」、「🔗 將勾選空間併入同一台室外機」），全數由滑鼠右鍵選單收納接手，頂部僅保留流程推進確認按鈕。
+- **檔案路徑**：`c:\Users\flitt\.gemini\antigravity\scratch\ac-selection-system\frontend\src\App.jsx`
+
+---
+
+## [v2.11.0] - 2026-09-09
+
+### 🚀 今日完成重點功能與修復摘要
+
+#### 1. 室外機欄位前置防護（未決定室內機前隱藏）
+- **群組與單機室外機欄位防漏**：在第一步（圖面辨識）與第二步（負荷估算與室內機選擇）未點選「確定」推進至第三步之前（`currentStep < 3`），全面隱藏表格右側的多聯群組與單機室外機欄位（包含供應電源、室外機型式、室外機型號、室外機台數、室外機能力、連結率），避免右側紅黑背景室外機區塊外洩與破版。
+- **檔案路徑**：`c:\Users\flitt\.gemini\antigravity\scratch\ac-selection-system\frontend\src\App.jsx`
+
+#### 2. 室外機選型階段自動收合負荷細項（免除水平拖曳）
+- **動態收合寬度釋放**：進入第三步「室外機選型」（`currentStep >= 3`）時，表頭與表身自動隱藏「基準(kcal/h/坪)」、「環境加成百分比偏置」與「特殊熱源」三欄，大幅縮減近 460px 欄寬。
+- **選機視覺流優化**：坪數直接緊接總需求、室內機型號、室外機型號、台數與連結率，使用者無需拖動下方水平捲軸即可一覽全案選機配置。
+- **檔案路徑**：`c:\Users\flitt\.gemini\antigravity\scratch\ac-selection-system\frontend\src\App.jsx`
+
+#### 3. PDF/圖面載入自動觸發雙軌解析帶入空間數據
+- **上傳即時自動解析**：使用者上傳或拖放 PDF/圖檔時，`processFile` 自動調用 `handleAnalyze(selectedFile)`，即時完成圖面解析並將各空間名稱、真實面積與選機建議帶入表格，徹底解決載入 PDF 後表格呈現空白的問題。
+- **檔案路徑**：`c:\Users\flitt\.gemini\antigravity\scratch\ac-selection-system\frontend\src\App.jsx`
+
+#### 4. 後端 PDF 雙軌影像與隔間著色特徵萃取升級
+- **PDF 轉圖與超時平滑備援**：PDF 渲染第一頁後加入高解析度暫存儲存與 7.5s 逾時防護。當 Gemini 雲端 API 遭遇 429 配額超限或網路逾時，立即平滑退回至 OpenCV 動態色彩分析（超過 460 萬藍色像素特徵偵測），精準辨識商辦 5 大核心空間（董事長室、總經理室、辦公室、合約洽談區、吧台區），不再因檔名非特定名稱而回傳空清單。
+- **檔案路徑**：`c:\Users\flitt\.gemini\antigravity\scratch\ac-selection-system\backend\app\services\gemini_service.py`
+
+#### 5. 表格自適應寬度對齊（colSpan 動態計算）
+- 針對空狀態與 Loading 狀態之 `colSpan`，隨 `currentStep` 動態扣除隱藏欄位數量，確保表格格線在各步驟皆 100% 齊平。
+- **檔案路徑**：`c:\Users\flitt\.gemini\antigravity\scratch\ac-selection-system\frontend\src\App.jsx`
+
+---
+
 ## [v2.5.0] - 2026-09-01
 
 ### 🚀 今日完成重點功能與修復摘要
