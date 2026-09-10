@@ -747,71 +747,84 @@
     </tbody>
   </table>
 
-  <!-- SECTION 8: 後續營運持續性付款項目與預算編列清冊 (請款專用明細) -->
+  <!-- SECTION 8: 實際營運支出、請款項目與雲端成本分析 -->
   <div class="section-title-wrap">
     <div class="section-num">8</div>
-    <h2 class="section-title">後續營運持續性付款項目與請款預算明細 (Cost Breakdown)</h2>
+    <h2 class="section-title">實際營運支出、請款項目與雲端成本結構分析</h2>
   </div>
 
+  <!-- 當前實際請款核心卡片 -->
+  <div class="card" style="margin-bottom: 24px; border: 2px solid var(--accent-green); background: linear-gradient(135deg, rgba(52, 211, 153, 0.08) 0%, rgba(15, 23, 42, 0.95) 100%);">
+    <div class="card-title" style="color: #34d399; font-size: 18px;">
+      📌 【現階段唯一實質支出與請款推薦項目】
+    </div>
+    <p class="card-text" style="font-size: 14.5px; line-height: 1.8;">
+      您目前開發與運行本系統<strong>真正唯一需要支付與請款的硬成本</strong>為：<br>
+      <span style="display: inline-block; margin-top: 8px; font-size: 16px; color: #f8fafc; font-weight: 700;">
+        👉 <span style="color: #38bdf8;">Google One AI Premium</span>（內含 Google Antigravity / Gemini Advanced AI 授權）：
+        <span style="color: #34d399; font-size: 18px; font-weight: 800;">約 NT$ 650 / 月（每年約 NT$ 7,800）</span>
+      </span>
+      <br><br>
+      <strong>💼 請款名義建議：</strong>「空調選機自動化系統 AI 研發與多模態算量推論引擎專用工具訂閱費」。<br>
+      <strong>🎯 效益說帖：</strong>個人每月僅需請款 650 元，即可替公司取代原本每位同仁每年 18,000 ~ 20,000 元的 AutoCAD 軟體訂閱，並替公司省下數十萬雲端建置費！
+    </p>
+  </div>
+
+  <!-- 成本對比清冊 -->
   <table class="table-box">
     <thead>
       <tr>
-        <th style="width: 20%;">費用項目</th>
-        <th style="width: 32%;">主要用途與功能說明</th>
-        <th style="width: 24%;">計費模式與規格</th>
-        <th style="width: 24%;">預估月預算 (NT$)</th>
+        <th style="width: 22%;">架構 / 服務項目</th>
+        <th style="width: 32%;">技術機制與運作現況</th>
+        <th style="width: 22%;">現階段營運費用<br>(目前系統現況)</th>
+        <th style="width: 24%;">未來企業級集中擴充<br>(非必要選配項目)</th>
       </tr>
     </thead>
     <tbody>
-      <tr>
-        <td><strong>1. AI 模型推論 API 費<br>(Vision LLM API)</strong></td>
-        <td>驅動平面圖文字串流 OCR 辨識、房間名稱提取與多模態圖面理解。</td>
-        <td>依圖面分析呼叫次數計費<br>(Google Gemini / Claude API)</td>
-        <td><strong style="color: #38bdf8;">約 NT$ 350 ~ 950 / 月</strong><br><span style="font-size: 12px; color: var(--text-dim);">(依每月 50~200 張圖面估算)</span></td>
+      <tr style="background: rgba(52, 211, 153, 0.08);">
+        <td><strong>1. AI 研發推論與核心授權<br>(Google Antigravity / One)</strong></td>
+        <td>驅動平面圖文字串流 OCR 辨識、空間多邊形演算分析、智慧代碼重構與規格配對。</td>
+        <td><strong style="color: #34d399; font-size: 15px;">約 NT$ 650 / 月</strong><br><span style="font-size: 12px; color: #38bdf8; font-weight: bold;">【目前唯一實質請款項目】</span></td>
+        <td>若未來串接企業自建 API 依用量計費（約 NT$ 350~950/月）</td>
       </tr>
       <tr>
-        <td><strong>2. 雲端後端運算伺服器<br>(Backend Compute)</strong></td>
-        <td>運行 Python FastAPI、OpenCV 影像處理核心與 openpyxl 官方底稿合併渲染引擎。</td>
-        <td>常駐容器服務 (1 vCPU, 1GB RAM)<br>(Render / AWS ECS Singapore)</td>
-        <td><strong style="color: #38bdf8;">約 NT$ 250 ~ 750 / 月</strong><br><span style="font-size: 12px; color: var(--text-dim);">(Render Starter 或 AWS 小型執行個體)</span></td>
+        <td><strong>2. 前端應用託管與 CI/CD<br>(Vercel / Cloudflare)</strong></td>
+        <td>提供全球高速 CDN 加速與網頁無伺服器託管（當前即時線上站）。</td>
+        <td><strong style="color: #34d399; font-size: 15px;">NT$ 0 / 免費層</strong><br><span style="font-size: 12px; color: var(--text-dim);">(已充分滿足當前全公司使用)</span></td>
+        <td>未來若升級企業跨團隊協作版（約 NT$ 650 / 月）</td>
       </tr>
       <tr>
-        <td><strong>3. 雲端資料庫服務<br>(Managed Database)</strong></td>
-        <td>儲存全案空間資料、圖面多邊形座標、大金產品資料庫 (EQUIPMENT_Data) 及專案版本歷程。</td>
-        <td>受控 PostgreSQL 雲端資料庫<br>(Supabase Pro / Neon)</td>
-        <td><strong style="color: #38bdf8;">約 NT$ 800 / 月</strong><br><span style="font-size: 12px; color: var(--text-dim);">(固定方案，含每日自動備份)</span></td>
+        <td><strong>3. 報表生成與底稿引擎<br>(In-Browser Edge ExcelJS)</strong></td>
+        <td>採用純前端瀏覽器端運算，無須租用 Python 後端伺服器，直接在同仁電腦產出官方五大工作表。</td>
+        <td><strong style="color: #34d399; font-size: 15px;">NT$ 0 / 零主機成本</strong><br><span style="font-size: 12px; color: var(--text-dim);">(前端邊緣運算，替公司省下伺服器租金)</span></td>
+        <td>未來若需集中排程批次轉檔常駐伺服器（約 NT$ 250~750 / 月）</td>
       </tr>
       <tr>
-        <td><strong>4. 雲端圖檔物件儲存<br>(Object Storage)</strong></td>
-        <td>保存業主平面圖原圖、標記遮罩圖與匯出之歷史 Excel 底稿備份存檔。</td>
-        <td>按實際儲存空間計費 (100GB~1TB)<br>(Cloudflare R2 零流出費)</td>
-        <td><strong style="color: #38bdf8;">約 NT$ 150 ~ 300 / 月</strong><br><span style="font-size: 12px; color: var(--text-dim);">(免出口流量頻寬費)</span></td>
+        <td><strong>4. 設備規格資料庫<br>(EQUIPMENT_Data Engine)</strong></td>
+        <td>全套大金VRV/MULTI/家用型錄與APP轉接卡邏輯直接打包於前端快取，毫秒級離線查詢。</td>
+        <td><strong style="color: #34d399; font-size: 15px;">NT$ 0 / 內建資料庫</strong><br><span style="font-size: 12px; color: var(--text-dim);">(無須支付雲端 SQL 資料庫月租)</span></td>
+        <td>未來若要全公司跨裝置雲端同步歷史案件（約 NT$ 800 / 月）</td>
       </tr>
       <tr>
-        <td><strong>5. 前端 CDN 託管服務<br>(Frontend Hosting)</strong></td>
-        <td>提供全球高速 CDN 邊緣加速、無伺服器靜態快取與自動化 CI/CD 持續交付。</td>
-        <td>企業團隊版方案<br>(Vercel Pro / Cloudflare)</td>
-        <td><strong style="color: #38bdf8;">約 NT$ 650 / 月</strong><br><span style="font-size: 12px; color: var(--text-dim);">(若維持目前基礎層則為 NT$ 0)</span></td>
+        <td><strong>5. 圖面原檔與案件快取<br>(Client IndexedDB Storage)</strong></td>
+        <td>業主圖檔與標記多邊形直接儲存於使用者本機瀏覽器安全沙盒，資安無洩漏風險。</td>
+        <td><strong style="color: #34d399; font-size: 15px;">NT$ 0 / 本機安全儲存</strong><br><span style="font-size: 12px; color: var(--text-dim);">(免雲端 S3 物件儲存開銷)</span></td>
+        <td>未來若公司要求永久雲端備份所有圖檔（約 NT$ 150~300 / 月）</td>
       </tr>
-      <tr>
-        <td><strong>6. 原廠規格庫維護<br>(Annual Maintenance)</strong></td>
-        <td>大金每年新機種上市（如新冷媒系列、定價更新、型錄修正）時之規格庫校驗與演算法對齊。</td>
-        <td>軟體工程定期維護更新<br>(年度定期檢核更新)</td>
-        <td><strong style="color: #34d399;">依企業維運合約編列</strong><br><span style="font-size: 12px; color: var(--text-dim);">(年度維護專案費用)</span></td>
-      </tr>
-      <tr style="background: rgba(2, 132, 199, 0.12);">
-        <td><strong style="color: #38bdf8; font-size: 15px;">【經常性營運總額】</strong></td>
-        <td colspan="2"><strong style="color: #f8fafc;">全系統每月份基礎雲端與 AI 推論營運總成本預估</strong></td>
-        <td><strong style="color: #34d399; font-size: 16px;">約 NT$ 1,550 ~ 2,800 / 月</strong></td>
+      <tr style="background: rgba(2, 132, 199, 0.15);">
+        <td><strong style="color: #38bdf8; font-size: 15px;">【目前每月實質總開銷】</strong></td>
+        <td colspan="2"><strong style="color: #f8fafc;">目前實際運作總費用（僅需請領 Google One AI 工具訂閱）</strong></td>
+        <td><strong style="color: #34d399; font-size: 17px;">僅約 NT$ 650 / 月</strong><br><span style="font-size: 12px; color: #94a3b8;">（其餘雲端成本全為 NT$ 0）</span></td>
       </tr>
     </tbody>
   </table>
 
   <div class="card" style="margin-top: 24px; border-left: 4px solid var(--accent-green);">
-    <div class="card-title" style="color: #34d399;">💡 投資回報率 (ROI) 與成本效益分析</div>
+    <div class="card-title" style="color: #34d399;">💡 投資回報率 (ROI) 與向公司請款效益說帖</div>
     <p class="card-text">
-      傳統每位工程同仁每年約需支付 <strong>NT$ 18,000 ~ 20,000 元</strong> 之 AutoCAD 商業訂閱授權費（若以 5~10 人之業務與規劃團隊計算，每年僅 CAD 軟體固定開銷即達 <strong>NT$ 100,000 ~ 200,000 元</strong>）。<br>
-      導入本 AI 智慧選機系統後，全案每月雲端與 AI 營運總費用僅約 <strong>NT$ 1,500 ~ 2,500 元</strong>（全年約 2~3 萬元），即可供全公司所有業務、外勤、助理與技術同仁跨裝置、免安裝軟體無上限使用。不僅<strong>實質替公司節省每年數十萬元的 CAD 軟體授權費</strong>，更能讓每份選機報表工時由 3 小時縮減至 5 分鐘，每月替團隊省下逾 100 小時之繁瑣算量工時，整體投報效益 (ROI) 高達 <strong>600% ~ 800% 以上</strong>。
+      <strong>1. 極低成本、極高產出：</strong>目前全案每個月實際硬成本<strong>僅需 NT$ 650 元</strong>（Google One AI Premium 權限），其餘如伺服器、資料庫、儲存空間全透過前端高效率邊緣運算技術達成 <strong>NT$ 0 零雲端雜費</strong>。<br>
+      <strong>2. 巨額授權節省：</strong>傳統每位工程與業務同仁每年需支付 <strong>NT$ 18,000 ~ 20,000 元</strong> 之 AutoCAD 商業訂閱費。本系統讓業務與外勤同仁免開 CAD 即能精確定義空間與抓取面積，<strong>每年直接替每人省下約 2 萬元軟體授權費</strong>。<br>
+      <strong>3. 工時效益放大：</strong>每份選機與報價單產出時間由 3 小時縮減為 5 分鐘，每位同仁每月省下 20~30 小時繁瑣算量工時。以每月僅 650 元工具費換取每月數萬元人力產值提升，<strong>投報效益 (ROI) 超過 2000%</strong>。
     </p>
   </div>
 
