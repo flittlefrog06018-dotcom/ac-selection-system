@@ -95,6 +95,13 @@ class EquipmentDBService:
                 raw_p_board = ws.cell(row=14, column=col).value
                 raw_wireless = ws.cell(row=15, column=col).value
                 raw_central = ws.cell(row=16, column=col).value
+                raw_price = ws.cell(row=17, column=col).value
+                price_val = None
+                if raw_price is not None:
+                    try:
+                        price_val = float(raw_price)
+                    except (ValueError, TypeError):
+                        price_val = None
                 
                 # Check if model or system is empty (stop condition)
                 if not raw_model and not raw_cap_kw and not raw_system:
@@ -135,6 +142,7 @@ class EquipmentDBService:
                     "adapter_p_board": clean_raw_val(raw_p_board),
                     "wireless_receiver": clean_raw_val(raw_wireless),
                     "central_adapter_board": clean_raw_val(raw_central),
+                    "price": price_val,
                     "col_index": col
                 }
                 units_list.append(unit_obj)
@@ -158,6 +166,13 @@ class EquipmentDBService:
                     raw_p_board = ws_sa.cell(row=14, column=col).value
                     raw_wireless = ws_sa.cell(row=15, column=col).value
                     raw_central = ws_sa.cell(row=16, column=col).value
+                    raw_price = ws_sa.cell(row=17, column=col).value
+                    price_val = None
+                    if raw_price is not None:
+                        try:
+                            price_val = float(raw_price)
+                        except (ValueError, TypeError):
+                            price_val = None
 
                     if not raw_model and not raw_cap_kw and not raw_system:
                         continue
@@ -186,6 +201,7 @@ class EquipmentDBService:
                         "adapter_p_board": clean_raw_val(raw_p_board),
                         "wireless_receiver": clean_raw_val(raw_wireless),
                         "central_adapter_board": clean_raw_val(raw_central),
+                        "price": price_val,
                         "col_index": col
                     }
                     units_list.append(unit_obj)
@@ -206,50 +222,58 @@ class EquipmentDBService:
     def load_outdoor_units(self, file_path: str):
         try:
             wb = openpyxl.load_workbook(file_path, data_only=True)
-            if "outdoor_units" not in wb.sheetnames:
-                self.outdoor_units = []
-                self._outdoor_units_map = {}
-                return
-            ws = wb["outdoor_units"]
-            cols = list(ws.columns)
             outdoors = []
             outdoors_map = {}
-            for c in range(2, len(cols)):
-                sys_val = cols[c][1].value   # row 2
-                ser_val = cols[c][2].value   # row 3
-                mod_val = cols[c][3].value   # row 4
-                cap_val = cols[c][4].value   # row 5
-                nom_val = cols[c][5].value   # row 6
-                pwr_sup = cols[c][6].value   # row 7
-                pwr_con = cols[c][7].value   # row 8
-                mca_val = cols[c][8].value   # row 9 (電路最大電流 MCA)
-                mfa_val = cols[c][9].value   # row 10 (保險絲最大電流 MFA)
-                dim_val = cols[c][11].value  # row 12 (尺寸 mm HxWxD)
-                ut_val = cols[c][12].value   # row 13 (型式)
-                
-                if sys_val and mod_val and isinstance(cap_val, (int, float)):
-                    def clean_val(v):
-                        if v is None:
-                            return "-"
-                        s = str(v).strip()
-                        return s if s else "-"
 
-                    m_str = str(mod_val).strip().upper()
-                    obj = {
-                        "system": str(sys_val).strip(),
-                        "series": str(ser_val or "").strip(),
-                        "model": m_str,
-                        "cap_kw": float(cap_val),
-                        "nominal_cap": clean_val(nom_val),
-                        "power_supply": clean_val(pwr_sup),
-                        "power_consumption_kw": clean_val(pwr_con),
-                        "mca": clean_val(mca_val),
-                        "mfa": clean_val(mfa_val),
-                        "dimensions": clean_val(dim_val),
-                        "unit_type": clean_val(ut_val)
-                    }
-                    outdoors.append(obj)
-                    outdoors_map[m_str] = obj
+            target_sheets = [s for s in ["outdoor_units", "outdoor_units_SA only"] if s in wb.sheetnames]
+            for sname in target_sheets:
+                ws = wb[sname]
+                cols = list(ws.columns)
+                for c in range(2, len(cols)):
+                    sys_val = cols[c][1].value   # row 2
+                    ser_val = cols[c][2].value   # row 3
+                    mod_val = cols[c][3].value   # row 4
+                    cap_val = cols[c][4].value   # row 5
+                    nom_val = cols[c][5].value   # row 6
+                    pwr_sup = cols[c][6].value   # row 7
+                    pwr_con = cols[c][7].value   # row 8
+                    mca_val = cols[c][8].value   # row 9 (電路最大電流 MCA)
+                    mfa_val = cols[c][9].value   # row 10 (保險絲最大電流 MFA)
+                    dim_val = cols[c][11].value  # row 12 (尺寸 mm HxWxD)
+                    ut_val = cols[c][12].value   # row 13 (型式)
+                    
+                    price_val = cols[c][14].value if len(cols[c]) > 14 else None  # row 15 (定價 NT$)
+                    price_num = None
+                    if price_val is not None:
+                        try:
+                            price_num = float(price_val)
+                        except (ValueError, TypeError):
+                            price_num = None
+                    
+                    if sys_val and mod_val and isinstance(cap_val, (int, float)):
+                        def clean_val(v):
+                            if v is None:
+                                return "-"
+                            s = str(v).strip()
+                            return s if s else "-"
+
+                        m_str = str(mod_val).strip().upper()
+                        obj = {
+                            "system": str(sys_val).strip(),
+                            "series": str(ser_val or "").strip(),
+                            "model": m_str,
+                            "cap_kw": float(cap_val),
+                            "nominal_cap": clean_val(nom_val),
+                            "power_supply": clean_val(pwr_sup),
+                            "power_consumption_kw": clean_val(pwr_con),
+                            "mca": clean_val(mca_val),
+                            "mfa": clean_val(mfa_val),
+                            "dimensions": clean_val(dim_val),
+                            "unit_type": clean_val(ut_val),
+                            "price": price_num
+                        }
+                        outdoors.append(obj)
+                        outdoors_map[m_str] = obj
             self.outdoor_units = outdoors
             self._outdoor_units_map = outdoors_map
         except Exception as e:

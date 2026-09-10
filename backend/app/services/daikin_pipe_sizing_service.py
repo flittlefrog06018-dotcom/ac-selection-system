@@ -275,7 +275,8 @@ class DaikinHVACCalculator:
         elif node.node_type in ['subgroup', 'main']:
             if is_root:
                 pipes = self.get_main_pipe(node.model, node.capacity)
-                node.joint_model = self.get_first_joint(node.model)
+                is_vrv_root = any(k in str(node.model).upper() for k in ['RSUYQ', 'RXYQ', 'RXQ', 'VRV'])
+                node.joint_model = self.get_first_joint(node.model) if is_vrv_root else None
             else:
                 pipes = self.get_sub_pipe(node.capacity)
                 if node.children:
@@ -310,6 +311,9 @@ class DaikinHVACCalculator:
             elif node.node_type == 'ra':
                 pipe_info = f"配管: {node.pipe_liquid}/{node.pipe_gas}"
                 tag = "[家用] "
+            elif node.node_type == 'sa':
+                pipe_info = f"配管: {node.pipe_liquid}/{node.pipe_gas}"
+                tag = "[商用] "
             else:
                 pipe_info = f"配管: {node.pipe_liquid}/{node.pipe_gas}"
                 tag = "[VRV] "

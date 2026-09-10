@@ -182,7 +182,8 @@ export const getDynamicModelCandidates = (demandKw, system, series, unitType, cu
   const sorted = [...filtered].sort((a, b) => a.cap - b.cap);
   const models = sorted.map(m => m.model);
 
-  if (currentModel && !models.includes(currentModel)) {
+  // 🎯 嚴格防護：只有當 currentModel 確實屬於當前過濾範圍 (filtered，型式與系列皆匹配) 時，才允許保留；型式不符一律剔除！
+  if (currentModel && !models.includes(currentModel) && filtered.some(m => m.model === currentModel)) {
     models.unshift(currentModel);
   }
 

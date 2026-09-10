@@ -501,7 +501,29 @@ export const EQUIPMENT_DB = {
       "unit_type": "壁掛式"
     }
   ],
-  "SA": [],
+  "SA": [
+    { "model": "FAA71XVLT", "cap": 7.2, "series": "商用冷專系列", "unit_type": "壁掛式" },
+    { "model": "FAA100XVLT", "cap": 9.5, "series": "商用冷專系列", "unit_type": "壁掛式" },
+    { "model": "FCA71DVLT", "cap": 7.2, "series": "商用冷專系列", "unit_type": "全方吹" },
+    { "model": "FCA71CVLT", "cap": 7.2, "series": "商用冷專系列", "unit_type": "全方吹" },
+    { "model": "FCA100CVLT", "cap": 10.1, "series": "商用冷專系列", "unit_type": "全方吹" },
+    { "model": "FCA125CVLT", "cap": 12.5, "series": "商用冷專系列", "unit_type": "全方吹" },
+    { "model": "FCA140CVLT", "cap": 14.0, "series": "商用冷專系列", "unit_type": "全方吹" },
+    { "model": "FCA140DVLT", "cap": 14.0, "series": "商用冷專系列", "unit_type": "全方吹" },
+    { "model": "FBA71BVLT", "cap": 7.2, "series": "商用冷專系列", "unit_type": "吊隱式" },
+    { "model": "FBA100BVLT", "cap": 10.1, "series": "商用冷專系列", "unit_type": "吊隱式" },
+    { "model": "FBA125BVLT", "cap": 12.5, "series": "商用冷專系列", "unit_type": "吊隱式" },
+    { "model": "FBA140BVLT", "cap": 13.3, "series": "商用冷專系列", "unit_type": "吊隱式" },
+    { "model": "FCA71DVLT", "cap": 7.2, "series": "商用冷暖系列", "unit_type": "全方吹" },
+    { "model": "FCA100CVLT", "cap": 10.4, "series": "商用冷暖系列", "unit_type": "全方吹" },
+    { "model": "FCA125CVLT", "cap": 12.5, "series": "商用冷暖系列", "unit_type": "全方吹" },
+    { "model": "FCA140CVLT", "cap": 14.0, "series": "商用冷暖系列", "unit_type": "全方吹" },
+    { "model": "FCA140DVLT", "cap": 14.0, "series": "商用冷暖系列", "unit_type": "全方吹" },
+    { "model": "FBA71BVLT", "cap": 7.2, "series": "商用冷暖系列", "unit_type": "吊隱式" },
+    { "model": "FBA100BVLT", "cap": 10.1, "series": "商用冷暖系列", "unit_type": "吊隱式" },
+    { "model": "FBA125BVLT", "cap": 12.5, "series": "商用冷暖系列", "unit_type": "吊隱式" },
+    { "model": "FBA140BVLT", "cap": 13.3, "series": "商用冷暖系列", "unit_type": "吊隱式" }
+  ],
   "VRV": [
     {
       "model": "FXDQ20PDNVT",
