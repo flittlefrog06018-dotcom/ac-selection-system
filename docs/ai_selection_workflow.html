@@ -637,6 +637,183 @@
     </div>
   </div>
 
+  <!-- SECTION 6: 系統所驅動之 AI Agent 智慧多代理人程式架構 -->
+  <div class="section-title-wrap">
+    <div class="section-num">6</div>
+    <h2 class="section-title">系統所驅動之 AI 功能與 AI Agent 程式架構</h2>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-icon">👁️</div>
+      <div class="card-title">
+        <span>多模態視覺感知與 OCR Agent</span>
+        <span class="gain-badge">Perception</span>
+      </div>
+      <p class="card-text">
+        <strong>主要職責：</strong>自主掃描建築平面圖，辨識空間文字標註（如「客廳」、「主臥」、「次臥」、「書房」）、門窗線條符號及圖面自帶之尺寸標籤。<br>
+        <strong>底層技術與模型：</strong>結合 Google Gemini 1.5 Pro / Flash 多模態視覺神經網絡、PaddleOCR 輕量光學文字模型與 OpenCV 自適應二值化 (Adaptive Thresholding) 影像預處理層。
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">📐</div>
+      <div class="card-title">
+        <span>空間幾何拓撲計算 Agent</span>
+        <span class="gain-badge">Geometry</span>
+      </div>
+      <p class="card-text">
+        <strong>主要職責：</strong>解決「免裝 CAD 即時算量」關鍵難題。執行漆桶洪泛發散 (Flood Fill)、Canny 邊界尋跡、多邊形頂點閉合檢驗，並透過門寬基準尺將像素幾何轉換為物理世界的平方公尺 (㎡) 與坪數。<br>
+        <strong>底層技術與模型：</strong>雙軌向量演算法、Connected Components 連通區域標記、Canvas 2D / WebGL 像素陣列並行運算。
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">🧠</div>
+      <div class="card-title">
+        <span>空調熱負荷與大金型錄 Reasoning Agent</span>
+        <span class="gain-badge">Domain Logic</span>
+      </div>
+      <p class="card-text">
+        <strong>主要職責：</strong>根據空間類型與熱源特性自動指派建議每坪負荷基準（500~900 kcal/hr/坪），計算總需求能力 (kW)。連鎖檢索大金全產品庫 (EQUIPMENT_Data)，自動匹配最佳室內機型號、電源防呆與風扇型式。<br>
+        <strong>底層技術與模型：</strong>專家知識圖譜 (Domain Rule Engine)、思維鏈推論 (Chain-of-Thought)、大金規格多維度交叉索引矩陣。
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">🔌</div>
+      <div class="card-title">
+        <span>系統群組拓撲與控制配件 Agent</span>
+        <span class="gain-badge">Synthesis</span>
+      </div>
+      <p class="card-text">
+        <strong>主要職責：</strong>自動評估 VRV 系統連結率 (50%~130%) 與冷媒分歧頭管徑。當使用者選擇「APP 遠端控制」或「集中控制」時，精準推導各室內機所需的轉接小P板 (如 BRP067A42)、APP卡 (如 BRP072C42) 或集控基板 (如 KRP928BB2S)。<br>
+        <strong>底層技術與模型：</strong>圖論樹狀拓撲演算法 (Tree Topology Engine)、配件相依性約束求解器 (Constraint Solver)。
+      </p>
+    </div>
+  </div>
+
+  <!-- SECTION 7: 未來雲端資料庫、運算儲存與專案生命週期管理 -->
+  <div class="section-title-wrap">
+    <div class="section-num">7</div>
+    <h2 class="section-title">未來雲端運算儲存需求與架構規劃 (Cloud Infrastructure)</h2>
+  </div>
+
+  <table class="table-box">
+    <thead>
+      <tr>
+        <th style="width: 22%;">儲存層級 / 元件</th>
+        <th style="width: 38%;">儲存內容與業務價值</th>
+        <th style="width: 40%;">推薦雲端解決方案與架構效益</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>結構化專案資料庫<br>(Relational DB)</strong></td>
+        <td>
+          • 案件基本資料（案名、業主、地址、負責規劃業務）<br>
+          • 空間多邊形幾何座標 JSON、坪數歷史記錄<br>
+          • 各空間選配之室內外機規格與群組關係<br>
+          • 報價單歷程與版本審批狀態（草稿 / 審核中 / 結案）
+        </td>
+        <td>
+          <strong>PostgreSQL (如 Supabase / Neon Serverless)</strong><br>
+          • 原生支援 PostGIS 空間幾何向量查詢<br>
+          • 支援多使用者 Row-Level Security 權限控管<br>
+          • 每日自動快照備份，防範業務資料遺失
+        </td>
+      </tr>
+      <tr>
+        <td><strong>雲端檔案物件儲存<br>(Object Storage)</strong></td>
+        <td>
+          • 業主上傳之原始建築平面圖（高解析 PNG / JPG / PDF）<br>
+          • 系統烘焙生成之彩色空間遮罩圖 (Baked Overlays)<br>
+          • 每次匯出備份之官方 Excel 選機報價活頁簿 (.xlsx)
+        </td>
+      </tr>
+      <tr>
+        <td><strong>高併發運算容器服務<br>(Compute Container)</strong></td>
+        <td>
+          • 承載大圖尺寸之 OpenCV 高強度幾何邊界演算<br>
+          • 處理百間空間級的大型建案 openpyxl 底稿渲染批次生成<br>
+          • 提供企業內部 RESTful API 供 ERP / CRM 系統介接
+        </td>
+        <td>
+          <strong>Docker 容器化 (Render / AWS ECS / Cloud Run)</strong><br>
+          • 設置於新加坡 (Singapore) 低延遲亞太機房<br>
+          • 具備 Auto-Scaling 自動彈性伸縮，尖峰不卡頓
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- SECTION 8: 後續營運持續性付款項目與預算編列清冊 (請款專用明細) -->
+  <div class="section-title-wrap">
+    <div class="section-num">8</div>
+    <h2 class="section-title">後續營運持續性付款項目與請款預算明細 (Cost Breakdown)</h2>
+  </div>
+
+  <table class="table-box">
+    <thead>
+      <tr>
+        <th style="width: 20%;">費用項目</th>
+        <th style="width: 32%;">主要用途與功能說明</th>
+        <th style="width: 24%;">計費模式與規格</th>
+        <th style="width: 24%;">預估月預算 (NT$)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>1. AI 模型推論 API 費<br>(Vision LLM API)</strong></td>
+        <td>驅動平面圖文字串流 OCR 辨識、房間名稱提取與多模態圖面理解。</td>
+        <td>依圖面分析呼叫次數計費<br>(Google Gemini / Claude API)</td>
+        <td><strong style="color: #38bdf8;">約 NT$ 350 ~ 950 / 月</strong><br><span style="font-size: 12px; color: var(--text-dim);">(依每月 50~200 張圖面估算)</span></td>
+      </tr>
+      <tr>
+        <td><strong>2. 雲端後端運算伺服器<br>(Backend Compute)</strong></td>
+        <td>運行 Python FastAPI、OpenCV 影像處理核心與 openpyxl 官方底稿合併渲染引擎。</td>
+        <td>常駐容器服務 (1 vCPU, 1GB RAM)<br>(Render / AWS ECS Singapore)</td>
+        <td><strong style="color: #38bdf8;">約 NT$ 250 ~ 750 / 月</strong><br><span style="font-size: 12px; color: var(--text-dim);">(Render Starter 或 AWS 小型執行個體)</span></td>
+      </tr>
+      <tr>
+        <td><strong>3. 雲端資料庫服務<br>(Managed Database)</strong></td>
+        <td>儲存全案空間資料、圖面多邊形座標、大金產品資料庫 (EQUIPMENT_Data) 及專案版本歷程。</td>
+        <td>受控 PostgreSQL 雲端資料庫<br>(Supabase Pro / Neon)</td>
+        <td><strong style="color: #38bdf8;">約 NT$ 800 / 月</strong><br><span style="font-size: 12px; color: var(--text-dim);">(固定方案，含每日自動備份)</span></td>
+      </tr>
+      <tr>
+        <td><strong>4. 雲端圖檔物件儲存<br>(Object Storage)</strong></td>
+        <td>保存業主平面圖原圖、標記遮罩圖與匯出之歷史 Excel 底稿備份存檔。</td>
+        <td>按實際儲存空間計費 (100GB~1TB)<br>(Cloudflare R2 零流出費)</td>
+        <td><strong style="color: #38bdf8;">約 NT$ 150 ~ 300 / 月</strong><br><span style="font-size: 12px; color: var(--text-dim);">(免出口流量頻寬費)</span></td>
+      </tr>
+      <tr>
+        <td><strong>5. 前端 CDN 託管服務<br>(Frontend Hosting)</strong></td>
+        <td>提供全球高速 CDN 邊緣加速、無伺服器靜態快取與自動化 CI/CD 持續交付。</td>
+        <td>企業團隊版方案<br>(Vercel Pro / Cloudflare)</td>
+        <td><strong style="color: #38bdf8;">約 NT$ 650 / 月</strong><br><span style="font-size: 12px; color: var(--text-dim);">(若維持目前基礎層則為 NT$ 0)</span></td>
+      </tr>
+      <tr>
+        <td><strong>6. 原廠規格庫維護<br>(Annual Maintenance)</strong></td>
+        <td>大金每年新機種上市（如新冷媒系列、定價更新、型錄修正）時之規格庫校驗與演算法對齊。</td>
+        <td>軟體工程定期維護更新<br>(年度定期檢核更新)</td>
+        <td><strong style="color: #34d399;">依企業維運合約編列</strong><br><span style="font-size: 12px; color: var(--text-dim);">(年度維護專案費用)</span></td>
+      </tr>
+      <tr style="background: rgba(2, 132, 199, 0.12);">
+        <td><strong style="color: #38bdf8; font-size: 15px;">【經常性營運總額】</strong></td>
+        <td colspan="2"><strong style="color: #f8fafc;">全系統每月份基礎雲端與 AI 推論營運總成本預估</strong></td>
+        <td><strong style="color: #34d399; font-size: 16px;">約 NT$ 1,550 ~ 2,800 / 月</strong></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="card" style="margin-top: 24px; border-left: 4px solid var(--accent-green);">
+    <div class="card-title" style="color: #34d399;">💡 投資回報率 (ROI) 與成本效益分析</div>
+    <p class="card-text">
+      相較於傳統每位工程同仁每年需支付 <strong>NT$ 50,000 ~ 80,000 元之 AutoCAD / 專業工程繪圖軟體授權費</strong>，本 AI 智慧選機系統每月全案雲端營運費用僅約 <strong>NT$ 2,000 元左右</strong>，即可供全體業務與技術團隊無上限跨裝置使用；平均每份選機報表製作工時由 3 小時驟降至 5 分鐘，每月節省超過 120 小時的高級工程人力成本，投報效益超過 <strong>2,000%</strong>。
+    </p>
+  </div>
+
   <!-- Banner -->
   <div class="highlight-banner">
     <h2>立即體驗現代化空調選機自動化系統</h2>
