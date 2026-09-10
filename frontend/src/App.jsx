@@ -2503,14 +2503,14 @@ function App() {
     }
   };
 
-  // 🎯 前端 ExcelJS 建立【設備報價單】分頁專用輔助函式
-  const buildClientSideQuotationSheet = (wb, flatRowsToRender, groupSpans, fastSys, fastSer) => {
+  // 🎯 前端 ExcelJS 建立【設備報價單】分頁專用輔助函式 (取消項次B欄位，以系統類別為首欄，APP/集控配件精確對應)
+  const buildClientSideQuotationSheet = (wb, flatRowsToRender, groupSpans, fastSys, fastSer, fastCtrlMode) => {
     try {
       const wsQuote = wb.addWorksheet("設備報價單");
       wsQuote.views = [{ showGridLines: true }];
 
-      // 設定欄寬
-      const colWidths = [3, 10, 16, 42, 10, 10, 18, 18, 28];
+      // 設定欄寬 (B欄開始：系統類別, 設備項目與型號, 數量, 單位, 參考單價, 金額合計, 備註說明)
+      const colWidths = [4, 16, 42, 10, 10, 18, 20, 28];
       colWidths.forEach((w, idx) => {
         wsQuote.getColumn(idx + 1).width = w;
       });
@@ -2541,7 +2541,6 @@ function App() {
 
       // 1. 整理設備清單 (1對1 合併 / 1對多 拆開)
       const equipItems = [];
-      let itemCounterA = 1;
 
       // 建立分組映射
       const groupedMap = {};
@@ -2586,7 +2585,6 @@ function App() {
           const dispSys = sysT === "SA" || sysT.includes("商用") ? "SA 商用1對1" : "RA 家用1對1";
 
           equipItems.push({
-            item_code: `A-${itemCounterA++}`,
             sys_cat: dispSys,
             name: `${dispSys} (${pairName})`,
             qty: totalSets,
@@ -2599,7 +2597,6 @@ function App() {
           const dispSys = sysT.includes("VRV") ? "VRV 系統" : "RA 家用多聯";
           if (outM && outM !== "-") {
             equipItems.push({
-              item_code: `A-${itemCounterA++}`,
               sys_cat: dispSys,
               name: `${dispSys}室外機 (${outM})`,
               qty: outQ,
@@ -2618,7 +2615,6 @@ function App() {
             const inObj = EQUIPMENT_FULL_DB.indoor_units ? EQUIPMENT_FULL_DB.indoor_units[inModel.toUpperCase()] : null;
             const inPrice = inObj && inObj.price ? parseFloat(inObj.price) : null;
             equipItems.push({
-              item_code: `A-${itemCounterA++}`,
               sys_cat: dispSys,
               name: `${dispSys}室內機 (${inModel})`,
               qty: inQty,
@@ -2630,9 +2626,8 @@ function App() {
         }
       });
 
-      // 2. 整理其他配件清單
+      // 2. 整理其他配件清單 (參照 EQUIPMENT_Data)
       const accessoryItems = [];
-      let itemCounterB = 1;
 
       // 有線遙控器
       let vrvSaCount = 0;
@@ -2647,7 +2642,6 @@ function App() {
 
       if (vrvSaCount > 0) {
         accessoryItems.push({
-          item_code: `B-${itemCounterB++}`,
           cat: "控制配件",
           name: "液晶有線遙控器 (BRC1E63 / BRC1H61W)",
           qty: vrvSaCount,
@@ -2665,7 +2659,6 @@ function App() {
       });
       if (vrvIndoorTotal >= 2) {
         accessoryItems.push({
-          item_code: `B-${itemCounterB++}`,
           cat: "冷媒配件",
           name: "VRV 冷媒分歧管組 (KHRP26A/M)",
           qty: vrvIndoorTotal - 1,
@@ -2675,17 +2668,115 @@ function App() {
         });
       }
 
-      // 3. 渲染報價單工作表
-      // 標題列
+      // 🎯 APP 遠端控制配件精準對應 (參照 EQUIPMENT_FULL_DB.indoor_units)
+      const ctrlModeStr = String(fastCtrlMode || "").toUpperCase();
+      const hasApp = ctrlModeStr.includes("APP") || flatRowsToRender.some(r => String(r.control_mode || "").toUpperCase().includes("APP"));
+      const hasCentral = ctrlModeStr.includes("集控") || ctrlModeStr.includes("CENTRAL") || flatRowsToRender.some(r => String(r.control_mode || "").includes("集控"));
+
+      if (hasApp) {
+        const appReceiverCounts = {};
+        const pBoardCounts = {};
+
+        flatRowsToRender.forEach((r) => {
+          const mIn = (r.best_match_model || r.recommended_model || "").trim().toUpperCase();
+          const qIn = parseInt(r.unit_count) || 1;
+          const info = EQUIPMENT_FULL_DB.indoor_units ? EQUIPMENT_FULL_DB.indoor_units[mIn] : null;
+
+          const rec = info ? info.wireless_receiver : null;
+          if (rec && rec !== "內建" && rec !== "-") {
+            appReceiverCounts[rec] = (appReceiverCounts[rec] || 0) + qIn;
+          } else if (!rec && !mIn.startsWith("FX")) {
+            appReceiverCounts["BRP072C42"] = (appReceiverCounts["BRP072C42"] || 0) + qIn;
+          }
+
+          const pb = info ? info.adapter_p_board : null;
+          if (pb && pb !== "內建" && pb !== "-") {
+            pBoardCounts[pb] = (pBoardCounts[pb] || 0) + qIn;
+          }
+        });
+
+        Object.entries(appReceiverCounts).forEach(([recM, recQ]) => {
+          accessoryItems.push({
+            cat: "控制配件",
+            name: `Daikin Mobile Controller APP 智慧遠端控制卡 (${recM})`,
+            qty: recQ,
+            unit: "個",
+            unit_price: null,
+            notes: "智慧手機雲端遠端開關與定時",
+          });
+        });
+
+        Object.entries(pBoardCounts).forEach(([pbM, pbQ]) => {
+          accessoryItems.push({
+            cat: "控制配件",
+            name: `原廠室內機轉接小P板 (${pbM})`,
+            qty: pbQ,
+            unit: "個",
+            unit_price: null,
+            notes: "搭配 APP 遠端控制卡專用介面基板",
+          });
+        });
+      }
+
+      if (hasCentral) {
+        const centralBoardCounts = {};
+        const pBoardCounts = {};
+        flatRowsToRender.forEach((r) => {
+          const mIn = (r.best_match_model || r.recommended_model || "").trim().toUpperCase();
+          const qIn = parseInt(r.unit_count) || 1;
+          const info = EQUIPMENT_FULL_DB.indoor_units ? EQUIPMENT_FULL_DB.indoor_units[mIn] : null;
+          const cb = info ? info.central_adapter_board : null;
+          if (cb && cb !== "-") {
+            centralBoardCounts[cb] = (centralBoardCounts[cb] || 0) + qIn;
+          }
+          const pb = info ? info.adapter_p_board : null;
+          if (pb && pb !== "內建" && pb !== "-" && !hasApp) {
+            pBoardCounts[pb] = (pBoardCounts[pb] || 0) + qIn;
+          }
+        });
+
+        Object.entries(centralBoardCounts).forEach(([cbM, cbQ]) => {
+          accessoryItems.push({
+            cat: "控制配件",
+            name: `集中控制轉接基板 (${cbM})`,
+            qty: cbQ,
+            unit: "個",
+            unit_price: null,
+            notes: "連接中央集中控制器專用轉接基板",
+          });
+        });
+
+        Object.entries(pBoardCounts).forEach(([pbM, pbQ]) => {
+          accessoryItems.push({
+            cat: "控制配件",
+            name: `原廠室內機轉接小P板 (${pbM})`,
+            qty: pbQ,
+            unit: "個",
+            unit_price: null,
+            notes: "搭配集控介面專用小P板",
+          });
+        });
+
+        accessoryItems.push({
+          cat: "控制配件",
+          name: "大金空調中央集中控制器 (DCS302CA61)",
+          qty: 1,
+          unit: "台",
+          unit_price: null,
+          notes: "多功能中央集中控制盤",
+        });
+      }
+
+      // 3. 渲染報價單工作表 (取消項次B欄位，首欄為系統類別)
       const titleCell = wsQuote.getCell(2, 2);
       titleCell.value = "大金空調設備與工程配件報價清冊";
       titleCell.font = fontTitle;
 
-      // 欄位抬頭
+      // 欄位抬頭 (無項次，首欄為系統類別)
       const headers = [
-        [2, "項次"], [3, "系統類別"], [4, "設備項目與型號"],
-        [5, "數量"], [6, "單位"], [7, "參考單價 (NT$)"],
-        [8, "金額合計 (NT$)"], [9, "備註說明"],
+        [2, "系統類別"], [3, "設備項目與型號"],
+        [4, "數量"], [5, "單位"], [6, "參考單價 (NT$)"],
+        [7, "金額合計 (NT$)"], [8, "備註說明"],
       ];
       headers.forEach(([colIdx, txt]) => {
         const c = wsQuote.getCell(4, colIdx);
@@ -2702,7 +2793,7 @@ function App() {
       const sec1Cell = wsQuote.getCell(currRow, 2);
       sec1Cell.value = "一、空調設備";
       sec1Cell.font = fontSection;
-      for (let col = 2; col <= 9; col++) {
+      for (let col = 2; col <= 8; col++) {
         const c = wsQuote.getCell(currRow, col);
         c.fill = fillSection;
         c.border = borderThin;
@@ -2716,25 +2807,24 @@ function App() {
         currRow++;
       } else {
         equipItems.forEach((it) => {
-          const rCell2 = wsQuote.getCell(currRow, 2); rCell2.value = it.item_code; rCell2.alignment = { horizontal: "center", vertical: "middle" };
-          const rCell3 = wsQuote.getCell(currRow, 3); rCell3.value = it.sys_cat; rCell3.alignment = { horizontal: "center", vertical: "middle" };
-          const rCell4 = wsQuote.getCell(currRow, 4); rCell4.value = it.name; rCell4.alignment = { horizontal: "left", vertical: "middle" };
-          const rCell5 = wsQuote.getCell(currRow, 5); rCell5.value = it.qty; rCell5.alignment = { horizontal: "center", vertical: "middle" };
-          const rCell6 = wsQuote.getCell(currRow, 6); rCell6.value = it.unit; rCell6.alignment = { horizontal: "center", vertical: "middle" };
+          const rCell2 = wsQuote.getCell(currRow, 2); rCell2.value = it.sys_cat; rCell2.alignment = { horizontal: "center", vertical: "middle" };
+          const rCell3 = wsQuote.getCell(currRow, 3); rCell3.value = it.name; rCell3.alignment = { horizontal: "left", vertical: "middle" };
+          const rCell4 = wsQuote.getCell(currRow, 4); rCell4.value = it.qty; rCell4.alignment = { horizontal: "center", vertical: "middle" };
+          const rCell5 = wsQuote.getCell(currRow, 5); rCell5.value = it.unit; rCell5.alignment = { horizontal: "center", vertical: "middle" };
           
+          const rCell6 = wsQuote.getCell(currRow, 6);
+          if (it.unit_price !== null && it.unit_price !== undefined) rCell6.value = it.unit_price;
+          rCell6.numFmt = "#,##0";
+          rCell6.alignment = { horizontal: "right", vertical: "middle" };
+
           const rCell7 = wsQuote.getCell(currRow, 7);
-          if (it.unit_price !== null && it.unit_price !== undefined) rCell7.value = it.unit_price;
+          rCell7.value = { formula: `D${currRow}*F${currRow}` };
           rCell7.numFmt = "#,##0";
           rCell7.alignment = { horizontal: "right", vertical: "middle" };
 
-          const rCell8 = wsQuote.getCell(currRow, 8);
-          rCell8.value = { formula: `E${currRow}*G${currRow}` };
-          rCell8.numFmt = "#,##0";
-          rCell8.alignment = { horizontal: "right", vertical: "middle" };
+          const rCell8 = wsQuote.getCell(currRow, 8); rCell8.value = it.notes; rCell8.alignment = { horizontal: "left", vertical: "middle" };
 
-          const rCell9 = wsQuote.getCell(currRow, 9); rCell9.value = it.notes; rCell9.alignment = { horizontal: "left", vertical: "middle" };
-
-          for (let col = 2; col <= 9; col++) {
+          for (let col = 2; col <= 8; col++) {
             const c = wsQuote.getCell(currRow, col);
             c.font = fontData;
             c.border = borderThin;
@@ -2746,17 +2836,17 @@ function App() {
 
       // 空調設備小計
       const subARow = currRow;
-      const subACellLabel = wsQuote.getCell(currRow, 3);
+      const subACellLabel = wsQuote.getCell(currRow, 2);
       subACellLabel.value = "【空調設備小計】";
       subACellLabel.font = fontBold;
 
-      const subACellVal = wsQuote.getCell(currRow, 8);
-      subACellVal.value = { formula: `SUM(H${equipStart}:H${equipEnd})` };
+      const subACellVal = wsQuote.getCell(currRow, 7);
+      subACellVal.value = { formula: `SUM(G${equipStart}:G${equipEnd})` };
       subACellVal.font = fontBold;
       subACellVal.numFmt = "#,##0";
       subACellVal.alignment = { horizontal: "right", vertical: "middle" };
 
-      for (let col = 2; col <= 9; col++) {
+      for (let col = 2; col <= 8; col++) {
         const c = wsQuote.getCell(currRow, col);
         c.fill = fillSubtotal;
         c.border = borderTotal;
@@ -2767,7 +2857,7 @@ function App() {
       const sec2Cell = wsQuote.getCell(currRow, 2);
       sec2Cell.value = "二、其他配件";
       sec2Cell.font = fontSection;
-      for (let col = 2; col <= 9; col++) {
+      for (let col = 2; col <= 8; col++) {
         const c = wsQuote.getCell(currRow, col);
         c.fill = fillSection;
         c.border = borderThin;
@@ -2781,25 +2871,24 @@ function App() {
         currRow++;
       } else {
         accessoryItems.forEach((it) => {
-          const rCell2 = wsQuote.getCell(currRow, 2); rCell2.value = it.item_code; rCell2.alignment = { horizontal: "center", vertical: "middle" };
-          const rCell3 = wsQuote.getCell(currRow, 3); rCell3.value = it.cat; rCell3.alignment = { horizontal: "center", vertical: "middle" };
-          const rCell4 = wsQuote.getCell(currRow, 4); rCell4.value = it.name; rCell4.alignment = { horizontal: "left", vertical: "middle" };
-          const rCell5 = wsQuote.getCell(currRow, 5); rCell5.value = it.qty; rCell5.alignment = { horizontal: "center", vertical: "middle" };
-          const rCell6 = wsQuote.getCell(currRow, 6); rCell6.value = it.unit; rCell6.alignment = { horizontal: "center", vertical: "middle" };
+          const rCell2 = wsQuote.getCell(currRow, 2); rCell2.value = it.cat; rCell2.alignment = { horizontal: "center", vertical: "middle" };
+          const rCell3 = wsQuote.getCell(currRow, 3); rCell3.value = it.name; rCell3.alignment = { horizontal: "left", vertical: "middle" };
+          const rCell4 = wsQuote.getCell(currRow, 4); rCell4.value = it.qty; rCell4.alignment = { horizontal: "center", vertical: "middle" };
+          const rCell5 = wsQuote.getCell(currRow, 5); rCell5.value = it.unit; rCell5.alignment = { horizontal: "center", vertical: "middle" };
           
+          const rCell6 = wsQuote.getCell(currRow, 6);
+          if (it.unit_price !== null && it.unit_price !== undefined) rCell6.value = it.unit_price;
+          rCell6.numFmt = "#,##0";
+          rCell6.alignment = { horizontal: "right", vertical: "middle" };
+
           const rCell7 = wsQuote.getCell(currRow, 7);
-          if (it.unit_price !== null && it.unit_price !== undefined) rCell7.value = it.unit_price;
+          rCell7.value = { formula: `D${currRow}*F${currRow}` };
           rCell7.numFmt = "#,##0";
           rCell7.alignment = { horizontal: "right", vertical: "middle" };
 
-          const rCell8 = wsQuote.getCell(currRow, 8);
-          rCell8.value = { formula: `E${currRow}*G${currRow}` };
-          rCell8.numFmt = "#,##0";
-          rCell8.alignment = { horizontal: "right", vertical: "middle" };
+          const rCell8 = wsQuote.getCell(currRow, 8); rCell8.value = it.notes; rCell8.alignment = { horizontal: "left", vertical: "middle" };
 
-          const rCell9 = wsQuote.getCell(currRow, 9); rCell9.value = it.notes; rCell9.alignment = { horizontal: "left", vertical: "middle" };
-
-          for (let col = 2; col <= 9; col++) {
+          for (let col = 2; col <= 8; col++) {
             const c = wsQuote.getCell(currRow, col);
             c.font = fontData;
             c.border = borderThin;
@@ -2811,17 +2900,17 @@ function App() {
 
       // 其他配件小計
       const subBRow = currRow;
-      const subBCellLabel = wsQuote.getCell(currRow, 3);
+      const subBCellLabel = wsQuote.getCell(currRow, 2);
       subBCellLabel.value = "【其他配件小計】";
       subBCellLabel.font = fontBold;
 
-      const subBCellVal = wsQuote.getCell(currRow, 8);
-      subBCellVal.value = { formula: `SUM(H${accStart}:H${accEnd})` };
+      const subBCellVal = wsQuote.getCell(currRow, 7);
+      subBCellVal.value = { formula: `SUM(G${accStart}:G${accEnd})` };
       subBCellVal.font = fontBold;
       subBCellVal.numFmt = "#,##0";
       subBCellVal.alignment = { horizontal: "right", vertical: "middle" };
 
-      for (let col = 2; col <= 9; col++) {
+      for (let col = 2; col <= 8; col++) {
         const c = wsQuote.getCell(currRow, col);
         c.fill = fillSubtotal;
         c.border = borderTotal;
@@ -2830,15 +2919,15 @@ function App() {
 
       // 三、工程總計區塊
       const untaxedRow = currRow;
-      const untaxedLabel = wsQuote.getCell(currRow, 3);
+      const untaxedLabel = wsQuote.getCell(currRow, 2);
       untaxedLabel.value = "【全案設備工程未稅總計】";
       untaxedLabel.font = fontBold;
-      const untaxedVal = wsQuote.getCell(currRow, 8);
-      untaxedVal.value = { formula: `H${subARow}+H${subBRow}` };
+      const untaxedVal = wsQuote.getCell(currRow, 7);
+      untaxedVal.value = { formula: `G${subARow}+G${subBRow}` };
       untaxedVal.font = fontBold;
       untaxedVal.numFmt = "#,##0";
       untaxedVal.alignment = { horizontal: "right", vertical: "middle" };
-      for (let col = 2; col <= 9; col++) {
+      for (let col = 2; col <= 8; col++) {
         const c = wsQuote.getCell(currRow, col);
         c.fill = fillSubtotal;
         c.border = borderThin;
@@ -2846,36 +2935,332 @@ function App() {
       currRow++;
 
       const taxRow = currRow;
-      const taxLabel = wsQuote.getCell(currRow, 3);
+      const taxLabel = wsQuote.getCell(currRow, 2);
       taxLabel.value = "【營業稅 (5%)】";
       taxLabel.font = fontBold;
-      const taxVal = wsQuote.getCell(currRow, 8);
-      taxVal.value = { formula: `ROUND(H${untaxedRow}*0.05, 0)` };
+      const taxVal = wsQuote.getCell(currRow, 7);
+      taxVal.value = { formula: `ROUND(G${untaxedRow}*0.05, 0)` };
       taxVal.font = fontBold;
       taxVal.numFmt = "#,##0";
       taxVal.alignment = { horizontal: "right", vertical: "middle" };
-      for (let col = 2; col <= 9; col++) {
+      for (let col = 2; col <= 8; col++) {
         const c = wsQuote.getCell(currRow, col);
         c.fill = fillSubtotal;
         c.border = borderThin;
       }
       currRow++;
 
-      const finalLabel = wsQuote.getCell(currRow, 3);
+      const finalLabel = wsQuote.getCell(currRow, 2);
       finalLabel.value = "【全案設備工程含稅總價】";
       finalLabel.font = fontTotal;
-      const finalVal = wsQuote.getCell(currRow, 8);
-      finalVal.value = { formula: `H${untaxedRow}+H${taxRow}` };
+      const finalVal = wsQuote.getCell(currRow, 7);
+      finalVal.value = { formula: `G${untaxedRow}+G${taxRow}` };
       finalVal.font = fontTotal;
       finalVal.numFmt = "#,##0";
       finalVal.alignment = { horizontal: "right", vertical: "middle" };
-      for (let col = 2; col <= 9; col++) {
+      for (let col = 2; col <= 8; col++) {
         const c = wsQuote.getCell(currRow, col);
         c.fill = fillSection;
         c.border = borderTotal;
       }
     } catch (e) {
       console.warn("buildClientSideQuotationSheet failed:", e);
+    }
+  };
+
+  // 🎯 前端 ExcelJS 建立【設備統計總表】、【系統套數】與【D3-NET分析】三大專業分頁輔助函式
+  const buildClientSideSummarySheets = (wb, flatRowsToRender, groupSpans, fastSys, fastSer, fastCtrlMode) => {
+    try {
+      const fontHeader = { name: "微軟正黑體", size: 11, bold: true, color: { argb: "FFFFFFFF" } };
+      const fontData = { name: "微軟正黑體", size: 10 };
+      const fontBold = { name: "微軟正黑體", size: 10, bold: true };
+      const fontTitle = { name: "微軟正黑體", size: 14, bold: true, color: { argb: "FF0F172A" } };
+      const fillHeader = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E293B" } };
+      const fillSubtotal = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF1F5F9" } };
+      const fillCard = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF8FAFC" } };
+      const borderThin = {
+        top: { style: "thin", color: { argb: "FFCBD5E1" } },
+        bottom: { style: "thin", color: { argb: "FFCBD5E1" } },
+        left: { style: "thin", color: { argb: "FFCBD5E1" } },
+        right: { style: "thin", color: { argb: "FFCBD5E1" } },
+      };
+      const borderTotal = {
+        top: { style: "thin", color: { argb: "FF475569" } },
+        bottom: { style: "double", color: { argb: "FF0F172A" } },
+        left: { style: "thin", color: { argb: "FFCBD5E1" } },
+        right: { style: "thin", color: { argb: "FFCBD5E1" } },
+      };
+
+      // ========================================================
+      // 1. 【設備統計總表】
+      // ========================================================
+      const ws1 = wb.addWorksheet("設備統計總表");
+      ws1.views = [{ showGridLines: true }];
+
+      // 設定欄寬
+      [4, 22, 12, 4, 24, 12, 4, 18, 12, 4, 20, 12, 4, 26, 12].forEach((w, idx) => {
+        ws1.getColumn(idx + 1).width = w;
+      });
+
+      // 聚合統計資料
+      const inCounts = {};
+      const outCounts = {};
+      const hrvCounts = {};
+      const jointCounts = {};
+      const adapterCounts = {};
+
+      const ctrlModeStr = String(fastCtrlMode || "").toUpperCase();
+      const hasApp = ctrlModeStr.includes("APP") || flatRowsToRender.some(r => String(r.control_mode || "").toUpperCase().includes("APP"));
+      const hasCentral = ctrlModeStr.includes("集控") || ctrlModeStr.includes("CENTRAL") || flatRowsToRender.some(r => String(r.control_mode || "").includes("集控"));
+
+      flatRowsToRender.forEach((r) => {
+        const inM = (r.best_match_model || r.recommended_model || "").trim();
+        const inQ = parseInt(r.unit_count) || 1;
+        const outM = (r.outdoor_model || "").trim();
+        const outQ = 1;
+
+        if (inM && inM !== "-") {
+          inCounts[inM] = (inCounts[inM] || 0) + inQ;
+        }
+        if (outM && outM !== "-") {
+          outCounts[outM] = (outCounts[outM] || 0) + outQ;
+        }
+
+        const info = EQUIPMENT_FULL_DB.indoor_units ? EQUIPMENT_FULL_DB.indoor_units[inM.toUpperCase()] : null;
+        if (hasApp) {
+          const pb = info ? info.adapter_p_board : null;
+          if (pb && pb !== "內建" && pb !== "-") {
+            const pbName = `轉接小P板 (${pb})`;
+            adapterCounts[pbName] = (adapterCounts[pbName] || 0) + inQ;
+          }
+          const rec = info ? info.wireless_receiver : null;
+          if (rec && rec !== "內建" && rec !== "-") {
+            const recName = `APP控制卡 (${rec})`;
+            adapterCounts[recName] = (adapterCounts[recName] || 0) + inQ;
+          } else if (!rec && !inM.toUpperCase().startsWith("FX")) {
+            adapterCounts["APP控制卡 (BRP072C42)"] = (adapterCounts["APP控制卡 (BRP072C42)"] || 0) + inQ;
+          }
+        }
+        if (hasCentral) {
+          const cb = info ? info.central_adapter_board : null;
+          if (cb && cb !== "-") {
+            const cbName = `集控轉接基板 (${cb})`;
+            adapterCounts[cbName] = (adapterCounts[cbName] || 0) + inQ;
+          }
+        }
+      });
+
+      // VRV 分歧頭 (若為 VRV 且室內機大於 1 台)
+      let vrvInTotal = 0;
+      flatRowsToRender.forEach((r) => {
+        if (String(r.system_type || fastSys || "").toUpperCase().includes("VRV")) {
+          vrvInTotal += parseInt(r.unit_count) || 1;
+        }
+      });
+      if (vrvInTotal >= 2) {
+        jointCounts["VRV 分歧管 (KHRP26A/M)"] = vrvInTotal - 1;
+      }
+
+      const tIn = Object.entries(inCounts).map(([m, q]) => ({ name: m, qty: q }));
+      const tOut = Object.entries(outCounts).map(([m, q]) => ({ name: m, qty: q }));
+      const tHrv = Object.entries(hrvCounts).map(([m, q]) => ({ name: m, qty: q }));
+      const tJoint = Object.entries(jointCounts).map(([m, q]) => ({ name: m, qty: q }));
+      const tAdapter = Object.entries(adapterCounts).map(([m, q]) => ({ name: m, qty: q }));
+
+      // 標題
+      const title1 = ws1.getCell(2, 2);
+      title1.value = "大金空調設備與配件統計總表";
+      title1.font = fontTitle;
+
+      // 欄位抬頭
+      const headers1 = [
+        [2, "室內機型號"], [3, "室內機台數"],
+        [5, "室外機型號"], [6, "室外機台數"],
+        [8, "全熱型號"], [9, "全熱台數"],
+        [11, "冷媒分歧頭型號"], [12, "分歧頭數量"],
+        [14, "控制/轉接配件型號"], [15, "配件數量"]
+      ];
+      headers1.forEach(([colIdx, txt]) => {
+        const c = ws1.getCell(4, colIdx);
+        c.value = txt; c.font = fontHeader; c.fill = fillHeader;
+        c.alignment = { horizontal: "center", vertical: "middle" };
+        c.border = borderThin;
+      });
+
+      const maxRows = Math.max(tIn.length, tOut.length, tHrv.length, tJoint.length, tAdapter.length, 1);
+      for (let idx = 0; idx < maxRows; idx++) {
+        const rIdx = 5 + idx;
+        if (idx < tIn.length) {
+          const cM = ws1.getCell(rIdx, 2); cM.value = tIn[idx].name; cM.font = fontData; cM.border = borderThin;
+          const cQ = ws1.getCell(rIdx, 3); cQ.value = tIn[idx].qty; cQ.font = fontData; cQ.alignment = { horizontal: "center" }; cQ.border = borderThin;
+        }
+        if (idx < tOut.length) {
+          const cM = ws1.getCell(rIdx, 5); cM.value = tOut[idx].name; cM.font = fontData; cM.border = borderThin;
+          const cQ = ws1.getCell(rIdx, 6); cQ.value = tOut[idx].qty; cQ.font = fontData; cQ.alignment = { horizontal: "center" }; cQ.border = borderThin;
+        }
+        if (idx < tHrv.length) {
+          const cM = ws1.getCell(rIdx, 8); cM.value = tHrv[idx].name; cM.font = fontData; cM.border = borderThin;
+          const cQ = ws1.getCell(rIdx, 9); cQ.value = tHrv[idx].qty; cQ.font = fontData; cQ.alignment = { horizontal: "center" }; cQ.border = borderThin;
+        }
+        if (idx < tJoint.length) {
+          const cM = ws1.getCell(rIdx, 11); cM.value = tJoint[idx].name; cM.font = fontData; cM.border = borderThin;
+          const cQ = ws1.getCell(rIdx, 12); cQ.value = tJoint[idx].qty; cQ.font = fontData; cQ.alignment = { horizontal: "center" }; cQ.border = borderThin;
+        }
+        if (idx < tAdapter.length) {
+          const cM = ws1.getCell(rIdx, 14); cM.value = tAdapter[idx].name; cM.font = fontData; cM.border = borderThin;
+          const cQ = ws1.getCell(rIdx, 15); cQ.value = tAdapter[idx].qty; cQ.font = fontData; cQ.alignment = { horizontal: "center" }; cQ.border = borderThin;
+        }
+      }
+
+      // 合計列
+      const totRow = 5 + maxRows;
+      const sumPairs = [
+        [2, 3, tIn], [5, 6, tOut], [8, 9, tHrv], [11, 12, tJoint], [14, 15, tAdapter]
+      ];
+      sumPairs.forEach(([lCol, vCol, list]) => {
+        const cL = ws1.getCell(totRow, lCol); cL.value = "合計"; cL.font = fontBold; cL.fill = fillSubtotal; cL.border = borderTotal;
+        const cV = ws1.getCell(totRow, vCol); cV.value = list.reduce((a, b) => a + b.qty, 0); cV.font = fontBold; cV.fill = fillSubtotal; cV.border = borderTotal;
+        cV.alignment = { horizontal: "center" };
+      });
+
+      // ========================================================
+      // 2. 【系統套數】
+      // ========================================================
+      const ws2 = wb.addWorksheet("系統套數");
+      ws2.views = [{ showGridLines: true }];
+      ws2.getColumn(2).width = 50;
+      ws2.getColumn(3).width = 12;
+
+      const title2 = ws2.getCell(2, 2);
+      title2.value = "空調系統套數、樹狀結構與冷媒管徑選用";
+      title2.font = fontTitle;
+
+      const h2_1 = ws2.getCell(4, 2); h2_1.value = "系統結構與配管規格 (室外機 -> 主管/分歧頭 -> 配接室內機)";
+      h2_1.font = fontHeader; h2_1.fill = fillHeader; h2_1.border = borderThin;
+      const h2_2 = ws2.getCell(4, 3); h2_2.value = "台數";
+      h2_2.font = fontHeader; h2_2.fill = fillHeader; h2_2.alignment = { horizontal: "center" }; h2_2.border = borderThin;
+
+      let currR2 = 5;
+      let sysCount = 1;
+
+      // 按室外機分組輸出樹狀結構
+      const sysGroupMap = {};
+      flatRowsToRender.forEach((r, idx) => {
+        const gId = r.outdoorGroupId || `single_${idx}`;
+        if (!sysGroupMap[gId]) {
+          sysGroupMap[gId] = {
+            outdoor_model: r.outdoor_model || "待配室外機",
+            outdoor_qty: 1,
+            system_type: r.system_type || fastSys || "RA",
+            indoor_items: []
+          };
+        }
+        sysGroupMap[gId].indoor_items.push({
+          model: r.best_match_model || r.recommended_model || "室內機",
+          qty: parseInt(r.unit_count) || 1
+        });
+      });
+
+      Object.values(sysGroupMap).forEach((gData) => {
+        const outM = gData.outdoor_model;
+        const outQ = gData.outdoor_qty;
+        const sysLbl = gData.system_type;
+
+        const cellNode = ws2.getCell(currR2, 2);
+        cellNode.value = `${sysCount}. [${sysLbl}] ${outM}`;
+        cellNode.font = fontBold; cellNode.fill = fillSubtotal; cellNode.border = borderThin;
+        const cellQ = ws2.getCell(currR2, 3);
+        cellQ.value = outQ; cellQ.font = fontBold; cellQ.fill = fillSubtotal; cellQ.border = borderThin; cellQ.alignment = { horizontal: "center" };
+        currR2++;
+
+        // 聚合室內機型號
+        const inAgg = {};
+        gData.indoor_items.forEach((it) => {
+          inAgg[it.model] = (inAgg[it.model] || 0) + it.qty;
+        });
+
+        const inEntries = Object.entries(inAgg);
+        inEntries.forEach(([m, q], j) => {
+          const pref = j === inEntries.length - 1 ? "    └─ " : "    ├─ ";
+          const cTree = ws2.getCell(currR2, 2); cTree.value = `${pref}${m}`; cTree.font = fontData; cTree.border = borderThin;
+          const cTreeQ = ws2.getCell(currR2, 3); cTreeQ.value = q; cTreeQ.font = fontData; cTreeQ.border = borderThin; cTreeQ.alignment = { horizontal: "center" };
+          currR2++;
+        });
+
+        currR2++; // 空行
+        sysCount++;
+      });
+
+      // ========================================================
+      // 3. 【D3-NET分析】
+      // ========================================================
+      const ws3 = wb.addWorksheet("D3-NET分析");
+      ws3.views = [{ showGridLines: true }];
+      [4, 26, 14, 4, 26, 14, 4, 30, 16, 16].forEach((w, idx) => {
+        ws3.getColumn(idx + 1).width = w;
+      });
+
+      const title3 = ws3.getCell(2, 2);
+      title3.value = "大金 D3-NET 集中控制通訊埠分析報告";
+      title3.font = fontTitle;
+
+      const d3Headers = [
+        [2, "室內/全熱機型號"], [3, "室內/全熱機台數"],
+        [5, "VRV室外機型號"], [6, "VRV室外機台數"]
+      ];
+      d3Headers.forEach(([colIdx, txt]) => {
+        const c = ws3.getCell(4, colIdx);
+        c.value = txt; c.font = fontHeader; c.fill = fillHeader;
+        c.alignment = { horizontal: "center" }; c.border = borderThin;
+      });
+
+      const sIn = Object.values(inCounts).reduce((a, b) => a + b, 0);
+      const vrvOutItems = Object.entries(outCounts).filter(([m]) => {
+        const u = m.toUpperCase();
+        return u.includes("VRV") || u.startsWith("RXQ") || u.startsWith("RXY") || u.startsWith("RSUY");
+      });
+      const sOut = vrvOutItems.reduce((a, b) => a + b[1], 0);
+      const suggestedPorts = Math.max(sIn > 0 ? Math.ceil(sIn / 64) : 1, sOut > 0 ? Math.ceil(sOut / 10) : 1);
+
+      // D3-NET 通訊通道試算卡 (H4:J4)
+      ws3.mergeCells("H4:J4");
+      const cardHeader = ws3.getCell(4, 8);
+      cardHeader.value = "【D3-NET 通訊通道試算結果】";
+      cardHeader.font = fontHeader;
+      cardHeader.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0284C7" } };
+      cardHeader.alignment = { horizontal: "center", vertical: "middle" };
+
+      const statLabels = [
+        ["VRV 室外機總台數 (上限 10台/Port)", sOut],
+        ["總室內/全熱機數 (上限 64台/Port)", sIn],
+        ["建議集中控制器 Port 數", `${suggestedPorts} Port`]
+      ];
+      statLabels.forEach(([lbl, val], sIdx) => {
+        const rStat = 5 + sIdx;
+        ws3.mergeCells(rStat, 8, rStat, 9);
+        const cl = ws3.getCell(rStat, 8); cl.value = lbl; cl.font = fontBold; cl.fill = fillCard; cl.border = borderThin; cl.alignment = { horizontal: "left" };
+        const cv = ws3.getCell(rStat, 10); cv.value = val; cv.font = { name: "微軟正黑體", size: 11, bold: true, color: { argb: String(val).includes("Port") ? "FF0284C7" : "FF0F172A" } };
+        cv.fill = fillCard; cv.border = borderThin; cv.alignment = { horizontal: "center" };
+      });
+
+      // 填入明細
+      const d3InList = Object.entries(inCounts).map(([m, q]) => ({ name: m, qty: q }));
+      const d3OutList = vrvOutItems.map(([m, q]) => ({ name: m, qty: q }));
+      const d3MaxRows = Math.max(d3InList.length, d3OutList.length, 1);
+
+      for (let idx = 0; idx < d3MaxRows; idx++) {
+        const rIdx = 5 + idx;
+        if (idx < d3InList.length) {
+          const cM = ws3.getCell(rIdx, 2); cM.value = d3InList[idx].name; cM.font = fontData; cM.border = borderThin;
+          const cQ = ws3.getCell(rIdx, 3); cQ.value = d3InList[idx].qty; cQ.font = fontData; cQ.alignment = { horizontal: "center" }; cQ.border = borderThin;
+        }
+        if (idx < d3OutList.length) {
+          const cM = ws3.getCell(rIdx, 5); cM.value = d3OutList[idx].name; cM.font = fontData; cM.border = borderThin;
+          const cQ = ws3.getCell(rIdx, 6); cQ.value = d3OutList[idx].qty; cQ.font = fontData; cQ.alignment = { horizontal: "center" }; cQ.border = borderThin;
+        }
+      }
+    } catch (e) {
+      console.warn("buildClientSideSummarySheets failed:", e);
     }
   };
 
@@ -3178,8 +3563,11 @@ function App() {
         ws.spliceRows(startRow + flatRowsToRender.length, extraCount);
       }
 
-      // 🎯 建立分頁【設備報價單】
-      buildClientSideQuotationSheet(wb, flatRowsToRender, groupSpans, fastSystem, fastSeries);
+      // 🎯 1. 建立分頁【設備報價單】 (取消項次B欄位，APP/集控配件精確對應)
+      buildClientSideQuotationSheet(wb, flatRowsToRender, groupSpans, fastSystem, fastSeries, fastControlMode);
+
+      // 🎯 2. 建立專業統計分頁【設備統計總表】、【系統套數】、【D3-NET分析】
+      buildClientSideSummarySheets(wb, flatRowsToRender, groupSpans, fastSystem, fastSeries, fastControlMode);
 
       const outBuffer = await wb.xlsx.writeBuffer();
       const blob = new Blob([outBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
@@ -4550,7 +4938,7 @@ function App() {
               <div style={{ ...styles.cardTitle, marginBottom: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span>📈 工程負荷試算與大金配機建議表</span>
                 <span style={{ fontSize: '11.5px', color: '#94a3b8', fontWeight: 'bold', backgroundColor: '#1e293b', padding: '2px 8px', borderRadius: '4px', border: '1px solid #334155' }}>
-                  v2.13.0 (2026.09.10 23:25)
+                  v2.13.1 (2026.09.10 23:32)
                 </span>
               </div>
               
