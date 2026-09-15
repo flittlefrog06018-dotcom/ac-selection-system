@@ -168,7 +168,7 @@ function App() {
   const [exportLoading, setExportLoading] = useState(false);
   const [showColoredMasks, setShowColoredMasks] = useState(false);
 
-  // 🎯 5 步標準選機流程導引 State (1: 圖面辨識, 2: 室內負荷與室內機選型, 3: 室外機選型, 4: 決定控制需求, 5: 匯出選機與報價表)
+  // 🎯 4 步標準選機流程導引 State (1: 圖面辨識, 2: 室內負荷與室內機選型, 3: 室外機選型, 4: 決定控制需求)
   const [currentStep, setCurrentStep] = useState(1);
   const [fastControlMode, setFastControlMode] = useState('無'); // 預設 '無' (可選 '無', 'APP', '集控')
 
@@ -176,8 +176,7 @@ function App() {
     { id: 1, title: '圖面辨識', icon: '🖼️', desc: '匯入圖面、比例放樣與空間框選' },
     { id: 2, title: '負荷估算與內機選擇', icon: '❄️', desc: '冷房負荷估算與室內機配置' },
     { id: 3, title: '室外機選型', icon: '🏢', desc: '室外機智慧配對與多聯分組' },
-    { id: 4, title: '決定控制需求', icon: '📱', desc: '智慧控制方案與集中控制系統' },
-    { id: 5, title: '匯出選機與報價表', icon: '📊', desc: '冷媒管徑估算與官方報價表' }
+    { id: 4, title: '決定控制需求', icon: '📱', desc: '智慧控制方案與集中控制系統' }
   ];
 
   // 🎯 統一選機架構：全域設備規格與批次套用控制 State (預設自動套用 VRV / 低靜壓(無排水泵) / 吊隱式 / 冷暖上吹型 / 3φ, 4P, 380V, 60Hz)
@@ -5306,28 +5305,7 @@ function App() {
                     室外機確認無誤，前往「第四步：決定控制需求」➔
                   </button>
                 )}
-                {currentStep === 4 && (
-                  <button
-                    type="button"
-                    onClick={() => setCurrentStep(5)}
-                    style={{
-                      backgroundColor: '#0284c7',
-                      color: '#ffffff',
-                      border: 'none',
-                      padding: '7px 18px',
-                      borderRadius: '6px',
-                      fontSize: '13px',
-                      fontWeight: 'bold',
-                      cursor: 'pointer',
-                      boxShadow: '0 2px 8px rgba(2, 132, 199, 0.4)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px'
-                    }}
-                  >
-                    控制需求設定完成，前往「第五步：匯出選機與報價表」➔
-                  </button>
-                )}
+
               </div>
             </div>
           )}
@@ -5389,63 +5367,7 @@ function App() {
             </div>
           )}
 
-          {/* 🎯 第五步專屬視圖：匯出選機與報價表 */}
-          {currentStep === 5 && (
-            <div style={{
-              backgroundColor: '#0b1329',
-              border: '1.5px solid #10b981',
-              borderRadius: '8px',
-              padding: '16px',
-              marginBottom: '14px',
-              boxShadow: '0 4px 14px rgba(0,0,0,0.5)'
-            }}>
-              <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#34d399', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span>📊 第五步：全案空調配置總結與官方報價匯出</span>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', marginBottom: '12px' }}>
-                <div style={{ backgroundColor: '#1e293b', padding: '10px', borderRadius: '6px', borderLeft: '4px solid #38bdf8' }}>
-                  <div style={{ fontSize: '11px', color: '#94a3b8' }}>規劃空間總數</div>
-                  <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#38bdf8' }}>{rows.length} 間</div>
-                </div>
-                <div style={{ backgroundColor: '#1e293b', padding: '10px', borderRadius: '6px', borderLeft: '4px solid #a855f7' }}>
-                  <div style={{ fontSize: '11px', color: '#94a3b8' }}>室內總需求能力</div>
-                  <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#a855f7' }}>
-                    {rows.reduce((acc, r) => acc + (parseFloat(r.cap_kw) || 0) * (parseInt(r.unit_count) || 1), 0).toFixed(1)} kW
-                  </div>
-                </div>
-                <div style={{ backgroundColor: '#1e293b', padding: '10px', borderRadius: '6px', borderLeft: '4px solid #f59e0b' }}>
-                  <div style={{ fontSize: '11px', color: '#94a3b8' }}>智慧控制方案</div>
-                  <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#f59e0b' }}>
-                    {fastControlMode === '無' ? '一般遙控器' : (fastControlMode === 'APP' ? 'APP 遠端控制' : '集中控制器')}
-                  </div>
-                </div>
-                <div style={{ backgroundColor: '#1e293b', padding: '10px', borderRadius: '6px', borderLeft: '4px solid #10b981' }}>
-                  <div style={{ fontSize: '11px', color: '#94a3b8' }}>冷媒管徑試算</div>
-                  <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#34d399' }}>自動精算匹配完成</div>
-                </div>
-              </div>
-              <button
-                onClick={handleExportExcel}
-                disabled={exportLoading || rows.length === 0}
-                style={{
-                  backgroundColor: '#059669',
-                  color: '#ffffff',
-                  border: 'none',
-                  padding: '10px 24px',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 10px rgba(5, 150, 105, 0.4)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}
-              >
-                {exportLoading ? "⏳ 正在產生檔案..." : "📊 立即匯出完整選機與報價表 (.xlsx)"}
-              </button>
-            </div>
-          )}
+
 
           <div
             className="table-scroll-container"
@@ -6356,6 +6278,78 @@ function App() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* 🎯 建議表下方專屬列印與匯出操作列 */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '10px 16px',
+            backgroundColor: '#0b1329',
+            border: '1px solid #1e293b',
+            borderRadius: '8px',
+            marginTop: '10px',
+            flexShrink: 0,
+            gap: '12px',
+            flexWrap: 'wrap',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.4)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '13px', color: '#94a3b8' }}>
+              <span>規劃空間總數：<strong style={{ color: '#38bdf8' }}>{rows.length}</strong> 間</span>
+              <span>•</span>
+              <span>室內總能力需求：<strong style={{ color: '#a855f7' }}>{rows.reduce((acc, r) => acc + (parseFloat(r.cap_kw) || 0) * (parseInt(r.unit_count) || 1), 0).toFixed(1)}</strong> kW</span>
+              <span>•</span>
+              <span>智慧控制方案：<strong style={{ color: '#f59e0b' }}>{fastControlMode === '無' ? '一般遙控器' : (fastControlMode === 'APP' ? 'APP 遠端控制' : '集中控制器')}</strong></span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                style={{
+                  backgroundColor: '#1e293b',
+                  color: '#38bdf8',
+                  border: '1px solid #0284c7',
+                  padding: '8px 16px',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.2s ease'
+                }}
+                title="呼叫列印功能"
+              >
+                <span>🖨️ 列印建議表</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleExportExcel}
+                disabled={exportLoading || rows.length === 0}
+                style={{
+                  backgroundColor: rows.length === 0 ? '#334155' : '#059669',
+                  color: '#ffffff',
+                  border: 'none',
+                  padding: '8px 20px',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  fontWeight: 'bold',
+                  cursor: rows.length === 0 ? 'not-allowed' : 'pointer',
+                  boxShadow: rows.length === 0 ? 'none' : '0 2px 10px rgba(5, 150, 105, 0.4)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.2s ease'
+                }}
+                title="匯出完整選機與報價表"
+              >
+                <span>{exportLoading ? "⏳ 正在產生檔案..." : "📊 匯出完整選機與報價表 (.xlsx)"}</span>
+              </button>
+            </div>
           </div>
         </section>
         )}

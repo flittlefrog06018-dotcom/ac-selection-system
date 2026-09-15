@@ -494,3 +494,31 @@ body {
 .table-scroll-container::-webkit-scrollbar-thumb:hover {
   background: #0ea5e9;
 }
+
+/* 🎯 列印專用樣式：隱藏無關操作元件並優化規劃建議表輸出 */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  .app-header,
+  input[type="file"],
+  button {
+    display: none !important;
+  }
+  .table-scroll-container {
+    overflow: visible !important;
+    border: none !important;
+  }
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    color: #000000 !important;
+  }
+  th, td {
+    border: 1px solid #94a3b8 !important;
+    color: #000000 !important;
+    background: transparent !important;
+  }
+}
+
