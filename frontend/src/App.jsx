@@ -4996,7 +4996,7 @@ function App() {
               <div style={{ ...styles.cardTitle, marginBottom: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span>📈 工程負荷試算與大金配機建議表</span>
                 <span style={{ fontSize: '11.5px', color: '#94a3b8', fontWeight: 'bold', backgroundColor: '#1e293b', padding: '2px 8px', borderRadius: '4px', border: '1px solid #334155' }}>
-                  v2.13.1 (2026.09.10 23:32)
+                  v2.14.0 (2026.09.16 00:36)
                 </span>
               </div>
               
