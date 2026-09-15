@@ -5388,20 +5388,26 @@ function App() {
                     />
                   </th>
                   <th style={{ ...styles.th, position: 'sticky', left: '45px', top: 0, zIndex: 30, backgroundColor: '#1e293b', minWidth: '180px' }}>空間名稱</th>
-                  <th style={{ ...styles.th, position: 'sticky', left: '225px', top: 0, zIndex: 30, backgroundColor: '#1e293b', minWidth: '100px' }}>系統規格</th>
-                  <th style={{ ...styles.th, position: 'sticky', left: '325px', top: 0, zIndex: 30, backgroundColor: '#1e293b', minWidth: '145px', boxShadow: '6px 0 12px rgba(0,0,0,0.85)', textAlign: 'center' }}>面積(㎡/坪數)</th>
-                  {/* 🎯 第二步結束後進入第三步室外機選型時，自動隱藏負荷細項以釋放表格寬度 */}
+                  {currentStep < 3 && (
+                    <th style={{ ...styles.th, position: 'sticky', left: '225px', top: 0, zIndex: 30, backgroundColor: '#1e293b', minWidth: '100px' }}>系統規格</th>
+                  )}
+                  <th style={{ ...styles.th, position: 'sticky', left: currentStep >= 3 ? '225px' : '325px', top: 0, zIndex: 30, backgroundColor: '#1e293b', minWidth: '145px', boxShadow: '6px 0 12px rgba(0,0,0,0.85)', textAlign: 'center' }}>面積(㎡/坪數)</th>
+                  {/* 🎯 第二步結束後進入第三步室外機選型時，自動隱藏負荷細項與總需求(kcal/h)以釋放表格寬度 */}
                   {currentStep < 3 && (
                     <>
                       <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>基準(kcal/h/坪)</th>
                       <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>環境加成百分比偏置</th>
                       <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>特殊熱源</th>
+                      <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>總需求(kcal/h)</th>
                     </>
                   )}
-                  <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>總需求(kcal/h)</th>
                   <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#f59e0b' }}>總需求(kW)</th>
-                  <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#f59e0b' }}>室內機系列別</th>
-                  <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#34d399' }}>室內機型式</th>
+                  {currentStep < 3 && (
+                    <>
+                      <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#f59e0b' }}>室內機系列別</th>
+                      <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#34d399' }}>室內機型式</th>
+                    </>
+                  )}
                   <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>室內機型號</th>
                   <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#38bdf8', backgroundColor: '#1e293b' }}>單機能力(kW)</th>
                   <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>台數</th>
@@ -5426,9 +5432,9 @@ function App() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={currentStep >= 3 ? 17 : 15} style={{ textAlign: 'center', padding: '50px', color: '#94a3b8' }}>🔄 正在啟用雙軌影像引擎分析，請稍候...</td></tr>
+                  <tr><td colSpan={currentStep >= 3 ? 14 : 15} style={{ textAlign: 'center', padding: '50px', color: '#94a3b8' }}>🔄 正在啟用雙軌影像引擎分析，請稍候...</td></tr>
                 ) : rows.length === 0 ? (
-                  <tr><td colSpan={currentStep >= 3 ? 17 : 15} style={{ textAlign: 'center', padding: '30px', color: '#475569' }}>暫無數據。請上傳圖面並執行解析。</td></tr>
+                  <tr><td colSpan={currentStep >= 3 ? 14 : 15} style={{ textAlign: 'center', padding: '30px', color: '#475569' }}>暫無數據。請上傳圖面並執行解析。</td></tr>
                 ) : (
                   rows.map((row, index) => {
                     const gCard = outdoorGroups.find(g => g.id === row.outdoorGroupId);
@@ -5549,22 +5555,24 @@ function App() {
                           </div>
                         </td>
 
-                        <td style={{ ...styles.td, position: 'sticky', left: '225px', zIndex: 15, backgroundColor: solidRowBg, minWidth: '100px' }}>
-                          <select
-                            value={row.system_type || 'VRV'}
-                            onChange={(e) => handleCellChange(index, 'system_type', e.target.value)}
-                            style={{ ...styles.selectSys, width: '92px', color: '#38bdf8', fontWeight: 'bold' }}
-                          >
-                            <option value="VRV">VRV</option>
-                            <option value="RA">RA (家用)</option>
-                            <option value="SA">SA (商用)</option>
-                          </select>
-                        </td>
+                        {currentStep < 3 && (
+                          <td style={{ ...styles.td, position: 'sticky', left: '225px', zIndex: 15, backgroundColor: solidRowBg, minWidth: '100px' }}>
+                            <select
+                              value={row.system_type || 'VRV'}
+                              onChange={(e) => handleCellChange(index, 'system_type', e.target.value)}
+                              style={{ ...styles.selectSys, width: '92px', color: '#38bdf8', fontWeight: 'bold' }}
+                            >
+                              <option value="VRV">VRV</option>
+                              <option value="RA">RA (家用)</option>
+                              <option value="SA">SA (商用)</option>
+                            </select>
+                          </td>
+                        )}
 
                         <td style={{
                           ...styles.td,
                           position: 'sticky',
-                          left: '325px',
+                          left: currentStep >= 3 ? '225px' : '325px',
                           zIndex: 15,
                           backgroundColor: solidRowBg,
                           minWidth: '145px',
@@ -5579,7 +5587,7 @@ function App() {
                           </div>
                         </td>
 
-                        {/* 🎯 第二步結束後進入第三步室外機選型時，自動隱藏負荷細項以釋放表格寬度 */}
+                        {/* 🎯 第二步結束後進入第三步室外機選型時，自動隱藏負荷細項與總需求(kcal/h)以釋放表格寬度 */}
                         {currentStep < 3 && (
                           <>
                             <td style={styles.td}>
@@ -5647,65 +5655,69 @@ function App() {
                                 <span style={{ fontSize: '14px', color: '#94a3b8', fontWeight: 'bold' }}>kW</span>
                               </div>
                             </td>
+
+                            <td style={{ ...styles.td, fontWeight: 'bold', fontSize: '15px' }}>{row.total_cooling_demand}</td>
                           </>
                         )}
-
-                        <td style={{ ...styles.td, fontWeight: 'bold', fontSize: '15px' }}>{row.total_cooling_demand}</td>
 
                         <td style={{ ...styles.td, color: '#f59e0b', fontWeight: 'bold', fontSize: '15px' }}>
                           {((row.total_cooling_demand || 0) / 860.0).toFixed(1)} kW
                         </td>
 
-                        <td style={styles.td}>
-                          {(() => {
-                            const cascadeList = DYNAMIC_EQUIPMENT_CASCADE[row.system_type || 'VRV'] || [];
-                            const validSeriesList = cascadeList.map(s => s.series);
-                            const currentSeries = (row.series && validSeriesList.includes(row.series))
-                              ? row.series
-                              : (validSeriesList[0] || '');
-
-                            return (
-                              <select
-                                value={currentSeries}
-                                onChange={(e) => handleCellChange(index, 'series', e.target.value)}
-                                style={{ ...styles.selectSys, color: '#f59e0b', border: '1px solid #f59e0b', fontSize: '14px', maxWidth: '140px' }}
-                              >
-                                {!currentSeries && <option value="">--請選擇系列--</option>}
-                                {cascadeList.map((sItem, sIdx) => (
-                                  <option key={sIdx} value={sItem.series}>{sItem.series}</option>
-                                ))}
-                              </select>
-                            );
-                          })()}
-                        </td>
-
-                        {(() => {
-                          const cascadeList = DYNAMIC_EQUIPMENT_CASCADE[row.system_type || 'VRV'] || [];
-                          const seriesObj = cascadeList.find(s => s.series === row.series);
-                          const validTypes = seriesObj?.types || ["壁掛式", "吊隱式", "嵌入式", "天吊式"];
-                          const isTypeLocked = validTypes.length === 1;
-                          return (
+                        {currentStep < 3 && (
+                          <>
                             <td style={styles.td}>
-                              <select
-                                value={row.unit_type || validTypes[0]}
-                                disabled={isTypeLocked}
-                                onChange={(e) => handleCellChange(index, 'unit_type', e.target.value)}
-                                style={{
-                                  ...styles.selectSys,
-                                  color: isTypeLocked ? '#94a3b8' : '#34d399',
-                                  border: isTypeLocked ? '1px solid #475569' : '1px solid #34d399',
-                                  backgroundColor: isTypeLocked ? '#1e293b' : '#0f172a',
-                                  cursor: isTypeLocked ? 'not-allowed' : 'pointer',
-                                  fontSize: '14px'
-                                }}
-                              >
-                                {validTypes.map((t, idx) => (
-                                  <option key={idx} value={t}>{t}</option>
-                                ))}
-                              </select>
+                              {(() => {
+                                const cascadeList = DYNAMIC_EQUIPMENT_CASCADE[row.system_type || 'VRV'] || [];
+                                const validSeriesList = cascadeList.map(s => s.series);
+                                const currentSeries = (row.series && validSeriesList.includes(row.series))
+                                  ? row.series
+                                  : (validSeriesList[0] || '');
+
+                                return (
+                                  <select
+                                    value={currentSeries}
+                                    onChange={(e) => handleCellChange(index, 'series', e.target.value)}
+                                    style={{ ...styles.selectSys, color: '#f59e0b', border: '1px solid #f59e0b', fontSize: '14px', maxWidth: '140px' }}
+                                  >
+                                    {!currentSeries && <option value="">--請選擇系列--</option>}
+                                    {cascadeList.map((sItem, sIdx) => (
+                                      <option key={sIdx} value={sItem.series}>{sItem.series}</option>
+                                    ))}
+                                  </select>
+                                );
+                              })()}
                             </td>
-                          );
-                        })()}
+
+                            {(() => {
+                              const cascadeList = DYNAMIC_EQUIPMENT_CASCADE[row.system_type || 'VRV'] || [];
+                              const seriesObj = cascadeList.find(s => s.series === row.series);
+                              const validTypes = seriesObj?.types || ["壁掛式", "吊隱式", "嵌入式", "天吊式"];
+                              const isTypeLocked = validTypes.length === 1;
+                              return (
+                                <td style={styles.td}>
+                                  <select
+                                    value={row.unit_type || validTypes[0]}
+                                    disabled={isTypeLocked}
+                                    onChange={(e) => handleCellChange(index, 'unit_type', e.target.value)}
+                                    style={{
+                                      ...styles.selectSys,
+                                      color: isTypeLocked ? '#94a3b8' : '#34d399',
+                                      border: isTypeLocked ? '1px solid #475569' : '1px solid #34d399',
+                                      backgroundColor: isTypeLocked ? '#1e293b' : '#0f172a',
+                                      cursor: isTypeLocked ? 'not-allowed' : 'pointer',
+                                      fontSize: '14px'
+                                    }}
+                                  >
+                                    {validTypes.map((t, idx) => (
+                                      <option key={idx} value={t}>{t}</option>
+                                    ))}
+                                  </select>
+                                </td>
+                              );
+                            })()}
+                          </>
+                        )}
 
                         <td style={styles.td}>
                           {(() => {
