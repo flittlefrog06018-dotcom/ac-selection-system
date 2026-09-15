@@ -24,7 +24,8 @@ import {
   calculateShoelaceArea,
   calculateRealAreaFromPolygon,
   getSaPairByIndoorModel,
-  getSaPairByOutdoorModel
+  getSaPairByOutdoorModel,
+  getRa1to1PairByIndoorModel
 } from './utils/selectionUtils';
 
 
@@ -396,7 +397,7 @@ function App() {
     { name: "玫瑰紅", hex: "#f43f5e", bg: "rgba(244, 63, 94, 0.15)", border: "#f43f5e" },
     { name: "青碧色", hex: "#14b8a6", bg: "rgba(20, 184, 166, 0.15)", border: "#14b8a6" }
   ];
-  const getOutdoorModelsForSystem = (sysType, seriesVal, outdoorTypeVal, powerSupplyVal) => {
+  const getOutdoorModelsForSystem = (sysType, seriesVal, outdoorTypeVal, powerSupplyVal, indoorModel = '') => {
     const isMultiSeries = (seriesVal && (seriesVal.includes('MULTI') || seriesVal.includes('多聯')));
     const targetOutdoorType = isMultiSeries ? null : (outdoorTypeVal || fastOutdoorType);
     const targetPower = powerSupplyVal || fastOutdoorPower;
@@ -407,7 +408,33 @@ function App() {
     }
     // 🎯 VRV 室外機獨立依室外機型式 (側吹單/雙風扇、冷專/冷暖上吹型) 挑選，不受室內機系列別限制
     if (sysType !== 'VRV' && seriesVal) {
-      const seriesMatches = matched.filter(m => m.series === seriesVal);
+      let targetSeries = seriesVal;
+      if (targetSeries === '經典VA系列') targetSeries = '經典V系列';
+
+      let seriesMatches = matched.filter(m => m.series === targetSeries || (targetSeries === '經典V系列' && (m.series === '經典V系列' || m.series === '經典VA系列')));
+
+      // 🎯 若為 RA 1對1 或來自 MULTI 系列而需要單獨匹配室外機，依據室內機型號動態找出對應系列
+      if (sysType === 'RA' && indoorModel) {
+        const cleanIn = indoorModel.trim().toUpperCase();
+        let derivedSeries = '';
+        if (cleanIn.startsWith('FTHF')) {
+          derivedSeries = cleanIn.includes('ZVLT') ? '豪菁Z系列' : '經典V系列';
+        } else if (cleanIn.startsWith('FTXM')) {
+          derivedSeries = cleanIn.includes('ZVLT') ? '橫綱Z系列' : '橫綱Y系列';
+        } else if (cleanIn.startsWith('FTXV')) {
+          derivedSeries = cleanIn.includes('XVLT') ? '橫綱X系列' : (cleanIn.includes('UVLT') ? '大關U系列' : '大關Z系列');
+        } else if (cleanIn.startsWith('FDXV')) {
+          derivedSeries = '大關Z系列';
+        }
+
+        if (derivedSeries) {
+          const derivedMatches = matched.filter(m => m.series === derivedSeries || (derivedSeries === '經典V系列' && (m.series === '經典V系列' || m.series === '經典VA系列')));
+          if (derivedMatches.length > 0) {
+            seriesMatches = derivedMatches;
+          }
+        }
+      }
+
       if (seriesMatches.length > 0) {
         matched = seriesMatches;
       }
@@ -440,12 +467,23 @@ function App() {
       }
     }
 
-    let targetSeries = seriesVal;
-    // 🎯 只有一台室內機時，不可自動匹配 Multi 多聯室外機，自動切換至 1對1 橫綱Y系列室外機
-    if ((seriesVal && (seriesVal.includes('MULTI') || seriesVal.includes('多聯'))) && unitCount < 2) {
-      targetSeries = '橫綱Y系列';
+    // 🎯 2. RA 家用 1對1 配對：嚴格依照 EQUIPMENT_Data.xlsx 數據庫對應室外機型號
+    if (sysType === 'RA') {
+      const isMultiSeries = seriesVal && (seriesVal.includes('MULTI') || seriesVal.includes('多聯'));
+      // 只有 1 台 (1對1) 或非 MULTI 多聯時，精確依據室內機型號對應
+      if (unitCount < 2 || !isMultiSeries) {
+        if (indoorModel) {
+          const matchedRaOutdoor = getRa1to1PairByIndoorModel(indoorModel);
+          if (matchedRaOutdoor && OUTDOOR_UNITS_DB.some(m => m.model === matchedRaOutdoor)) {
+            return matchedRaOutdoor;
+          }
+        }
+      }
     }
-    const candidates = getOutdoorModelsForSystem(sysType, targetSeries, outdoorTypeVal, powerSupplyVal);
+
+    let targetSeries = seriesVal;
+    if (targetSeries === '經典VA系列') targetSeries = '經典V系列';
+    const candidates = getOutdoorModelsForSystem(sysType, targetSeries, outdoorTypeVal, powerSupplyVal, indoorModel);
     if (!candidates || candidates.length === 0) return '無此機型';
     const sorted = [...candidates].sort((a, b) => a.cap_kw - b.cap_kw);
     const kw = demandKw || 2.2;
@@ -592,9 +630,16 @@ function App() {
         const autoOutdoor = (r.best_match_model)
           ? autoMatchOutdoorModelForRow(r.system_type, r.series, singleIndoorKw, r.outdoor_type, r.power_supply, 1, r.best_match_model)
           : '';
+        const isMismatched = r.system_type === 'RA' && r.outdoor_model && r.best_match_model && (
+          (r.best_match_model.startsWith('FTHF') && !r.outdoor_model.startsWith('RHF')) ||
+          (r.best_match_model.startsWith('FTXM') && !r.outdoor_model.startsWith('RXM')) ||
+          (r.best_match_model.startsWith('FTXV') && !r.outdoor_model.startsWith('RXV') && !r.outdoor_model.startsWith('RXM')) ||
+          (r.best_match_model.startsWith('FDXV') && !r.outdoor_model.startsWith('RXV'))
+        );
+        const effectiveOutdoor = (!r.outdoor_model || isMismatched) ? autoOutdoor : r.outdoor_model;
         finalRows[idx] = {
           ...r,
-          outdoor_model: r.outdoor_model || autoOutdoor,
+          outdoor_model: effectiveOutdoor,
           outdoor_count: r.unit_count || 1,
           outdoorGroupId: null
         };
@@ -615,6 +660,20 @@ function App() {
 
       for (let i = 0; i < multiIndices.length; i += maxUnitsPerGroup) {
         const chunkIndices = multiIndices.slice(i, i + maxUnitsPerGroup);
+        // 🎯 只有單一空間時，無法構成 Multi 多聯室外機，自動退回 1對1 配對
+        if (chunkIndices.length < 2) {
+          const singleIdx = chunkIndices[0];
+          const singleRow = finalRows[singleIdx];
+          const singleKw = singleRow.cap_kw || lookupModelCapKw(singleRow.best_match_model);
+          const singleAutoOut = autoMatchOutdoorModelForRow('RA', singleRow.series, singleKw, singleRow.outdoor_type, singleRow.power_supply, 1, singleRow.best_match_model);
+          finalRows[singleIdx] = {
+            ...singleRow,
+            outdoor_model: singleAutoOut,
+            outdoor_count: singleRow.unit_count || 1,
+            outdoorGroupId: null
+          };
+          continue;
+        }
         let chunkIndoorKwSum = 0;
         const groupNum = newGroups.length + 1;
         const gId = `group-multi-${groupNum}`;
@@ -6080,9 +6139,19 @@ function App() {
                             ? autoMatchOutdoorModelForRow(row.system_type || fastSystem, row.series || fastSeries, singleCapKw, effectiveOutdoorType, effectiveRowPower, 1, row.best_match_model)
                             : '';
                           const isIndoorSelectionComplete = hasActiveSeries && Boolean(row.best_match_model);
-                          const selectedModelStr = (!hasActiveSys || !isIndoorSelectionComplete) ? '' : (row.outdoor_model || autoOutdoor);
                           
-                          // SA 候選室外機：若為 SA 系統，直接依室內機型號或系列取得有效室外機，避免因型式被過濾為空
+                          // 🎯 檢測 RA 1對1 是否存在型號不符 (例如 FTHF 室內機卻殘留 RXM 室外機)
+                          const isRAMismatched = ((row.system_type || fastSystem) === 'RA') && row.outdoor_model && row.best_match_model && (
+                            (row.best_match_model.startsWith('FTHF') && !row.outdoor_model.startsWith('RHF')) ||
+                            (row.best_match_model.startsWith('FTXM') && !row.outdoor_model.startsWith('RXM')) ||
+                            (row.best_match_model.startsWith('FTXV') && !row.outdoor_model.startsWith('RXV') && !row.outdoor_model.startsWith('RXM')) ||
+                            (row.best_match_model.startsWith('FDXV') && !row.outdoor_model.startsWith('RXV'))
+                          );
+                          const selectedModelStr = (!hasActiveSys || !isIndoorSelectionComplete)
+                            ? ''
+                            : ((isRAMismatched || !row.outdoor_model) ? autoOutdoor : row.outdoor_model);
+                          
+                          // 候選室外機列表：
                           let validCandidateList = [];
                           if (isSASystem) {
                             const saMatches = SA_MATCHED_PAIRS.filter(p => p.indoor.model === row.best_match_model || p.series === row.series);
@@ -6091,8 +6160,18 @@ function App() {
                             } else {
                               validCandidateList = OUTDOOR_UNITS_DB.filter(m => m.system === 'SA');
                             }
+                          } else if ((row.system_type || fastSystem) === 'RA') {
+                            validCandidateList = getOutdoorModelsForSystem('RA', row.series || fastSeries, effectiveOutdoorType, effectiveRowPower, row.best_match_model);
                           } else {
                             validCandidateList = getOutdoorModelsForSystem(row.system_type || fastSystem, row.series || fastSeries, effectiveOutdoorType, effectiveRowPower);
+                          }
+
+                          // 確保當前精確配對型號一定存在於選單候選中
+                          if (selectedModelStr && !validCandidateList.some(m => m.model === selectedModelStr)) {
+                            const obj = OUTDOOR_UNITS_DB.find(m => m.model === selectedModelStr);
+                            if (obj) {
+                              validCandidateList = [obj, ...validCandidateList];
+                            }
                           }
 
                           const isNoModel = (!hasActiveSys || !isIndoorSelectionComplete) ? false : (!selectedModelStr || selectedModelStr === '無此機型' || validCandidateList.length === 0);

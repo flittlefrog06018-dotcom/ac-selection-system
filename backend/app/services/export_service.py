@@ -302,10 +302,27 @@ class ExportService:
                     out_model = room.get("outdoor_model", "").strip()
                     if not out_model:
                         # 嘗試由內機型號或衍生名推導
-                        if matched_upper.startswith("FTXM"):
-                            out_model = matched_upper.replace("FTXM", "RXM")
+                        if matched_upper.startswith("FTHF"):
+                            out_model = "RHF" + matched_upper[4:]
+                        elif matched_upper.startswith("FTXM"):
+                            if "80" in matched_upper:
+                                out_model = "RXM80ZVLT"
+                            elif "90" in matched_upper:
+                                out_model = "RXM90ZVLT"
+                            else:
+                                out_model = "RXM" + matched_upper[4:]
                         elif matched_upper.startswith("FTXV"):
-                            out_model = matched_upper.replace("FTXV", "RXV")
+                            if "XVLT" in matched_upper:
+                                out_model = "RXM" + matched_upper[4:]
+                            else:
+                                out_model = "RXV" + matched_upper[4:]
+                        elif matched_upper.startswith("FDXV"):
+                            for c in ["22", "28", "36", "41", "50", "60", "71"]:
+                                if c in matched_upper:
+                                    out_model = f"RXV{c}ZVLT"
+                                    break
+                            if not out_model:
+                                out_model = "RXV50ZVLT"
                         elif matched_upper.startswith("FBA"):
                             out_model = matched_upper.replace("FBA", "RZA")
                         else:

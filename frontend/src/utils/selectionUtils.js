@@ -237,3 +237,44 @@ export const calculateRealAreaFromPolygon = (polygon, ratio, imgW = 1600, imgH =
   const m2 = rawPxArea * (r * r);
   return parseFloat(m2.toFixed(2));
 };
+
+// 🎯 RA 家用系統 1對1 精確型號對應 (嚴格參照 EQUIPMENT_Data.xlsx 數據庫)
+export const getRa1to1PairByIndoorModel = (indoorModel) => {
+  if (!indoorModel) return '';
+  const clean = String(indoorModel).trim().toUpperCase();
+
+  // 1. FTHF (經典V / 經典VA / 豪菁Z / SUPER MULTI): 對應 RHF 室外機
+  // 例: FTHF50VVLT -> RHF50VVLT, FTHF50ZVLT -> RHF50ZVLT, FTHF20VAVLT -> RHF20VAVLT
+  if (clean.startsWith('FTHF')) {
+    return 'RHF' + clean.slice(4);
+  }
+
+  // 2. FTXM (橫綱Z / 橫綱Y / 家用MULTI): 對應 RXM 室外機
+  // 例: FTXM50ZVLT -> RXM50ZVLT, FTXM50YVLT -> RXM50YVLT
+  if (clean.startsWith('FTXM')) {
+    if (clean.includes('80')) return 'RXM80ZVLT';
+    if (clean.includes('90')) return 'RXM90ZVLT';
+    return 'RXM' + clean.slice(4);
+  }
+
+  // 3. FTXV: 橫綱X (FTXV..XVLT -> RXM..XVLT), 大關Z/大關U (FTXV..ZVLT -> RXV..ZVLT, FTXV..UVLT -> RXV..UVLT)
+  if (clean.startsWith('FTXV')) {
+    if (clean.includes('XVLT')) {
+      return 'RXM' + clean.slice(4);
+    }
+    return 'RXV' + clean.slice(4);
+  }
+
+  // 4. FDXV (隱藏風管系列 / 家用MULTI): 對應大關Z系列 RXV..ZVLT
+  if (clean.startsWith('FDXV')) {
+    for (const c of ['22', '28', '36', '41', '50', '60', '71']) {
+      if (clean.includes(c)) {
+        return `RXV${c}ZVLT`;
+      }
+    }
+    return 'RXV50ZVLT';
+  }
+
+  return '';
+};
+
