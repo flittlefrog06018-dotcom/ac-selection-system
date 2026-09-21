@@ -1,5 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { toast, ToastContainer } from 'react-toastify';
+// 🎯 EQUIPMENT_Data controller 分頁黃底集中控制器規格資料庫 (含高階/低階分類與價格)
+const CONTROLLER_CANDIDATES = [
+  { model: 'DCS301BA61', name: '集中ON-OFF控制器', price: 11800, tier: '低階', note: '低階' },
+  { model: 'DCS302CA61', name: '中央集中控制器', price: 11700, tier: '高階', note: '高階' },
+  { model: 'DCS303A61', name: '家用集中控制器', price: 22800, tier: '高階', note: '高階' },
+  { model: 'DTP401A61', name: 'STC集中控制器', price: 25000, tier: '高階', note: '高階' },
+  { model: 'DCM601B51', name: 'ITM', price: 108200, tier: '高階', note: '高階' },
+  { model: 'DTA116A51', name: 'Modbus 介面', price: 11500, tier: '高階', note: '高階' },
+  { model: 'DMS502B51', name: 'BACnet 介面', price: 83600, tier: '高階', note: '高階' },
+  { model: 'DCPA01', name: '伶俐用轉接器', price: 9200, tier: '配件', note: '配件' },
+  { model: 'DCPF01', name: '伶俐智控管理器', price: 34700, tier: '高階', note: '高階' }
+];
+
+
 import 'react-toastify/dist/ReactToastify.css';
 import * as XLSX from 'xlsx';
 import ExcelJS from 'exceljs';
@@ -25,7 +39,9 @@ import {
   calculateRealAreaFromPolygon,
   getSaPairByIndoorModel,
   getSaPairByOutdoorModel,
-  getRa1to1PairByIndoorModel
+  getRa1to1PairByIndoorModel,
+  lookupIndoorPrice,
+  lookupOutdoorPrice
 } from './utils/selectionUtils';
 
 
@@ -171,13 +187,77 @@ function App() {
 
   // 🎯 4 步標準選機流程導引 State (1: 圖面辨識, 2: 室內負荷與室內機選型, 3: 室外機選型, 4: 決定控制需求)
   const [currentStep, setCurrentStep] = useState(1);
+  const [selectedControllers, setSelectedControllers] = useState([]);
+  const [controllerAlertModal, setControllerAlertModal] = useState({ show: false, message: '' });
+
+  // 🎯 集中控制器複選與規則檢核：低階最多1種，高階最多2種（DCS303A61不可與其他高階共用）
+  const handleToggleController = (ctrl) => {
+    const isCurrentlySelected = selectedControllers.includes(ctrl.model);
+    if (isCurrentlySelected) {
+      setSelectedControllers(prev => prev.filter(m => m !== ctrl.model));
+      return;
+    }
+
+    if (ctrl.tier === '低階') {
+      const lowCount = selectedControllers.filter(m => {
+        const item = CONTROLLER_CANDIDATES.find(c => c.model === m);
+        return item && item.tier === '低階';
+      }).length;
+      if (lowCount >= 1) {
+        const msg = '⚠️ 依據原廠規範限制：低階集中控制器最多只能選擇 1 種！';
+        setControllerAlertModal({ show: true, message: msg });
+        toast.warn(msg);
+        return;
+      }
+    }
+
+    if (ctrl.tier === '高階') {
+      // 1. 若欲選用 DCS303A61，且已選用其他高階集中控制器
+      if (ctrl.model === 'DCS303A61') {
+        const hasOtherHigh = selectedControllers.some(m => {
+          const item = CONTROLLER_CANDIDATES.find(c => c.model === m);
+          return item && item.tier === '高階' && m !== 'DCS303A61';
+        });
+        if (hasOtherHigh) {
+          const msg = '⚠️ 依據原廠規範限制：家用集中控制器 (DCS303A61) 為獨立專用系統，不可與其他高階集中控制器共用！';
+          setControllerAlertModal({ show: true, message: msg });
+          toast.warn(msg);
+          return;
+        }
+      }
+
+      // 2. 若已選用 DCS303A61，則不可再選用任何其他高階集中控制器
+      const hasDCS303 = selectedControllers.includes('DCS303A61');
+      if (hasDCS303 && ctrl.model !== 'DCS303A61') {
+        const msg = '⚠️ 依據原廠規範限制：已選用家用集中控制器 (DCS303A61)，不可與其他高階集中控制器共用！';
+        setControllerAlertModal({ show: true, message: msg });
+        toast.warn(msg);
+        return;
+      }
+
+      // 3. 高階數量限制最多 2 種
+      const highCount = selectedControllers.filter(m => {
+        const item = CONTROLLER_CANDIDATES.find(c => c.model === m);
+        return item && item.tier === '高階';
+      }).length;
+      if (highCount >= 2) {
+        const msg = '⚠️ 依據原廠規範限制：高階集中控制器最多只能選擇 2 種，不可選擇 3 種以上！';
+        setControllerAlertModal({ show: true, message: msg });
+        toast.warn(msg);
+        return;
+      }
+    }
+
+    setSelectedControllers(prev => [...prev, ctrl.model]);
+  };
   const [fastControlMode, setFastControlMode] = useState('無'); // 預設 '無' (可選 '無', 'APP', '集控')
 
   const WIZARD_STEPS = [
     { id: 1, title: '圖面辨識', icon: '🖼️', desc: '匯入圖面、比例放樣與空間框選' },
-    { id: 2, title: '負荷估算與內機選擇', icon: '❄️', desc: '冷房負荷估算與室內機配置' },
-    { id: 3, title: '室外機選型', icon: '🏢', desc: '室外機智慧配對與多聯分組' },
-    { id: 4, title: '決定控制需求', icon: '📱', desc: '智慧控制方案與集中控制系統' }
+    { id: 2, title: '負荷估算', icon: '🔥', desc: '冷房負荷估算與熱源偏置設定' },
+    { id: 3, title: '室內機選用', icon: '❄️', desc: '室內機系列、型式與型號配機' },
+    { id: 4, title: '室外機選用', icon: '🏢', desc: '室外機智慧配對與多聯分組' },
+    { id: 5, title: '控制需求', icon: '📱', desc: '智慧控制方案與集中控制系統' }
   ];
 
   // 🎯 統一選機架構：全域設備規格與批次套用控制 State (預設自動套用 VRV / 低靜壓(無排水泵) / 吊隱式 / 冷暖上吹型 / 3φ, 4P, 380V, 60Hz)
@@ -603,6 +683,7 @@ function App() {
       const curPower = (curSys === 'RA') ? '1φ, 220V, 60Hz' : (r.power_supply || activeOutPower);
       const curOutType = (curSys === 'RA' || curSys === 'SA') ? '側吹單風扇' : (r.outdoor_type || activeOutType);
 
+      const inPrice = lookupIndoorPrice(indoorMatch.model);
       return {
         ...r,
         system_type: curSys,
@@ -611,6 +692,8 @@ function App() {
         best_match_model: indoorMatch.model || '',
         unit_count: indoorMatch.qty || 1,
         cap_kw: indoorMatch.cap || lookupModelCapKw(indoorMatch.model),
+        indoor_price: inPrice,
+        price: inPrice,
         outdoor_type: curOutType,
         power_supply: curPower,
         _origIdx: idx
@@ -637,9 +720,11 @@ function App() {
           (r.best_match_model.startsWith('FDXV') && !r.outdoor_model.startsWith('RXV'))
         );
         const effectiveOutdoor = (!r.outdoor_model || isMismatched) ? autoOutdoor : r.outdoor_model;
+        const outPrice = lookupOutdoorPrice(effectiveOutdoor);
         finalRows[idx] = {
           ...r,
           outdoor_model: effectiveOutdoor,
+          outdoor_price: outPrice,
           outdoor_count: r.unit_count || 1,
           outdoorGroupId: null
         };
@@ -688,12 +773,14 @@ function App() {
           : (sortedCandidates[sortedCandidates.length - 1] || { model: '4MXM110YVLT', cap_kw: 10.5 });
 
         const colorObj = GROUP_COLOR_PALETTE[(groupNum - 1) % GROUP_COLOR_PALETTE.length];
+        const outPrice = lookupOutdoorPrice(matchedOutdoor.model);
         const newGroup = {
           id: gId,
           name: `家用MULTI 系統 #${groupNum} (${matchedOutdoor.model})`,
           system_type: 'RA',
           outdoor_model: matchedOutdoor.model,
           outdoor_cap_kw: matchedOutdoor.cap_kw,
+          outdoor_price: outPrice,
           power_supply: firstMultiRow.power_supply,
           color: colorObj,
           space_indices: chunkIndices
@@ -704,7 +791,8 @@ function App() {
           finalRows[idx] = {
             ...finalRows[idx],
             outdoorGroupId: gId,
-            outdoor_model: matchedOutdoor.model
+            outdoor_model: matchedOutdoor.model,
+            outdoor_price: outPrice
           };
         });
       }
@@ -722,8 +810,8 @@ function App() {
       });
 
       const firstVrvRow = finalRows[vrvIndices[0]];
-      const vrvOutType = firstVrvRow.outdoor_type || activeOutType || '冷暖上吹型';
-      const vrvOutPower = firstVrvRow.power_supply || activeOutPower || '3φ, 4P, 380V, 60Hz';
+      const vrvOutType = activeOutType || firstVrvRow.outdoor_type || '冷暖上吹型';
+      const vrvOutPower = activeOutPower || firstVrvRow.power_supply || '3φ, 4P, 380V, 60Hz';
       const candidates = getOutdoorModelsForSystem('VRV', firstVrvRow.series, vrvOutType, vrvOutPower);
       const sortedCandidates = [...candidates].sort((a, b) => (a.cap_index || a.cap_kw * 10) - (b.cap_index || b.cap_kw * 10));
 
@@ -766,6 +854,7 @@ function App() {
           const gId = `group-vrv-${groupNum}`;
           const colorObj = GROUP_COLOR_PALETTE[(groupNum - 1) % GROUP_COLOR_PALETTE.length];
 
+          const vrvOutPrice = lookupOutdoorPrice(matchedOutdoor.model);
           const groupObj = {
             id: gId,
             name: `VRV 系統 #${groupNum} (${matchedOutdoor.model})`,
@@ -773,6 +862,7 @@ function App() {
             outdoor_model: matchedOutdoor.model,
             outdoor_cap_kw: matchedOutdoor.cap_kw,
             outdoor_cap_index: matchedOutdoor.cap_index || (matchedOutdoor.cap_kw * 10),
+            outdoor_price: vrvOutPrice,
             power_supply: vrvOutPower,
             color: colorObj,
             space_indices: chunk
@@ -783,7 +873,8 @@ function App() {
             finalRows[idx] = {
               ...finalRows[idx],
               outdoorGroupId: gId,
-              outdoor_model: matchedOutdoor.model
+              outdoor_model: matchedOutdoor.model,
+              outdoor_price: vrvOutPrice
             };
           });
         });
@@ -798,6 +889,7 @@ function App() {
         const gId = `group-vrv-${groupNum}`;
         const colorObj = GROUP_COLOR_PALETTE[0];
 
+        const vrvOutPrice = lookupOutdoorPrice(matchedOutdoor.model);
         const singleGroup = {
           id: gId,
           name: `VRV 系統 #${groupNum} (${matchedOutdoor.model})`,
@@ -805,6 +897,7 @@ function App() {
           outdoor_model: matchedOutdoor.model,
           outdoor_cap_kw: matchedOutdoor.cap_kw,
           outdoor_cap_index: matchedOutdoor.cap_index || (matchedOutdoor.cap_kw * 10),
+          outdoor_price: vrvOutPrice,
           power_supply: vrvOutPower,
           color: colorObj,
           space_indices: vrvIndices
@@ -815,7 +908,8 @@ function App() {
           finalRows[idx] = {
             ...finalRows[idx],
             outdoorGroupId: gId,
-            outdoor_model: matchedOutdoor.model
+            outdoor_model: matchedOutdoor.model,
+            outdoor_price: vrvOutPrice
           };
         });
       }
@@ -932,8 +1026,8 @@ function App() {
     }
 
     // 🎯 若當前步驟小於 3，自動進入第三步（室外機選型），讓表格右側的室外機型號欄位立刻展開
-    if (currentStep < 3) {
-      setCurrentStep(3);
+    if (currentStep < 4) {
+      setCurrentStep(4);
     }
 
     const firstSelectedRow = currentRows[selectedIndices[0]] || {};
@@ -1106,11 +1200,38 @@ function App() {
   const handleOutdoorModelChange = (groupId, modelVal) => {
     const matched = OUTDOOR_UNITS_DB.find(m => m.model === modelVal);
     const capKw = matched ? matched.cap_kw : 10.0;
+    const price = (matched && matched.price) ? matched.price : lookupOutdoorPrice(modelVal);
+    const modelOutType = matched ? matched.outdoor_type : '';
+    const modelPower = matched ? matched.power_supply : '';
+
+    // 🎯 核心雙向同步：當表格手動選擇室外機型號時，上方工具列之型式與電源規格即刻對應同步！
+    if (modelOutType) setFastOutdoorType(modelOutType);
+    if (modelPower) setFastOutdoorPower(modelPower);
+
     setOutdoorGroups(prev => prev.map(g => {
       if (g.id === groupId) {
-        return { ...g, outdoor_model: modelVal, outdoor_cap_kw: capKw };
+        return {
+          ...g,
+          outdoor_model: modelVal,
+          outdoor_cap_kw: capKw,
+          outdoor_price: price,
+          outdoor_type: modelOutType || g.outdoor_type,
+          power_supply: modelPower || g.power_supply
+        };
       }
       return g;
+    }));
+    setRows(prev => prev.map(r => {
+      if (r.outdoorGroupId === groupId) {
+        return {
+          ...r,
+          outdoor_model: modelVal,
+          outdoor_price: price,
+          outdoor_type: modelOutType || r.outdoor_type,
+          power_supply: modelPower || r.power_supply
+        };
+      }
+      return r;
     }));
   };
 
@@ -1122,6 +1243,22 @@ function App() {
       return g;
     }));
   };
+  // 🎯 雙向同步：當室外機分組型號確定時，確保上方工具列的型式與電源與其 100% 一致
+  useEffect(() => {
+    if (outdoorGroups.length > 0 && outdoorGroups[0]?.outdoor_model) {
+      const firstOutModel = outdoorGroups[0].outdoor_model;
+      const matched = OUTDOOR_UNITS_DB.find(m => m.model === firstOutModel);
+      if (matched) {
+        if (matched.outdoor_type && matched.outdoor_type !== fastOutdoorType) {
+          setFastOutdoorType(matched.outdoor_type);
+        }
+        if (matched.power_supply && matched.power_supply !== fastOutdoorPower) {
+          setFastOutdoorPower(matched.power_supply);
+        }
+      }
+    }
+  }, [outdoorGroups]);
+
   const handleBucketFillAtPoint = (normX, normY) => {
     try {
       const imgEl = modalImgRef.current || imgRef.current;
@@ -2326,6 +2463,8 @@ function App() {
     } else if (field === 'best_match_model') {
       row.best_match_model = value;
       row.cap_kw = lookupModelCapKw(value);
+      row.indoor_price = lookupIndoorPrice(value);
+      row.price = row.indoor_price;
     }
 
     // 🎯 核心連動：當系統為 SA (商用) 或變動機型/電源/台數時，自動即時更新對應之商用 1對1 室外機型號與室外機台數
@@ -2811,18 +2950,46 @@ function App() {
             qty: pbQ,
             unit: "個",
             unit_price: null,
+            notes: "搭配集控介面專用轉接小P板",
+          });
+        });
+
+        Object.entries(pBoardCounts).forEach(([pbM, pbQ]) => {
+          accessoryItems.push({
+            cat: "控制配件",
+            name: `原廠室內機轉接小P板 (${pbM})`,
+            qty: pbQ,
+            unit: "個",
+            unit_price: null,
             notes: "搭配集控介面專用小P板",
           });
         });
 
-        accessoryItems.push({
-          cat: "控制配件",
-          name: "大金空調中央集中控制器 (DCS302CA61)",
-          qty: 1,
-          unit: "台",
-          unit_price: null,
-          notes: "多功能中央集中控制盤",
-        });
+        // 🎯 匯出已勾選之集中控制器主機與介面
+        if (selectedControllers && selectedControllers.length > 0) {
+          selectedControllers.forEach(ctrlModel => {
+            const item = CONTROLLER_CANDIDATES.find(c => c.model === ctrlModel);
+            if (item) {
+              accessoryItems.push({
+                cat: "控制配件",
+                name: `大金空調${item.name} (${item.model})`,
+                qty: 1,
+                unit: "台",
+                unit_price: item.price || null,
+                notes: `大金原廠集中控制器【${item.note || item.tier}】`,
+              });
+            }
+          });
+        } else {
+          accessoryItems.push({
+            cat: "控制配件",
+            name: "大金空調ITM集中控制器 (DCM601B51)",
+            qty: 1,
+            unit: "台",
+            unit_price: 108200,
+            notes: "大金原廠集中控制器【高階】",
+          });
+        }
       }
 
       // 3. 渲染報價單工作表 (取消項次B欄位，首欄為系統類別)
@@ -3627,6 +3794,22 @@ function App() {
       // 🎯 2. 建立專業統計分頁【設備統計總表】、【系統套數】、【D3-NET分析】
       buildClientSideSummarySheets(wb, flatRowsToRender, groupSpans, fastSystem, fastSeries, fastControlMode);
 
+      // 🎯 匯出的選機表中，選機分頁若出現整欄都是 "-" 時，直接隱藏該欄位，如果有其中一項有數值，則保留該欄位
+      for (let colIdx = 4; colIdx <= 42; colIdx++) {
+        let hasVal = false;
+        for (let r = startRow; r < startRow + flatRowsToRender.length; r++) {
+          const val = ws.getRow(r).getCell(colIdx).value;
+          const str = (val && typeof val === 'object' && val.result !== undefined) ? String(val.result).trim() : (val !== null && val !== undefined ? String(val).trim() : '');
+          if (str !== '' && str !== '-' && str !== 'None') {
+            hasVal = true;
+            break;
+          }
+        }
+        if (!hasVal) {
+          ws.getColumn(colIdx).hidden = true;
+        }
+      }
+
       const outBuffer = await wb.xlsx.writeBuffer();
       const blob = new Blob([outBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
       const downloadFileName = `選機表-${baseCaseName}.xlsx`;
@@ -3741,6 +3924,7 @@ function App() {
           };
         }),
         control_mode: fastControlMode || '無',
+        selected_controllers: selectedControllers,
         outdoor_groups: outdoorGroups.map(g => ({
           id: g.id,
           group_id: g.id,
@@ -4996,7 +5180,7 @@ function App() {
               <div style={{ ...styles.cardTitle, marginBottom: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span>📈 工程負荷試算與大金配機建議表</span>
                 <span style={{ fontSize: '11.5px', color: '#94a3b8', fontWeight: 'bold', backgroundColor: '#1e293b', padding: '2px 8px', borderRadius: '4px', border: '1px solid #334155' }}>
-                  v2.14.0 (2026.09.16 00:36)
+                  v2.16.0 (2026.09.21 23:20)
                 </span>
               </div>
               
@@ -5011,149 +5195,148 @@ function App() {
             <div style={{
               backgroundColor: '#0f172a',
               border: '1px solid #1e293b',
-              borderRadius: '10px',
-              padding: '12px 16px',
-              marginBottom: '16px',
+              borderRadius: '8px',
+              padding: '8px 12px',
+              marginBottom: '10px',
               display: 'flex',
               alignItems: 'center',
+              gap: '12px',
               flexWrap: 'wrap',
-              gap: '20px',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
+              boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
             }}>
-              {/* 🎯 1. 系統 (RA / SA / VRV) */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '13px', color: '#94a3b8', fontWeight: 'bold' }}>系統:</span>
-                <select
-                  value={fastSystem}
-                  onChange={(e) => {
-                    const sysVal = e.target.value;
-                    setFastSystem(sysVal);
-                    setOutdoorGroups([]);
-                    setUserHasCustomGroups(false);
+              {/* 🎯 步驟二提示 */}
+              {currentStep === 2 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#38bdf8', fontSize: '13px', fontWeight: 'bold' }}>
+                  <span>🔥 步驟二：冷房負荷估算，可微調各空間之基準、環境偏置與特殊熱源。</span>
+                </div>
+              )}
 
-                    const sysCascade = DYNAMIC_EQUIPMENT_CASCADE[sysVal] || [];
-                    const defaultSeries = sysCascade[0]?.series || '';
-                    const defaultTypes = sysCascade[0]?.types || [];
-                    const defaultUnitType = defaultTypes[0] || '';
+              {/* 🎯 1. 系統 (RA / SA / VRV) - 僅在第三步室內機選用顯示 */}
+              {currentStep === 3 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '12.5px', color: '#94a3b8', fontWeight: 'bold' }}>系統:</span>
+                  <select
+                    value={fastSystem}
+                    onChange={(e) => {
+                      const sysVal = e.target.value;
+                      setFastSystem(sysVal);
+                      const cascadeList = DYNAMIC_EQUIPMENT_CASCADE[sysVal] || [];
+                      const defaultSeries = cascadeList[0]?.series || '';
+                      setFastSeries(defaultSeries);
 
-                    setFastSeries(defaultSeries);
-                    setFastUnitType(defaultUnitType);
-
-                    let newPower = '';
-                    if (sysVal === 'RA') {
-                      newPower = '1φ, 220V, 60Hz';
-                    } else if (sysVal === 'VRV') {
-                      newPower = '3φ, 4P, 380V, 60Hz';
-                    } else if (sysVal === 'SA') {
-                      newPower = ''; // 🎯 SA 系統一開始電源維持空白
-                    }
-                    setFastOutdoorPower(newPower);
-
-                    const isOutdoorLocked = (sysVal === 'RA' || sysVal === 'SA');
-                    const newOutdoor = isOutdoorLocked ? '側吹單風扇' : (sysVal === 'VRV' ? '冷暖上吹型' : '');
-                    setFastOutdoorType(newOutdoor);
-
-                    // 🎯 核心同步：切換系統時，同步將下方勾選之空間 (若皆未勾選則全場) 更新為該系統與預設系列
-                    const hasSelected = rows.some(r => r.selected);
-                    const syncedRows = rows.map(r => {
-                      if (!hasSelected || r.selected) {
-                        const demandKcal = r.total_cooling_demand || (r.area_ping * (r.calc_basis || 500));
-                        const autoMatch = clientSideSelectEquipment(demandKcal, sysVal, defaultSeries, defaultUnitType, newPower);
-                        return {
-                          ...r,
-                          system_type: sysVal,
-                          series: defaultSeries,
-                          unit_type: autoMatch.unit_type || defaultUnitType,
-                          best_match_model: autoMatch.model,
-                          unit_count: autoMatch.qty || 1,
-                          cap_kw: autoMatch.cap,
-                          outdoor_type: newOutdoor,
-                          power_supply: newPower,
-                          outdoor_model: autoMatch.outdoor_model || ''
-                        };
-                      }
-                      return r;
-                    });
-
-                    const { updatedRows, groups } = autoGroupAllRows(syncedRows, sysVal, defaultSeries, newOutdoor, newPower, defaultUnitType, true, true, true);
-                    setRows(updatedRows);
-                    setOutdoorGroups(groups);
-                  }}
-                  style={{ backgroundColor: '#1e293b', color: fastSystem ? '#38bdf8' : '#94a3b8', border: '1px solid #334155', padding: '6px 12px', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
-                >
-                  <option value=""></option>
-                  <option value="RA">RA (家用)</option>
-                  <option value="SA">SA (商用)</option>
-                  <option value="VRV">VRV</option>
-                </select>
-              </div>
-
-              {/* 🎯 2. 系列別 (動態根據 selected System 連動，並依 4 大規則自動連動室內機型式) */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '13px', color: '#94a3b8', fontWeight: 'bold' }}>系列別:</span>
-                <select
-                  value={fastSeries}
-                  onChange={(e) => {
-                    const seriesVal = e.target.value;
-                    setFastSeries(seriesVal);
-
-                    let autoUnitType = '';
-
-                    if (fastSystem === 'RA') {
-                      if (seriesVal === '隱藏風管系列') {
-                        autoUnitType = '吊隱式';
-                      } else if (seriesVal === '家用MULTI系列' || seriesVal === 'SUPER MULTI系列') {
+                      let autoUnitType = '';
+                      if (sysVal === 'RA') {
                         autoUnitType = '壁掛式';
-                      } else if (seriesVal) {
-                        autoUnitType = '壁掛式';
+                      } else if (sysVal === 'VRV') {
+                        const sObj = cascadeList.find(s => s.series === defaultSeries);
+                        autoUnitType = sObj?.types?.[0] || '壁掛式';
                       }
-                    } else if (fastSystem === 'SA') {
-                      autoUnitType = '';
-                    } else if (fastSystem === 'VRV') {
-                      const cascadeList = DYNAMIC_EQUIPMENT_CASCADE['VRV'] || [];
-                      const seriesObj = cascadeList.find(s => s.series === seriesVal);
-                      if (seriesObj && seriesObj.types && seriesObj.types.length > 0) {
-                        autoUnitType = seriesObj.types[0];
+                      setFastUnitType(autoUnitType);
+
+                      const hasSelected = rows.some(r => r.selected);
+                      const syncedRows = rows.map(r => {
+                        if (!hasSelected || r.selected) {
+                          const demandKcal = r.total_cooling_demand || (r.area_ping * (r.calc_basis || 500));
+                          const autoMatch = clientSideSelectEquipment(demandKcal, sysVal, defaultSeries, autoUnitType, r.power_supply || fastOutdoorPower);
+                          const inPrice = lookupIndoorPrice(autoMatch.model);
+                          return {
+                            ...r,
+                            system_type: sysVal,
+                            series: defaultSeries,
+                            unit_type: autoMatch.unit_type || autoUnitType,
+                            best_match_model: autoMatch.model,
+                            unit_count: autoMatch.qty || 1,
+                            cap_kw: autoMatch.cap,
+                            indoor_price: inPrice,
+                            price: inPrice,
+                            outdoor_model: autoMatch.outdoor_model || ''
+                          };
+                        }
+                        return r;
+                      });
+
+                      const { updatedRows, groups } = autoGroupAllRows(syncedRows, sysVal, defaultSeries, fastOutdoorType, fastOutdoorPower, autoUnitType);
+                      setRows(updatedRows);
+                      setOutdoorGroups(groups);
+                    }}
+                    style={{ backgroundColor: '#1e293b', color: fastSystem ? '#38bdf8' : '#94a3b8', border: '1px solid #334155', padding: '4px 8px', borderRadius: '6px', fontSize: '12.5px', fontWeight: 'bold', cursor: 'pointer' }}
+                  >
+                    <option value=""></option>
+                    <option value="RA">RA (家用)</option>
+                    <option value="SA">SA (商用)</option>
+                    <option value="VRV">VRV</option>
+                  </select>
+                </div>
+              )}
+
+              {/* 🎯 2. 系列別 - 僅在第三步室內機選用顯示 */}
+              {currentStep === 3 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '12.5px', color: '#94a3b8', fontWeight: 'bold' }}>系列別:</span>
+                  <select
+                    value={fastSeries}
+                    onChange={(e) => {
+                      const seriesVal = e.target.value;
+                      setFastSeries(seriesVal);
+
+                      let autoUnitType = '';
+                      if (fastSystem === 'RA') {
+                        if (seriesVal === '隱藏風管系列') {
+                          autoUnitType = '吊隱式';
+                        } else if (seriesVal === '家用MULTI系列' || seriesVal === 'SUPER MULTI系列') {
+                          autoUnitType = '壁掛式';
+                        } else if (seriesVal) {
+                          autoUnitType = '壁掛式';
+                        }
+                      } else if (fastSystem === 'SA') {
+                        autoUnitType = '';
+                      } else if (fastSystem === 'VRV') {
+                        const cascadeList = DYNAMIC_EQUIPMENT_CASCADE['VRV'] || [];
+                        const seriesObj = cascadeList.find(s => s.series === seriesVal);
+                        if (seriesObj && seriesObj.types && seriesObj.types.length > 0) {
+                          autoUnitType = seriesObj.types[0];
+                        }
                       }
-                    }
+                      setFastUnitType(autoUnitType);
 
-                    setFastUnitType(autoUnitType);
+                      const hasSelected = rows.some(r => r.selected);
+                      const syncedRows = rows.map(r => {
+                        if (!hasSelected || r.selected) {
+                          const targetSys = r.system_type || fastSystem;
+                          const demandKcal = r.total_cooling_demand || (r.area_ping * (r.calc_basis || 500));
+                          const autoMatch = clientSideSelectEquipment(demandKcal, targetSys, seriesVal, autoUnitType, r.power_supply || fastOutdoorPower);
+                          const inPrice = lookupIndoorPrice(autoMatch.model);
+                          return {
+                            ...r,
+                            series: seriesVal,
+                            unit_type: autoMatch.unit_type || autoUnitType,
+                            best_match_model: autoMatch.model,
+                            unit_count: autoMatch.qty || 1,
+                            cap_kw: autoMatch.cap,
+                            indoor_price: inPrice,
+                            price: inPrice,
+                            outdoor_model: autoMatch.outdoor_model || ''
+                          };
+                        }
+                        return r;
+                      });
 
-                    // 🎯 核心同步：切換系列別時，同步將下方勾選之空間 (若皆未勾選則全場) 更新為該系列與配手機型
-                    const hasSelected = rows.some(r => r.selected);
-                    const syncedRows = rows.map(r => {
-                      if (!hasSelected || r.selected) {
-                        const targetSys = r.system_type || fastSystem;
-                        const demandKcal = r.total_cooling_demand || (r.area_ping * (r.calc_basis || 500));
-                        const autoMatch = clientSideSelectEquipment(demandKcal, targetSys, seriesVal, autoUnitType, r.power_supply || fastOutdoorPower);
-                        return {
-                          ...r,
-                          series: seriesVal,
-                          unit_type: autoMatch.unit_type || autoUnitType,
-                          best_match_model: autoMatch.model,
-                          unit_count: autoMatch.qty || 1,
-                          cap_kw: autoMatch.cap,
-                          outdoor_model: autoMatch.outdoor_model || ''
-                        };
-                      }
-                      return r;
-                    });
+                      const { updatedRows, groups } = autoGroupAllRows(syncedRows, fastSystem, seriesVal, fastOutdoorType, fastOutdoorPower, autoUnitType, true, true);
+                      setRows(updatedRows);
+                      setOutdoorGroups(groups);
+                    }}
+                    style={{ backgroundColor: '#1e293b', color: fastSeries ? '#f59e0b' : '#94a3b8', border: '1px solid #334155', padding: '4px 8px', borderRadius: '6px', fontSize: '12.5px', fontWeight: 'bold', cursor: 'pointer' }}
+                  >
+                    <option value=""></option>
+                    {(DYNAMIC_EQUIPMENT_CASCADE[fastSystem] || []).map((item, idx) => (
+                      <option key={idx} value={item.series}>{item.series}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
-                    const { updatedRows, groups } = autoGroupAllRows(syncedRows, fastSystem, seriesVal, fastOutdoorType, fastOutdoorPower, autoUnitType, true, true);
-                    setRows(updatedRows);
-                    setOutdoorGroups(groups);
-                  }}
-                  style={{ backgroundColor: '#1e293b', color: fastSeries ? '#f59e0b' : '#94a3b8', border: '1px solid #334155', padding: '6px 12px', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
-                >
-                  <option value=""></option>
-                  {(DYNAMIC_EQUIPMENT_CASCADE[fastSystem] || []).map((item, idx) => (
-                    <option key={idx} value={item.series}>{item.series}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* 🎯 3. 室內機型式 (動態根據 selected Series 鎖定/過濾對應型式，當自動確定時改為不可編輯灰底) */}
-              {(() => {
+              {/* 🎯 3. 室內機型式 - 僅在第三步室內機選用顯示 */}
+              {currentStep === 3 && (() => {
                 const cascadeList = DYNAMIC_EQUIPMENT_CASCADE[fastSystem] || [];
                 const seriesObj = cascadeList.find(s => s.series === fastSeries);
                 const validTypes = seriesObj?.types || ["壁掛式"];
@@ -5166,7 +5349,7 @@ function App() {
 
                 return (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ fontSize: '13px', color: '#94a3b8', fontWeight: 'bold' }}>室內機型式:</span>
+                    <span style={{ fontSize: '12.5px', color: '#94a3b8', fontWeight: 'bold' }}>室內機型式:</span>
                     <select
                       value={fastUnitType}
                       disabled={isUnitTypeLocked}
@@ -5174,7 +5357,6 @@ function App() {
                         const unitVal = e.target.value;
                         setFastUnitType(unitVal);
 
-                        // 🎯 核心同步：切換室內機型式時，同步將下方勾選之空間更新為該型式並重新選型
                         const hasSelected = rows.some(r => r.selected);
                         const syncedRows = rows.map(r => {
                           if (!hasSelected || r.selected) {
@@ -5182,12 +5364,15 @@ function App() {
                             const targetSeries = r.series || fastSeries;
                             const demandKcal = r.total_cooling_demand || (r.area_ping * (r.calc_basis || 500));
                             const autoMatch = clientSideSelectEquipment(demandKcal, targetSys, targetSeries, unitVal, r.power_supply || fastOutdoorPower);
+                            const inPrice = lookupIndoorPrice(autoMatch.model);
                             return {
                               ...r,
                               unit_type: autoMatch.unit_type || unitVal,
                               best_match_model: autoMatch.model,
                               unit_count: autoMatch.qty || 1,
                               cap_kw: autoMatch.cap,
+                              indoor_price: inPrice,
+                              price: inPrice,
                               outdoor_model: autoMatch.outdoor_model || ''
                             };
                           }
@@ -5203,9 +5388,9 @@ function App() {
                         backgroundColor: isUnitTypeLocked ? '#334155' : '#1e293b',
                         color: isUnitTypeLocked ? '#94a3b8' : (fastUnitType ? '#34d399' : '#94a3b8'),
                         border: isUnitTypeLocked ? '1px solid #475569' : '1px solid #334155',
-                        padding: '6px 12px',
+                        padding: '4px 8px',
                         borderRadius: '6px',
-                        fontSize: '13px',
+                        fontSize: '12.5px',
                         fontWeight: 'bold',
                         cursor: isUnitTypeLocked ? 'not-allowed' : 'pointer',
                         opacity: isUnitTypeLocked ? 0.8 : 1
@@ -5220,12 +5405,12 @@ function App() {
                 );
               })()}
 
-              {/* 🎯 4. 室外機型式 (RA 與 SA 固定為 側吹單風扇；VRV 提供 側吹單風扇、側吹雙風扇、冷專上吹型、冷暖上吹型) - 僅在第三步及之後顯示 */}
-              {currentStep >= 3 && (() => {
+              {/* 🎯 4. 室外機型式 - 僅在第四步室外機選用時顯示 */}
+              {currentStep === 4 && (() => {
                 const isOutdoorLocked = (fastSystem === 'RA' || fastSystem === 'SA');
                 return (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ fontSize: '13px', color: '#94a3b8', fontWeight: 'bold' }}>室外機型式:</span>
+                    <span style={{ fontSize: '12.5px', color: '#94a3b8', fontWeight: 'bold' }}>室外機型式:</span>
                     <select
                       value={isOutdoorLocked ? '側吹單風扇' : (fastOutdoorType || (fastSystem === 'VRV' ? '冷暖上吹型' : ''))}
                       disabled={isOutdoorLocked}
@@ -5243,9 +5428,9 @@ function App() {
                         backgroundColor: isOutdoorLocked ? '#334155' : '#1e293b',
                         color: isOutdoorLocked ? '#94a3b8' : (fastOutdoorType ? '#a855f7' : '#94a3b8'),
                         border: isOutdoorLocked ? '1px solid #475569' : '1px solid #334155',
-                        padding: '6px 12px',
+                        padding: '4px 8px',
                         borderRadius: '6px',
-                        fontSize: '13px',
+                        fontSize: '12.5px',
                         fontWeight: 'bold',
                         cursor: isOutdoorLocked ? 'not-allowed' : 'pointer',
                         opacity: isOutdoorLocked ? 0.8 : 1
@@ -5263,7 +5448,6 @@ function App() {
                         <>
                           <option value="側吹單風扇">側吹單風扇</option>
                           <option value="側吹雙風扇">側吹雙風扇</option>
-                          <option value="上吹">上吹</option>
                         </>
                       )}
                     </select>
@@ -5271,12 +5455,12 @@ function App() {
                 );
               })()}
 
-              {/* 🎯 5. 室外機電源 (RA 系統自動固定為 1φ, 220V, 60Hz 時改為不可編輯灰底) - 僅在第三步及之後顯示 */}
-              {currentStep >= 3 && (() => {
+              {/* 🎯 5. 室外機電源 - 僅在第四步室外機選用時顯示 */}
+              {currentStep === 4 && (() => {
                 const isPowerLocked = (fastSystem === 'RA');
                 return (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ fontSize: '13px', color: '#94a3b8', fontWeight: 'bold' }}>室外機電源:</span>
+                    <span style={{ fontSize: '12.5px', color: '#94a3b8', fontWeight: 'bold' }}>室外機電源:</span>
                     <select
                       value={isPowerLocked ? '1φ, 220V, 60Hz' : fastOutdoorPower}
                       disabled={isPowerLocked}
@@ -5294,9 +5478,9 @@ function App() {
                         backgroundColor: isPowerLocked ? '#334155' : '#1e293b',
                         color: isPowerLocked ? '#94a3b8' : (fastOutdoorPower ? '#eab308' : '#94a3b8'),
                         border: isPowerLocked ? '1px solid #475569' : '1px solid #334155',
-                        padding: '6px 12px',
+                        padding: '4px 8px',
                         borderRadius: '6px',
-                        fontSize: '13px',
+                        fontSize: '12.5px',
                         fontWeight: 'bold',
                         cursor: isPowerLocked ? 'not-allowed' : 'pointer',
                         opacity: isPowerLocked ? 0.8 : 1
@@ -5311,25 +5495,24 @@ function App() {
                 );
               })()}
 
-              {/* 🎯 6. 操作按鈕區 */}
+              {/* 🎯 操作按鈕區 */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto', flexWrap: 'wrap' }}>
-
-                {/* 🎯 第2步選定室內機後的「確定」按鈕 */}
+                {/* 🎯 第2步負荷估算完成後前往第3步 */}
                 {currentStep === 2 && (
                   <button
                     type="button"
                     onClick={() => {
                       setCurrentStep(3);
-                      toast.success('✨ 室內機已確定！進入第三步：室外機選型');
+                      toast.success('✨ 負荷估算確認無誤！進入第三步：室內機選用');
                     }}
-                    title="確定室內機選型，接續第三步室外機選型"
+                    title="確定負荷估算，前往第三步室內機選用"
                     style={{
                       backgroundColor: '#10b981',
                       color: '#ffffff',
                       border: 'none',
-                      padding: '7px 24px',
+                      padding: '6px 18px',
                       borderRadius: '6px',
-                      fontSize: '14px',
+                      fontSize: '13px',
                       fontWeight: 'bold',
                       cursor: 'pointer',
                       boxShadow: '0 2px 10px rgba(16, 185, 129, 0.4)',
@@ -5339,18 +5522,23 @@ function App() {
                       transition: 'all 0.2s ease'
                     }}
                   >
-                    <span>確定</span>
+                    <span>確定（前往第三步：室內機選用 ➔）</span>
                   </button>
                 )}
+
+                {/* 🎯 第3步室內機選用完成後前往第4步 */}
                 {currentStep === 3 && (
                   <button
                     type="button"
-                    onClick={() => setCurrentStep(4)}
+                    onClick={() => {
+                      setCurrentStep(4);
+                      toast.success('✨ 室內機已確定！進入第四步：室外機選用');
+                    }}
                     style={{
                       backgroundColor: '#0284c7',
                       color: '#ffffff',
                       border: 'none',
-                      padding: '7px 18px',
+                      padding: '6px 18px',
                       borderRadius: '6px',
                       fontSize: '13px',
                       fontWeight: 'bold',
@@ -5361,16 +5549,42 @@ function App() {
                       gap: '6px'
                     }}
                   >
-                    室外機確認無誤，前往「第四步：決定控制需求」➔
+                    室內機確認無誤，前往「第四步：室外機選用」➔
                   </button>
                 )}
 
+                {/* 🎯 第4步室外機選用完成後前往第5步 */}
+                {currentStep === 4 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCurrentStep(5);
+                      toast.success('✨ 室外機已確定！進入第五步：控制需求');
+                    }}
+                    style={{
+                      backgroundColor: '#0284c7',
+                      color: '#ffffff',
+                      border: 'none',
+                      padding: '6px 18px',
+                      borderRadius: '6px',
+                      fontSize: '13px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 8px rgba(2, 132, 199, 0.4)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    室外機確認無誤，前往「第五步：控制需求」➔
+                  </button>
+                )}
               </div>
             </div>
           )}
 
-          {/* 🎯 第四步專屬視圖：決定控制需求 (無 / APP / 集控) */}
-          {currentStep === 4 && (
+          {/* 🎯 第五步專屬視圖：控制需求 (無 / APP / 集控) */}
+          {currentStep === 5 && (
             <div style={{
               backgroundColor: '#0b1329',
               border: '1.5px solid #38bdf8',
@@ -5380,7 +5594,7 @@ function App() {
               boxShadow: '0 4px 14px rgba(0,0,0,0.5)'
             }}>
               <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#38bdf8', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span>📱 第四步：決定系統智慧控制需求</span>
+                <span>📱 第五步：控制需求</span>
                 <span style={{ fontSize: '12px', color: '#94a3b8' }}>(請選擇本工程全域或個別空調系統之控制方式)</span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', marginBottom: '12px' }}>
@@ -5436,64 +5650,102 @@ function App() {
             <table style={styles.table}>
               <thead>
                 <tr>
-                  <th style={{ ...styles.th, position: 'sticky', left: 0, top: 0, zIndex: 30, backgroundColor: '#1e293b', width: '45px', minWidth: '45px', textAlign: 'center' }}>
+                  <th style={{ ...styles.th, position: 'sticky', left: 0, top: 0, zIndex: 30, backgroundColor: '#1e293b', width: '34px', minWidth: '34px', maxWidth: '34px', padding: '6px 2px', textAlign: 'center' }}>
                     <input
                       type="checkbox"
                       checked={rows.length > 0 && rows.every(r => r.selected)}
                       onChange={(e) => toggleAllSelections(e.target.checked)}
                       disabled={rows.length === 0}
                       title="全選 / 全不選"
-                      style={{ cursor: 'pointer', scale: '1.15' }}
+                      style={{ cursor: 'pointer', scale: '1.05' }}
                     />
                   </th>
-                  <th style={{ ...styles.th, position: 'sticky', left: '45px', top: 0, zIndex: 30, backgroundColor: '#1e293b', minWidth: '180px' }}>空間名稱</th>
-                  {currentStep < 3 && (
-                    <th style={{ ...styles.th, position: 'sticky', left: '225px', top: 0, zIndex: 30, backgroundColor: '#1e293b', minWidth: '100px' }}>系統規格</th>
+                  <th style={{
+                    ...styles.th,
+                    position: 'sticky',
+                    left: '34px',
+                    top: 0,
+                    zIndex: 30,
+                    backgroundColor: '#1e293b',
+                    width: currentStep === 1 ? '135px' : '106px',
+                    minWidth: currentStep === 1 ? '135px' : '106px',
+                    maxWidth: currentStep === 1 ? '140px' : '110px',
+                    padding: '6px 4px'
+                  }}>
+                    空間名稱
+                  </th>
+                  
+                  {/* 🎯 系統規格：僅第 3 步室內機選用時顯示 */}
+                  {currentStep === 3 && (
+                    <th style={{ ...styles.th, position: 'sticky', left: '140px', top: 0, zIndex: 30, backgroundColor: '#1e293b', width: '65px', minWidth: '65px', padding: '6px 2px', textAlign: 'center' }}>系統規格</th>
                   )}
-                  <th style={{ ...styles.th, position: 'sticky', left: currentStep >= 3 ? '225px' : '325px', top: 0, zIndex: 30, backgroundColor: '#1e293b', minWidth: '145px', boxShadow: '6px 0 12px rgba(0,0,0,0.85)', textAlign: 'center' }}>面積(㎡/坪數)</th>
-                  {/* 🎯 第二步結束後進入第三步室外機選型時，自動隱藏負荷細項與總需求(kcal/h)以釋放表格寬度 */}
-                  {currentStep < 3 && (
+
+                  {/* 🎯 面積(㎡/坪數)：Sticky 固定 */}
+                  <th style={{
+                    ...styles.th,
+                    position: 'sticky',
+                    left: currentStep === 1 ? '169px' : (currentStep === 3 ? '205px' : '140px'),
+                    top: 0,
+                    zIndex: 30,
+                    backgroundColor: '#1e293b',
+                    width: '108px',
+                    minWidth: '108px',
+                    boxShadow: '4px 0 8px rgba(0,0,0,0.6)',
+                    textAlign: 'center',
+                    padding: '6px 4px'
+                  }}>
+                    面積(㎡/坪數)
+                  </th>
+
+                  {/* 🎯 第 2 步負荷估算時專屬欄位：基準、環境加成百分比偏置 (已整合特殊熱源) */}
+                  {currentStep === 2 && (
                     <>
-                      <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>基準(kcal/h/坪)</th>
-                      <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>環境加成百分比偏置</th>
-                      <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>特殊熱源</th>
-                      <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>總需求(kcal/h)</th>
+                      <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, minWidth: '95px' }}>基準(kcal/h/坪)</th>
+                      <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, minWidth: '380px' }}>環境加成百分比偏置</th>
                     </>
                   )}
-                  <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#f59e0b' }}>總需求(kW)</th>
-                  {currentStep < 3 && (
+
+                  {/* 🎯 總需求欄位 (第 2 步與第 3 步顯示 kcal/h / kW，第 4 步起顯示總需求) */}
+                  <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#f59e0b', textAlign: 'center', minWidth: '110px' }}>
+                    {currentStep <= 3 ? '總需求(kcal/h / kW)' : '總需求'}
+                  </th>
+
+                  {/* 🎯 第 3 步室內機選用時專屬欄位：室內機系列別、室內機型式 */}
+                  {currentStep === 3 && (
                     <>
-                      <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#f59e0b' }}>室內機系列別</th>
-                      <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#34d399' }}>室內機型式</th>
+                      <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#f59e0b', minWidth: '105px' }}>室內機系列別</th>
+                      <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#34d399', minWidth: '80px' }}>室內機型式</th>
                     </>
                   )}
-                  <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>室內機型號</th>
-                  <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#38bdf8', backgroundColor: '#1e293b' }}>單機能力(kW)</th>
-                  <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20 }}>台數</th>
-                  <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#a855f7' }}>總冷房能力(kW)</th>
-                  {/* 🎯 向後擴充室外機配對欄位 (第二步時自動隱藏，第三步及之後展開) */}
-                  {currentStep >= 3 && (
-                    <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#eab308', backgroundColor: '#1e293b' }}>供應電源</th>
-                  )}
-                  {currentStep >= 3 && (
-                    <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#38bdf8', backgroundColor: '#1e293b' }}>室外機型式</th>
-                  )}
-                  {/* 🎯 室外機型號與連結率 */}
+
+                  {/* 🎯 室內機型號、單機能力、台數、總冷房能力：自第 3 步室內機選用開始顯示 */}
                   {currentStep >= 3 && (
                     <>
-                      <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#38bdf8', backgroundColor: '#1e293b', minWidth: '160px' }}>室外機型號</th>
-                      <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#34d399', backgroundColor: '#1e293b' }}>室外機台數</th>
-                      <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#a855f7', backgroundColor: '#1e293b' }}>室外機冷房能力(kW)</th>
-                      <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#34d399', backgroundColor: '#1e293b', minWidth: '105px', textAlign: 'center' }}>連結率 (%)</th>
+                      <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, minWidth: '120px' }}>室內機型號</th>
+                      <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#38bdf8', backgroundColor: '#1e293b', minWidth: '65px', textAlign: 'center' }}>單機能力</th>
+                      <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, minWidth: '45px', textAlign: 'center' }}>台數</th>
+                      <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#a855f7', minWidth: '75px', textAlign: 'center' }}>總冷房能力</th>
+                    </>
+                  )}
+
+                  {/* 🎯 室外機欄位：自第 4 步室外機選用開始顯示 */}
+                  {currentStep >= 4 && (
+                    <>
+                      <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#38bdf8', backgroundColor: '#1e293b', minWidth: '130px' }}>室外機型號</th>
+                      <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#34d399', backgroundColor: '#1e293b', minWidth: '50px', textAlign: 'center' }}>室外機台數</th>
+                      <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#a855f7', backgroundColor: '#1e293b', minWidth: '75px', textAlign: 'center' }}>室外機冷房能力</th>
+                      {(fastSystem === 'VRV' || rows.some(r => r.system_type === 'VRV')) && (
+                        <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#34d399', backgroundColor: '#1e293b', minWidth: '80px', textAlign: 'center' }}>連結率 (%)</th>
+                      )}
                     </>
                   )}
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={currentStep >= 3 ? 14 : 15} style={{ textAlign: 'center', padding: '50px', color: '#94a3b8' }}>🔄 正在啟用雙軌影像引擎分析，請稍候...</td></tr>
+                  <tr><td colSpan={currentStep === 2 ? 6 : (currentStep === 3 ? 11 : ((fastSystem === "VRV" || rows.some(r => r.system_type === "VRV")) ? 12 : 11))} style={{ textAlign: 'center', padding: '50px', color: '#94a3b8' }}>🔄 正在啟用雙軌影像引擎分析，請稍候...</td></tr>
                 ) : rows.length === 0 ? (
-                  <tr><td colSpan={currentStep >= 3 ? 14 : 15} style={{ textAlign: 'center', padding: '30px', color: '#475569' }}>暫無數據。請上傳圖面並執行解析。</td></tr>
+                  <tr><td colSpan={currentStep === 2 ? 6 : (currentStep === 3 ? 11 : ((fastSystem === "VRV" || rows.some(r => r.system_type === "VRV")) ? 12 : 11))} style={{ textAlign: 'center', padding: '30px', color: '#475569' }}>暫無數據。請上傳圖面並執行解析。</td></tr>
                 ) : (
                   rows.map((row, index) => {
                     const gCard = outdoorGroups.find(g => g.id === row.outdoorGroupId);
@@ -5540,7 +5792,7 @@ function App() {
                           ...rowColorStyle
                         }}
                       >
-                        <td style={{ ...styles.td, position: 'sticky', left: 0, zIndex: 15, backgroundColor: solidRowBg, width: '45px', minWidth: '45px', textAlign: 'center' }}>
+                        <td style={{ ...styles.td, position: 'sticky', left: 0, zIndex: 15, backgroundColor: solidRowBg, width: '34px', minWidth: '34px', maxWidth: '34px', padding: '6px 2px', textAlign: 'center' }}>
                           <input
                             type="checkbox"
                             checked={row.selected}
@@ -5554,31 +5806,44 @@ function App() {
                                 hasCtrlClickedRef.current = true;
                               }
                             }}
-                            style={{ cursor: 'pointer', scale: '1.15' }}
+                            style={{ cursor: 'pointer', scale: '1.05' }}
                           />
                         </td>
 
-                        <td style={{ ...styles.td, position: 'sticky', left: '45px', zIndex: 15, backgroundColor: solidRowBg, minWidth: '180px', fontWeight: 'bold', color: '#34d399' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+                        <td style={{
+                          ...styles.td,
+                          position: 'sticky',
+                          left: '34px',
+                          zIndex: 15,
+                          backgroundColor: solidRowBg,
+                          width: currentStep === 1 ? '135px' : '106px',
+                          minWidth: currentStep === 1 ? '135px' : '106px',
+                          maxWidth: currentStep === 1 ? '140px' : '110px',
+                          padding: '6px 4px',
+                          fontWeight: 'bold',
+                          color: '#34d399'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <input
                               type="text"
                               value={row.space_name || ''}
                               onChange={(e) => handleCellChange(index, 'space_name', e.target.value)}
-                              placeholder="請輸入空間名稱"
+                              placeholder="空間名稱"
                               style={{
                                 backgroundColor: '#0f172a',
                                 border: '1px solid #34d399',
                                 color: '#34d399',
-                                padding: '5px 8px',
+                                padding: '4px 6px',
                                 borderRadius: '4px',
-                                fontSize: '14px',
+                                fontSize: '13px',
                                 fontWeight: 'bold',
-                                width: '115px'
+                                width: currentStep === 1 ? '82px' : '96px',
+                                boxSizing: 'border-box'
                               }}
                               disabled={!row.selected && !row.outdoorGroupId}
                               title="可自由編輯空間名稱"
                             />
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                               {(row.area_m2 >= 75 || (row.space_name && (row.space_name.includes('客餐廳') || row.space_name.includes('開放')))) && (
                                 <button
                                   onClick={() => handleSplitSpace(index)}
@@ -5587,57 +5852,61 @@ function App() {
                                     backgroundColor: '#b45309',
                                     color: '#fef3c7',
                                     border: '1px solid #f59e0b',
-                                    padding: '2px 6px',
+                                    padding: '2px 4px',
                                     borderRadius: '4px',
                                     fontSize: '11px',
                                     cursor: 'pointer',
                                     fontWeight: 'bold'
                                   }}
                                 >
-                                  ✂️ 分割
+                                  ✂️
                                 </button>
                               )}
-                              <span
-                                style={{
-                                  cursor: 'grab',
-                                  color: '#38bdf8',
-                                  fontSize: '16px',
-                                  fontWeight: 'bold',
-                                  padding: '2px 4px',
-                                  userSelect: 'none'
-                                }}
-                                title="按住拖曳可調整此空間上下排序"
-                              >
-                                ⋮⋮
-                              </span>
+                              {currentStep === 1 && (
+                                <span
+                                  style={{
+                                    cursor: 'grab',
+                                    color: '#38bdf8',
+                                    fontSize: '15px',
+                                    fontWeight: 'bold',
+                                    padding: '1px 2px',
+                                    userSelect: 'none'
+                                  }}
+                                  title="按住拖曳可調整此空間上下排序"
+                                >
+                                  ⋮⋮
+                                </span>
+                              )}
                             </div>
                           </div>
                         </td>
 
-                        {currentStep < 3 && (
-                          <td style={{ ...styles.td, position: 'sticky', left: '225px', zIndex: 15, backgroundColor: solidRowBg, minWidth: '100px' }}>
-                            <select
-                              value={row.system_type || 'VRV'}
-                              onChange={(e) => handleCellChange(index, 'system_type', e.target.value)}
-                              style={{ ...styles.selectSys, width: '92px', color: '#38bdf8', fontWeight: 'bold' }}
-                            >
-                              <option value="VRV">VRV</option>
-                              <option value="RA">RA (家用)</option>
-                              <option value="SA">SA (商用)</option>
-                            </select>
-                          </td>
-                        )}
+                        {currentStep === 3 && (
+                            <td style={{ ...styles.td, position: 'sticky', left: '140px', zIndex: 15, backgroundColor: solidRowBg, width: '65px', minWidth: '65px', padding: '6px 2px', textAlign: 'center' }}>
+                              <select
+                                value={row.system_type || 'VRV'}
+                                onChange={(e) => handleCellChange(index, 'system_type', e.target.value)}
+                                style={{ ...styles.selectSys, padding: '3px 4px', fontSize: '12px' }}
+                              >
+                                <option value="RA">RA</option>
+                                <option value="SA">SA</option>
+                                <option value="VRV">VRV</option>
+                              </select>
+                            </td>
+                          )}
 
                         <td style={{
                           ...styles.td,
                           position: 'sticky',
-                          left: currentStep >= 3 ? '225px' : '325px',
+                          left: currentStep === 1 ? '169px' : (currentStep === 3 ? '205px' : '140px'),
                           zIndex: 15,
                           backgroundColor: solidRowBg,
-                          minWidth: '145px',
-                          boxShadow: '6px 0 12px rgba(0,0,0,0.85)',
+                          width: '108px',
+                          minWidth: '108px',
+                          boxShadow: '4px 0 8px rgba(0,0,0,0.6)',
                           textAlign: 'center',
-                          whiteSpace: 'nowrap'
+                          whiteSpace: 'nowrap',
+                          padding: '6px 4px'
                         }}>
                           <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '13.5px', fontWeight: 'bold' }}>
                             <span style={{ color: '#a7f3d0' }}>{row.area_m2} ㎡</span>
@@ -5647,83 +5916,145 @@ function App() {
                         </td>
 
                         {/* 🎯 第二步結束後進入第三步室外機選型時，自動隱藏負荷細項與總需求(kcal/h)以釋放表格寬度 */}
-                        {currentStep < 3 && (
-                          <>
-                            <td style={styles.td}>
-                              <input
-                                type="number"
-                                value={row.calc_basis}
-                                onChange={(e) => handleCellChange(index, 'calc_basis', e.target.value)}
-                                style={{
-                                  ...styles.inputNum,
-                                  color: row.is_unknown_space ? '#ef4444' : '#f8fafc',
-                                  fontWeight: row.is_unknown_space ? 'bold' : 'normal',
-                                  border: row.is_unknown_space ? '1px solid #ef4444' : '1px solid #475569'
-                                }}
-                              />
-                            </td>
-
-                            <td style={styles.td}>
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', maxWidth: '280px' }}>
-                                {[
-                                  { label: '全內周(-10%)', key: '全內周' },
-                                  { label: '二面牆(+5%)', key: '二面牆' },
-                                  { label: '西曬(+6%)', key: '西曬' },
-                                  { label: '挑高(+4%)', key: '挑高' },
-                                  { label: '頂曬(+5%)', key: '頂曬' }
-                                ].map((mod) => {
-                                  const isChecked = !!(row.modifiers && (row.modifiers[mod.key] || row.modifiers[mod.key.replace('二', '2')]));
-                                  return (
-                                    <label
-                                      key={mod.key}
-                                      style={{
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '4px',
-                                        fontSize: '13.5px',
-                                        backgroundColor: isChecked ? '#1e293b' : '#0f172a',
-                                        border: isChecked ? '1px solid #38bdf8' : '1px solid #334155',
-                                        color: isChecked ? '#38bdf8' : '#94a3b8',
-                                        padding: '4px 8px',
-                                        borderRadius: '4px',
-                                        cursor: 'pointer',
-                                        fontWeight: isChecked ? 'bold' : 'normal'
-                                      }}
-                                    >
-                                      <input
-                                        type="checkbox"
-                                        checked={isChecked}
-                                        onChange={(e) => handleCellChange(index, 'modifiers', e.target.checked, mod.key)}
-                                      />
-                                      {mod.label}
-                                    </label>
-                                  );
-                                })}
-                              </div>
-                            </td>
-
-                            <td style={styles.td}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        {currentStep === 2 && (
+                            <>
+                              <td style={styles.td}>
                                 <input
                                   type="number"
-                                  step="0.5"
-                                  value={row.special_kw || 0}
-                                  onChange={(e) => handleCellChange(index, 'special_kw', e.target.value)}
-                                  style={{ ...styles.inputNum, width: '60px' }}
+                                  value={row.calc_basis}
+                                  onChange={(e) => handleCellChange(index, 'calc_basis', e.target.value)}
+                                  style={{
+                                    ...styles.inputNum,
+                                    color: row.is_unknown_space ? '#ef4444' : '#f8fafc',
+                                    fontWeight: row.is_unknown_space ? 'bold' : 'normal',
+                                    border: row.is_unknown_space ? '1px solid #ef4444' : '1px solid #475569'
+                                  }}
                                 />
-                                <span style={{ fontSize: '14px', color: '#94a3b8', fontWeight: 'bold' }}>kW</span>
-                              </div>
-                            </td>
+                              </td>
 
-                            <td style={{ ...styles.td, fontWeight: 'bold', fontSize: '15px' }}>{row.total_cooling_demand}</td>
-                          </>
-                        )}
+                              <td style={styles.td}>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px', maxWidth: '420px' }}>
+                                  {[
+                                    { label: '全內周(-10%)', key: '全內周' },
+                                    { label: '二面牆(+5%)', key: '二面牆' },
+                                    { label: '西曬(+6%)', key: '西曬' },
+                                    { label: '挑高(+4%)', key: '挑高' },
+                                    { label: '頂曬(+5%)', key: '頂曬' }
+                                  ].map((mod) => {
+                                    const isChecked = !!(row.modifiers && (row.modifiers[mod.key] || row.modifiers[mod.key.replace('二', '2')]));
+                                    return (
+                                      <label
+                                        key={mod.key}
+                                        style={{
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: '4px',
+                                          fontSize: '12px',
+                                          backgroundColor: isChecked ? '#1e293b' : '#0f172a',
+                                          border: isChecked ? '1px solid #38bdf8' : '1px solid #334155',
+                                          color: isChecked ? '#38bdf8' : '#94a3b8',
+                                          padding: '3px 6px',
+                                          borderRadius: '4px',
+                                          cursor: 'pointer',
+                                          fontWeight: isChecked ? 'bold' : 'normal'
+                                        }}
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={isChecked}
+                                          onChange={(e) => handleCellChange(index, 'modifiers', e.target.checked, mod.key)}
+                                        />
+                                        {mod.label}
+                                      </label>
+                                    );
+                                  })}
 
-                        <td style={{ ...styles.td, color: '#f59e0b', fontWeight: 'bold', fontSize: '15px' }}>
-                          {((row.total_cooling_demand || 0) / 860.0).toFixed(1)} kW
+                                  {/* 🎯 特殊熱源勾選項：未勾選時僅呈現標籤；勾選時標籤亮起並動態彈出 [ 0.0 ] kW 輸入框 (步進 0.1) */}
+                                  {(() => {
+                                    const isSpecialHeatChecked = Boolean(row.has_special_heat || (parseFloat(row.special_kw) > 0));
+                                    const displayVal = (row.special_kw !== undefined && row.special_kw !== null && row.special_kw !== '')
+                                      ? row.special_kw
+                                      : (isSpecialHeatChecked ? '0.0' : '');
+                                    return (
+                                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                        <label
+                                          style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '4px',
+                                            fontSize: '12px',
+                                            backgroundColor: isSpecialHeatChecked ? 'rgba(245, 158, 11, 0.25)' : '#0f172a',
+                                            border: isSpecialHeatChecked ? '1.5px solid #f59e0b' : '1px solid #334155',
+                                            color: isSpecialHeatChecked ? '#f59e0b' : '#94a3b8',
+                                            padding: '3px 6px',
+                                            borderRadius: '4px',
+                                            cursor: 'pointer',
+                                            fontWeight: isSpecialHeatChecked ? 'bold' : 'normal',
+                                            transition: 'all 0.2s ease',
+                                            boxShadow: isSpecialHeatChecked ? '0 0 6px rgba(245, 158, 11, 0.4)' : 'none'
+                                          }}
+                                        >
+                                          <input
+                                            type="checkbox"
+                                            checked={isSpecialHeatChecked}
+                                            onChange={(e) => {
+                                              const checked = e.target.checked;
+                                              handleCellChange(index, 'has_special_heat', checked);
+                                              if (!checked) {
+                                                handleCellChange(index, 'special_kw', 0.0);
+                                              } else if (!row.special_kw || parseFloat(row.special_kw) === 0) {
+                                                handleCellChange(index, 'special_kw', 0.0);
+                                              }
+                                            }}
+                                            style={{ cursor: 'pointer' }}
+                                          />
+                                          特殊熱源
+                                        </label>
+
+                                        {isSpecialHeatChecked && (
+                                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', marginLeft: '2px' }}>
+                                            <input
+                                              type="number"
+                                              step="0.1"
+                                              min="0"
+                                              value={displayVal}
+                                              onChange={(e) => {
+                                                const val = e.target.value;
+                                                handleCellChange(index, 'special_kw', val);
+                                              }}
+                                              placeholder="0.0"
+                                              style={{
+                                                ...styles.inputNum,
+                                                width: '58px',
+                                                padding: '2px 4px',
+                                                fontSize: '12px',
+                                                fontWeight: 'bold',
+                                                color: '#f59e0b',
+                                                border: '1.5px solid #f59e0b',
+                                                backgroundColor: '#0b1329',
+                                                textAlign: 'center',
+                                                boxShadow: '0 0 6px rgba(245, 158, 11, 0.3)'
+                                              }}
+                                              title="請手動輸入特殊熱源數值 (以 0.1 kW 為單位)"
+                                              autoFocus
+                                            />
+                                            <span style={{ fontSize: '12px', color: '#f59e0b', fontWeight: 'bold' }}>kW</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
+                              </td>
+                            </>
+                          )}
+
+                        <td style={{ ...styles.td, color: '#f59e0b', fontWeight: 'bold', fontSize: '12.5px', textAlign: 'center' }}>
+                          <div>{((row.total_cooling_demand || 0) / 860.0).toFixed(1)} kW</div>
+                          <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 'normal' }}>{Math.round(row.total_cooling_demand || 0).toLocaleString()} kcal/h</div>
                         </td>
 
-                        {currentStep < 3 && (
+                        {currentStep === 3 && (
                           <>
                             <td style={styles.td}>
                               {(() => {
@@ -5778,55 +6109,59 @@ function App() {
                           </>
                         )}
 
-                        <td style={styles.td}>
-                          {(() => {
-                            const candidates = getDynamicModelCandidates(
-                              (row.total_cooling_demand || 0) / 860.0,
-                              row.system_type || 'VRV',
-                              row.series,
-                              row.unit_type,
-                              row.best_match_model
-                            );
-                            const currentVal = (row.best_match_model && candidates.includes(row.best_match_model))
-                              ? row.best_match_model
-                              : (candidates[0] || '');
+                        {currentStep >= 3 && (
+                          <>
+                            <td style={styles.td}>
+                              {(() => {
+                                const candidates = getDynamicModelCandidates(
+                                  (row.total_cooling_demand || 0) / 860.0,
+                                  row.system_type || 'VRV',
+                                  row.series,
+                                  row.unit_type,
+                                  row.best_match_model
+                                );
+                                const currentVal = (row.best_match_model && candidates.includes(row.best_match_model))
+                                  ? row.best_match_model
+                                  : (candidates[0] || '');
 
-                            return (
-                              <select
-                                value={currentVal}
-                                onChange={(e) => handleCellChange(index, 'best_match_model', e.target.value)}
-                                style={{ ...styles.selectSys, width: '155px', color: '#34d399', fontWeight: 'bold', fontSize: '15px' }}
-                              >
-                                {!currentVal && <option value="">--請選擇型號--</option>}
-                                {candidates.map((m, mIdx) => (
-                                  <option key={mIdx} value={m}>{m}</option>
-                                ))}
-                              </select>
-                            );
-                          })()}
-                        </td>
+                                return (
+                                  <select
+                                    value={currentVal}
+                                    onChange={(e) => handleCellChange(index, 'best_match_model', e.target.value)}
+                                    style={{ ...styles.selectSys, width: '155px', color: '#34d399', fontWeight: 'bold', fontSize: '14px' }}
+                                  >
+                                    {!currentVal && <option value="">--請選擇型號--</option>}
+                                    {candidates.map((m, mIdx) => (
+                                      <option key={mIdx} value={m}>{m}</option>
+                                    ))}
+                                  </select>
+                                );
+                              })()}
+                            </td>
 
-                        <td style={{ ...styles.td, color: '#38bdf8', fontWeight: 'bold', fontSize: '15px' }}>
-                          {(row.cap_kw || row.best_match_model) ? `${parseFloat(row.cap_kw || lookupModelCapKw(row.best_match_model)).toFixed(1)} kW` : '-'}
-                        </td>
+                            <td style={{ ...styles.td, color: '#38bdf8', fontWeight: 'bold', fontSize: '14px' }}>
+                              {(row.cap_kw || row.best_match_model) ? `${parseFloat(row.cap_kw || lookupModelCapKw(row.best_match_model)).toFixed(1)} kW` : '-'}
+                            </td>
 
-                        <td style={styles.td}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <input
-                              type="number"
-                              min="1"
-                              max="10"
-                              value={row.unit_count || 1}
-                              onChange={(e) => handleCellChange(index, 'unit_count', parseInt(e.target.value) || 1)}
-                              style={styles.inputQty}
-                            />
-                            <span style={{ fontSize: '14px', color: '#94a3b8', fontWeight: 'bold' }}>台</span>
-                          </div>
-                        </td>
+                            <td style={styles.td}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max="10"
+                                  value={row.unit_count || 1}
+                                  onChange={(e) => handleCellChange(index, 'unit_count', parseInt(e.target.value) || 1)}
+                                  style={styles.inputQty}
+                                />
+                                <span style={{ fontSize: '14px', color: '#94a3b8', fontWeight: 'bold' }}>台</span>
+                              </div>
+                            </td>
 
-                        <td style={{ ...styles.td, color: '#a855f7', fontWeight: 'bold' }}>
-                          {(row.cap_kw || row.best_match_model) ? `${((parseFloat(row.cap_kw || lookupModelCapKw(row.best_match_model)) || 0) * (row.unit_count || 1)).toFixed(1)} kW` : '-'}
-                        </td>
+                            <td style={{ ...styles.td, color: '#a855f7', fontWeight: 'bold', fontSize: '14px' }}>
+                              {(row.cap_kw || row.best_match_model) ? `${((parseFloat(row.cap_kw || lookupModelCapKw(row.best_match_model)) || 0) * (row.unit_count || 1)).toFixed(1)} kW` : '-'}
+                            </td>
+                          </>
+                        )}
 
                         {/* 🎯 室外機延伸: 供應電源、室外機型號、室外機台數、冷房能力與連結率 */}
                         {(() => {
@@ -5845,7 +6180,28 @@ function App() {
 
                             const gSpaces = gIndices.map(i => rows[i]).filter(Boolean);
                             const isIndoorSelectionComplete = hasActiveSeries && gSpaces.some(sp => Boolean(sp.best_match_model));
-                            const validCandidateList = getOutdoorModelsForSystem(gCard.system_type, row.series || fastSeries, fastOutdoorType, targetPower);
+                            const curOutModel = gCard.outdoor_model;
+                            const outObj = OUTDOOR_UNITS_DB.find(m => m.model === curOutModel);
+                            const effectiveGroupSeries = (outObj && outObj.series)
+                              ? outObj.series
+                              : (curOutModel?.startsWith('2MXP') ? 'SUPER MULTI系列' : (curOutModel?.startsWith('2MXM') || curOutModel?.startsWith('3MXM') || curOutModel?.startsWith('4MXM') ? '家用MULTI系列' : (row.series || fastSeries)));
+                            let validCandidateList = getOutdoorModelsForSystem(gCard.system_type, effectiveGroupSeries, fastOutdoorType, targetPower);
+
+                            // 🎯 確保 Multi 候選機型 (如 2MXP85ZVLT, 2MXP50ZVLT 等) 完整呈現於下拉選單
+                            if (outObj && outObj.series) {
+                              const sameSeriesOutdoors = OUTDOOR_UNITS_DB.filter(m => m.system === gCard.system_type && m.series === outObj.series && (!targetPower || m.power_supply === targetPower));
+                              const existingModels = new Set(validCandidateList.map(m => m.model));
+                              sameSeriesOutdoors.forEach(m => {
+                                if (!existingModels.has(m.model)) {
+                                  validCandidateList.push(m);
+                                  existingModels.add(m.model);
+                                }
+                              });
+                            }
+                            if (curOutModel && !validCandidateList.some(m => m.model === curOutModel)) {
+                              if (outObj) validCandidateList.unshift(outObj);
+                            }
+                            validCandidateList.sort((a, b) => (a.cap_kw || 0) - (b.cap_kw || 0));
                             const isNoModel = (!hasActiveSys || !isIndoorSelectionComplete) ? false : (!gCard.outdoor_model || gCard.outdoor_model === '無此機型' || validCandidateList.length === 0);
                             const isPowerValid = isNoModel ? true : isValidOutdoorPower(gCard.outdoor_model, targetPower);
                             
@@ -5903,110 +6259,14 @@ function App() {
                             const isWarn = connRatio < 100 || connRatio > 120;
                             const ratioColor = connRatio < 100 ? '#ef4444' : (connRatio > 120 ? '#f97316' : (connRatio <= 110 ? '#34d399' : '#f59e0b'));
 
-                            // 🎯 在還沒決定室內機機型之前 (currentStep < 3)，室外機欄位皆先隱藏
-                            if (currentStep < 3) {
+                            // 🎯 在還沒進入第四步室外機選用之前 (currentStep < 4)，室外機欄位皆先隱藏
+                            if (currentStep < 4) {
                               return null;
                             }
 
                             return (
                               <>
-                                {(() => {
-                                  const isRAPower = (gCard?.system_type === 'RA' || row.system_type === 'RA');
-                                  return (
-                                    <td
-                                      rowSpan={gSpan}
-                                      style={{
-                                        ...styles.td,
-                                        verticalAlign: 'middle',
-                                        textAlign: 'center',
-                                        backgroundColor: gCard?.color?.bg || 'rgba(59, 130, 246, 0.15)'
-                                      }}
-                                    >
-                                      <select
-                                        value={isRAPower ? '1φ, 220V, 60Hz' : (gCard?.power_supply || targetPower)}
-                                        disabled={isRAPower}
-                                        onChange={(e) => {
-                                          const pVal = e.target.value;
-                                          setOutdoorGroups(prev => prev.map(g => g.id === gCard.id ? { ...g, power_supply: pVal } : g));
-                                        }}
-                                        title={isRAPower ? "RA 系統 (家用 / 家用多聯) 固定為 1φ, 220V, 60Hz 電源 (不可編輯)" : "選擇室外機電源"}
-                                        style={{
-                                          backgroundColor: isRAPower ? '#1e293b' : '#0f172a',
-                                          color: isRAPower ? '#94a3b8' : '#eab308',
-                                          border: isRAPower ? '1px solid #475569' : '1px solid #eab308',
-                                          padding: '5px 8px',
-                                          borderRadius: '4px',
-                                          fontSize: '14.5px',
-                                          fontWeight: 'bold',
-                                          cursor: isRAPower ? 'not-allowed' : 'pointer'
-                                        }}
-                                      >
-                                        <option value="1φ, 220V, 60Hz">1φ, 220V, 60Hz</option>
-                                        <option value="3φ, 3P, 220V, 60Hz">3φ, 3P, 220V, 60Hz</option>
-                                        <option value="3φ, 4P, 380V, 60Hz">3φ, 4P, 380V, 60Hz</option>
-                                      </select>
-                                    </td>
-                                  );
-                                })()}
-
-                                {(() => {
-                                  const curSys = gCard?.system_type || row.system_type || fastSystem || 'VRV';
-                                  const curOutType = gCard?.outdoor_type || fastOutdoorType || (curSys === 'VRV' ? '冷暖上吹型' : '側吹單風扇');
-                                  return (
-                                    <td
-                                      rowSpan={gSpan}
-                                      style={{
-                                        ...styles.td,
-                                        verticalAlign: 'middle',
-                                        textAlign: 'center',
-                                        backgroundColor: gCard?.color?.bg || 'rgba(59, 130, 246, 0.15)'
-                                      }}
-                                    >
-                                      <select
-                                        value={curOutType}
-                                        onChange={(e) => {
-                                          const tVal = e.target.value;
-                                          setOutdoorGroups(prev => prev.map(g => {
-                                            if (g.id === gCard.id) {
-                                              const cand = getOutdoorModelsForSystem(g.system_type, row.series || fastSeries, tVal, g.power_supply || targetPower);
-                                              const newModel = cand[0]?.model || g.outdoor_model;
-                                              return { ...g, outdoor_type: tVal, outdoor_model: newModel };
-                                            }
-                                            return g;
-                                          }));
-                                        }}
-                                        style={{
-                                          backgroundColor: '#0f172a',
-                                          color: '#38bdf8',
-                                          border: '1px solid #38bdf8',
-                                          padding: '5px 8px',
-                                          borderRadius: '4px',
-                                          fontSize: '14.5px',
-                                          fontWeight: 'bold',
-                                          cursor: 'pointer'
-                                        }}
-                                      >
-                                        {curSys === 'VRV' ? (
-                                          <>
-                                            <option value="側吹單風扇">側吹單風扇</option>
-                                            <option value="側吹雙風扇">側吹雙風扇</option>
-                                            <option value="冷專上吹型">冷專上吹型</option>
-                                            <option value="冷暖上吹型">冷暖上吹型</option>
-                                          </>
-                                        ) : curSys === 'SA' ? (
-                                          <option value="側吹單風扇">側吹單風扇</option>
-                                        ) : (
-                                          <>
-                                            <option value="側吹單風扇">側吹單風扇</option>
-                                            <option value="側吹雙風扇">側吹雙風扇</option>
-                                          </>
-                                        )}
-                                      </select>
-                                    </td>
-                                  );
-                                })()}
-
-                                 <td
+                                <td
                                    rowSpan={gSpan}
                                    style={{
                                      ...styles.td,
@@ -6204,93 +6464,13 @@ function App() {
                           const isWarn = connRatio < 100 || connRatio > 120;
                           const ratioColor = connRatio < 100 ? '#ef4444' : (connRatio > 120 ? '#f97316' : (connRatio <= 110 ? '#34d399' : '#f59e0b'));
 
-                          // 🎯 在還沒決定室內機機型之前 (currentStep < 3)，室外機欄位皆先隱藏
-                          if (currentStep < 3) {
+                          // 🎯 在還沒進入第四步室外機選用之前 (currentStep < 4)，室外機欄位皆先隱藏
+                          if (currentStep < 4) {
                             return null;
                           }
 
                           return (
                             <>
-                              {(() => {
-                                const isRAPower = (row.system_type || fastSystem) === 'RA';
-                                const isPowerDisabled = isRAPower || isSAPowerLocked;
-                                const currentPowerVal = isPowerDisabled ? '1φ, 220V, 60Hz' : (row.power_supply || effectiveRowPower);
-                                
-                                const tooltipMsg = isRAPower
-                                  ? "RA 家用系統固定為 1φ, 220V, 60Hz 電源 (不可修改)"
-                                  : (isSAPowerLocked
-                                      ? "大金商用 71/100/125 級室外機固定為 1φ, 220V, 60Hz 電源 (自動鎖定，不可修改)"
-                                      : "請選擇室外機供應電源 (140 級提供 3 種電源規格)");
-
-                                return (
-                                  <td style={styles.td}>
-                                    <select
-                                      value={currentPowerVal}
-                                      disabled={isPowerDisabled}
-                                      onChange={(e) => {
-                                        const pVal = e.target.value;
-                                        handleCellChange(index, 'power_supply', pVal);
-                                      }}
-                                      title={tooltipMsg}
-                                      style={{
-                                        backgroundColor: isPowerDisabled ? '#1e293b' : '#0f172a',
-                                        color: isPowerDisabled ? '#94a3b8' : '#eab308',
-                                        border: isPowerDisabled ? '1px solid #475569' : '1px solid #eab308',
-                                        padding: '5px 8px',
-                                        borderRadius: '4px',
-                                        fontSize: '14px',
-                                        fontWeight: 'bold',
-                                        cursor: isPowerDisabled ? 'not-allowed' : 'pointer',
-                                        opacity: isPowerDisabled ? 0.85 : 1
-                                      }}
-                                    >
-                                      <option value="1φ, 220V, 60Hz">1φ, 220V, 60Hz</option>
-                                      {!isPowerDisabled && <option value="3φ, 3P, 220V, 60Hz">3φ, 3P, 220V, 60Hz</option>}
-                                      {!isPowerDisabled && <option value="3φ, 4P, 380V, 60Hz">3φ, 4P, 380V, 60Hz</option>}
-                                    </select>
-                                  </td>
-                                );
-                              })()}
-
-                              {(() => {
-                                const curSys = row.system_type || fastSystem || 'VRV';
-                                const curOutType = row.outdoor_type || fastOutdoorType || (curSys === 'VRV' ? '冷暖上吹型' : '側吹單風扇');
-                                return (
-                                  <td style={styles.td}>
-                                    <select
-                                      value={curOutType}
-                                      onChange={(e) => handleCellChange(index, 'outdoor_type', e.target.value)}
-                                      style={{
-                                        backgroundColor: '#0f172a',
-                                        color: '#38bdf8',
-                                        border: '1px solid #38bdf8',
-                                        padding: '5px 8px',
-                                        borderRadius: '4px',
-                                        fontSize: '14.5px',
-                                        fontWeight: 'bold',
-                                        cursor: 'pointer'
-                                      }}
-                                    >
-                                      {curSys === 'VRV' ? (
-                                        <>
-                                          <option value="側吹單風扇">側吹單風扇</option>
-                                          <option value="側吹雙風扇">側吹雙風扇</option>
-                                          <option value="冷專上吹型">冷專上吹型</option>
-                                          <option value="冷暖上吹型">冷暖上吹型</option>
-                                        </>
-                                      ) : curSys === 'SA' ? (
-                                        <option value="側吹單風扇">側吹單風扇</option>
-                                      ) : (
-                                        <>
-                                          <option value="側吹單風扇">側吹單風扇</option>
-                                          <option value="側吹雙風扇">側吹雙風扇</option>
-                                        </>
-                                      )}
-                                    </select>
-                                  </td>
-                                );
-                              })()}
-
                               <td style={{ ...styles.td, backgroundColor: isSingleSelectionError ? '#450a0a' : undefined }}>
                                 <select
                                   value={!hasActiveSys ? '' : (isNoModel ? '無此機型' : (!isPowerValid ? '' : (isSingleMinViolated ? '選型錯誤' : selectedModelStr)))}
@@ -6371,8 +6551,96 @@ function App() {
             </table>
           </div>
 
+          {/* 🎯 第五步集中控制器專屬勾選清單 (依 EQUIPMENT_Data controller 黃底規格呈現) */}
+          {currentStep === 5 && fastControlMode === '集控' && (
+            <div style={{
+              backgroundColor: '#0f172a',
+              border: '1.5px solid #8b5cf6',
+              borderRadius: '8px',
+              padding: '12px 16px',
+              marginTop: '10px',
+              boxShadow: '0 4px 14px rgba(139, 92, 246, 0.25)',
+              flexShrink: 0
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '14.5px', fontWeight: 'bold', color: '#c084fc' }}>
+                    🎛️ 集中控制器選配清單 (Daikin 集中控制盤)
+                  </span>
+                  <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+                    • 複選規則：低階最多 1 種，高階最多 2 種（DCS303A61 為獨立專用，不可與其他高階共用）
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12.5px' }}>
+                  <span style={{ color: '#38bdf8' }}>
+                    低階已選：<strong style={{ color: '#ffffff' }}>{selectedControllers.filter(m => CONTROLLER_CANDIDATES.find(c => c.model === m)?.tier === '低階').length} / 1</strong>
+                  </span>
+                  <span style={{ color: '#94a3b8' }}>|</span>
+                  <span style={{ color: '#facc15' }}>
+                    高階已選：<strong style={{ color: '#ffffff' }}>{selectedControllers.filter(m => CONTROLLER_CANDIDATES.find(c => c.model === m)?.tier === '高階').length} / 2</strong>
+                  </span>
+                </div>
+              </div>
+
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+                gap: '8px'
+              }}>
+                {CONTROLLER_CANDIDATES.map(ctrl => {
+                  const isSelected = selectedControllers.includes(ctrl.model);
+                  const isLowTier = ctrl.tier === '低階';
+                  return (
+                    <div
+                      key={ctrl.model}
+                      onClick={() => handleToggleController(ctrl)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '9px 14px',
+                        borderRadius: '6px',
+                        backgroundColor: isSelected ? 'rgba(139, 92, 246, 0.28)' : '#1e293b',
+                        border: isSelected ? '2px solid #a855f7' : '1px solid #334155',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        boxShadow: isSelected ? '0 0 12px rgba(168, 85, 247, 0.45)' : 'none',
+                        userSelect: 'none'
+                      }}
+                    >
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        <div style={{ fontSize: '14px', fontWeight: 'bold', color: isSelected ? '#ffffff' : '#f1f5f9' }}>
+                          {ctrl.model}
+                        </div>
+                        <div style={{ fontSize: '14px', fontWeight: 'bold', color: isSelected ? '#d8b4fe' : '#94a3b8' }}>
+                          {ctrl.name}
+                        </div>
+                      </div>
+
+                      <div style={{ textAlign: 'right' }}>
+                        <span style={{
+                          fontSize: '12px',
+                          fontWeight: 'bold',
+                          padding: '3px 8px',
+                          borderRadius: '4px',
+                          display: 'inline-block',
+                          backgroundColor: isLowTier ? 'rgba(56, 189, 248, 0.2)' : (ctrl.tier === '高階' ? 'rgba(234, 179, 8, 0.2)' : 'rgba(148, 163, 184, 0.2)'),
+                          color: isLowTier ? '#38bdf8' : (ctrl.tier === '高階' ? '#facc15' : '#94a3b8'),
+                          border: isLowTier ? '1px solid #38bdf8' : (ctrl.tier === '高階' ? '1px solid #facc15' : '1px solid #475569')
+                        }}>
+                          {ctrl.note || ctrl.tier}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* 🎯 建議表下方專屬列印與匯出操作列 */}
-          <div style={{
+          {currentStep === 5 && (
+            <div style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -6442,9 +6710,73 @@ function App() {
               </button>
             </div>
           </div>
+          )}
         </section>
         )}
       </div>
+
+      {/* 🎯 集中控制器複選限制超額提醒彈窗 */}
+      {controllerAlertModal.show && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(5px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000
+          }}
+          onClick={() => setControllerAlertModal({ show: false, message: '' })}
+        >
+          <div
+            style={{
+              backgroundColor: '#0f172a',
+              borderRadius: '12px',
+              border: '1.5px solid #ef4444',
+              boxShadow: '0 20px 50px rgba(0, 0, 0, 0.9), 0 0 20px rgba(239, 68, 68, 0.3)',
+              width: '90%',
+              maxWidth: '440px',
+              padding: '24px',
+              color: '#f8fafc'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+              <span style={{ fontSize: '24px' }}>⚠️</span>
+              <h3 style={{ margin: 0, fontSize: '17px', color: '#f87171', fontWeight: 'bold' }}>
+                集中控制器選用限制提醒
+              </h3>
+            </div>
+            <p style={{ fontSize: '14px', lineHeight: '1.6', color: '#cbd5e1', marginBottom: '20px' }}>
+              {controllerAlertModal.message}
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => setControllerAlertModal({ show: false, message: '' })}
+                style={{
+                  backgroundColor: '#ef4444',
+                  color: '#ffffff',
+                  border: 'none',
+                  padding: '8px 20px',
+                  borderRadius: '6px',
+                  fontSize: '13.5px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(239, 68, 68, 0.4)'
+                }}
+              >
+                我知道了
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 🎯 未全選空間時之匯出範圍確認提醒視窗 */}
       {exportConfirmModal.show && (
@@ -6947,19 +7279,19 @@ const styles = {
   th: {
     backgroundColor: '#1e293b',
     color: '#cbd5e1',
-    padding: '12px 10px',
+    padding: '7px 5px',
     textAlign: 'left',
     borderBottom: '2px solid #334155',
     whiteSpace: 'nowrap',
-    fontSize: '14px',
+    fontSize: '13px',
     fontWeight: '600'
   },
   td: {
-    padding: '10px 10px',
+    padding: '6px 5px',
     borderBottom: '1px solid #1e293b',
     color: '#f8fafc',
     whiteSpace: 'nowrap',
-    fontSize: '14px'
+    fontSize: '13px'
   },
   inputNum: {
     backgroundColor: '#1e293b',
@@ -6983,10 +7315,10 @@ const styles = {
     backgroundColor: '#1e293b',
     border: '1px solid #475569',
     color: '#ffffff',
-    padding: '5px 8px',
+    padding: '3px 4px',
     borderRadius: '4px',
-    width: '55px',
-    fontSize: '13.5px'
+    width: '38px',
+    fontSize: '13px'
   },
   selectSys: {
     backgroundColor: '#1e293b',

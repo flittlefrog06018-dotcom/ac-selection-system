@@ -28,7 +28,7 @@ class ExportService:
         return candidates[0]
 
     @classmethod
-    def generate_excel_report(cls, rooms_data: List[Dict[str, Any]], outdoor_groups: List[Dict[str, Any]] = None) -> io.BytesIO:
+    def generate_excel_report(cls, rooms_data: List[Dict[str, Any]], outdoor_groups: List[Dict[str, Any]] = None, selected_controllers: List[str] = None) -> io.BytesIO:
         """
         Loads the template Excel sheet '選機表-.xlsx', maps properties,
         and performs vertical cell merging (rowspan) for outdoor unit cards.
@@ -468,9 +468,23 @@ class ExportService:
             # 🎯 整合設備統計總表、系統套數樹狀拓撲、D3-NET 分析分頁 (獨立模組化調用)
             try:
                 from app.services.equipment_summary_service import EquipmentSummaryService
-                EquipmentSummaryService.append_summary_sheets(wb, flat_rows_to_render, outdoor_groups)
+                EquipmentSummaryService.append_summary_sheets(wb, flat_rows_to_render, outdoor_groups, selected_controllers=selected_controllers)
             except Exception as summary_err:
                 logger.error(f"Failed to generate summary sheets: {summary_err}")
+
+                        # 🎯 匯出的選機表中，選機分頁若出現整欄都是 "-" 時，直接隱藏該欄位，如果有其中一項有數值，則保留該欄位
+            from openpyxl.utils import get_column_letter
+            for col_idx in range(4, 43):
+                col_letter = get_column_letter(col_idx)
+                has_val = False
+                for r in range(start_row, start_row + len(flat_rows_to_render)):
+                    v = ws.cell(row=r, column=col_idx).value
+                    v_str = str(v).strip() if v is not None else ""
+                    if v_str and v_str not in ["-", "None", "", "none"]:
+                        has_val = True
+                        break
+                if not has_val:
+                    ws.column_dimensions[col_letter].hidden = True
 
             output = io.BytesIO()
             wb.save(output)

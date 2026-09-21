@@ -127,7 +127,7 @@ class EquipmentSummaryService:
         return records
 
     @classmethod
-    def append_summary_sheets(cls, wb, rooms_data: List[Dict[str, Any]], outdoor_groups: List[Dict[str, Any]] = None):
+    def append_summary_sheets(cls, wb, rooms_data: List[Dict[str, Any]], outdoor_groups: List[Dict[str, Any]] = None, selected_controllers: List[str] = None):
         """
         在現有的 workbook 之後附加三個專業統計分頁：
         1. 設備統計總表
@@ -328,9 +328,7 @@ class EquipmentSummaryService:
         # ========================================================
         # 0. 建立分頁【設備報價單】 (依據經理指示之報價清冊格式，緊接在主選機表之後)
         # ========================================================
-        ws_quote = cls._build_quotation_sheet(
-            wb, rooms_data, grouped_by_outdoor, hrv_items, joint_items, adapter_board_items, db_srv
-        )
+        ws_quote = cls._build_quotation_sheet(wb, rooms_data, grouped_by_outdoor, hrv_items, joint_items, adapter_board_items, db_srv, selected_controllers=selected_controllers)
 
         # ========================================================
         # 1. 建立分頁【設備統計總表】
@@ -454,7 +452,12 @@ class EquipmentSummaryService:
                     flat_rows = pipe_calc.flatten_tree_to_rows(tree_root)
                     for r_item in flat_rows:
                         is_main = (r_item["node"].node_type == "main")
-                        cell_node = ws2.cell(row=curr_r, column=2, value=f"{sys_counter}. [{sys_lbl}] {r_item['結構']}" if is_main else r_item['結構'])
+                        is_vrv = "VRV" in sys_lbl.upper()
+                        if is_main and not is_vrv:
+                            clean_label = re.sub(r'\s*\([^\)]*主管[^\)]*\)', '', str(r_item['結構']))
+                            cell_node = ws2.cell(row=curr_r, column=2, value=f"{sys_counter}. [{sys_lbl}] {clean_label}")
+                        else:
+                            cell_node = ws2.cell(row=curr_r, column=2, value=f"{sys_counter}. [{sys_lbl}] {r_item['結構']}" if is_main else r_item['結構'])
                         cell_q = ws2.cell(row=curr_r, column=3, value=r_item["數量"])
                         cell_node.font = font_bold if is_main else font_data
                         cell_node.border = border_thin
@@ -592,7 +595,7 @@ class EquipmentSummaryService:
                 ws.column_dimensions[col_letter].width = max(max_len + 4, 12)
 
     @classmethod
-    def _build_quotation_sheet(cls, wb, rooms_data, grouped_by_outdoor, hrv_items, joint_items, adapter_board_items, db_srv):
+    def _build_quotation_sheet(cls, wb, rooms_data, grouped_by_outdoor, hrv_items, joint_items, adapter_board_items, db_srv, selected_controllers=None):
         font_header = Font(name="微軟正黑體", size=11, bold=True, color="FFFFFF")
         font_data = Font(name="微軟正黑體", size=10)
         font_bold = Font(name="微軟正黑體", size=10, bold=True)
@@ -802,16 +805,20 @@ class EquipmentSummaryService:
                     "notes": "搭配 APP 遠端控制卡專用介面基板"
                 })
 
-        # 🎯 集中控制需求配件精準對應 (參照 EQUIPMENT_Data 分頁之 集控轉接基板)
+        # 🎯 集中控制需求配件精準對應 (參照 EQUIPMENT_Data 分頁之 集控轉接基板 與 轉接小P板)
         if has_central:
             c_board_counts = {}
+            p_board_counts = {}
             for r in rooms_data:
                 m_in = str(r.get("recommended_model") or r.get("indoor_model") or r.get("best_match_model") or "").strip().upper()
                 q_in = int(r.get("qty") or r.get("unit_count") or 1)
                 rule = acc_rules.get(m_in, {})
                 c_board = rule.get("central_board")
-                if c_board:
+                if c_board and c_board != "-":
                     c_board_counts[c_board] = c_board_counts.get(c_board, 0) + q_in
+                p_board = rule.get("adapter_board")
+                if p_board and p_board not in ["-", "內建", "None", ""] and not has_app:
+                    p_board_counts[p_board] = p_board_counts.get(p_board, 0) + q_in
 
             for cb_m, cb_q in c_board_counts.items():
                 accessory_items.append({
@@ -823,14 +830,46 @@ class EquipmentSummaryService:
                     "notes": "連接中央集中控制器專用轉接基板"
                 })
 
-            if not any("集中控制器" in it["name"] for it in accessory_items):
+            for pb_m, pb_q in p_board_counts.items():
                 accessory_items.append({
                     "cat": "控制配件",
-                    "name": "大金空調中央集中控制器 (DCS302CA61)",
+                    "name": f"原廠室內機轉接小P板 ({pb_m})",
+                    "qty": pb_q,
+                    "unit": "個",
+                    "unit_price": None,
+                    "notes": "搭配集控介面專用轉接小P板"
+                })
+
+            CONTROLLER_INFO_MAP = {
+                'DCS301BA61': {'name': '集中ON-OFF控制器', 'price': 11800, 'note': '低階'},
+                'DCS302CA61': {'name': '中央集中控制器', 'price': 11700, 'note': '高階'},
+                'DCS303A61': {'name': '家用集中控制器', 'price': 22800, 'note': '高階'},
+                'DTP401A61': {'name': 'STC集中控制器', 'price': 25000, 'note': '高階'},
+                'DCM601B51': {'name': 'ITM', 'price': 108200, 'note': '高階'},
+                'DTA116A51': {'name': 'Modbus 介面', 'price': 11500, 'note': '高階'},
+                'DMS502B51': {'name': 'BACnet 介面', 'price': 83600, 'note': '高階'},
+                'DCPA01': {'name': '伶俐用轉接器', 'price': 9200, 'note': '配件'},
+                'DCPF01': {'name': '伶俐智控管理器', 'price': 34700, 'note': '高階'}
+            }
+            if selected_controllers and len(selected_controllers) > 0:
+                for ctrl_m in selected_controllers:
+                    c_info = CONTROLLER_INFO_MAP.get(ctrl_m, {'name': '集中控制器', 'price': 0, 'note': '高階'})
+                    accessory_items.append({
+                        "cat": "控制配件",
+                        "name": f"大金空調{c_info['name']} ({ctrl_m})",
+                        "qty": 1,
+                        "unit": "台",
+                        "unit_price": c_info['price'],
+                        "notes": f"大金原廠集中控制器【{c_info['note']}】"
+                    })
+            else:
+                accessory_items.append({
+                    "cat": "控制配件",
+                    "name": "大金空調ITM集中控制器 (DCM601B51)",
                     "qty": 1,
                     "unit": "台",
-                    "unit_price": None,
-                    "notes": "多功能中央集中控制盤"
+                    "unit_price": 108200,
+                    "notes": "大金原廠集中控制器【高階】"
                 })
 
         # --- 3. 渲染報價單到工作表 ---

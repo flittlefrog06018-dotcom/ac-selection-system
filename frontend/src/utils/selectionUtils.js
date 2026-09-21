@@ -1,4 +1,6 @@
-import { EQUIPMENT_DB, DYNAMIC_LOAD_RULES, SA_MATCHED_PAIRS } from '../constants/acConstants.js';
+import { EQUIPMENT_DB, DYNAMIC_LOAD_RULES, SA_MATCHED_PAIRS, OUTDOOR_UNITS_DB } from '../constants/acConstants.js';
+import EQUIPMENT_FULL_DB from '../equipment_db.json';
+
 
 // 🎯 SA 商用系統 1對1 精確欄位配對檢索 (依據 EQUIPMENT_Data.xlsx 之 indoor_units_SA only 與 outdoor_units_SA only)
 export const getSaPairByIndoorModel = (indoorModel, powerSupply = null, seriesName = null) => {
@@ -276,5 +278,34 @@ export const getRa1to1PairByIndoorModel = (indoorModel) => {
   }
 
   return '';
+};
+
+// 🎯 依據 EQUIPMENT_Data 查詢室內機價格 (NT$)
+export const lookupIndoorPrice = (modelName) => {
+  if (!modelName) return 0;
+  const clean = String(modelName).trim().toUpperCase();
+  const fullObj = EQUIPMENT_FULL_DB.indoor_units && EQUIPMENT_FULL_DB.indoor_units[clean];
+  if (fullObj && fullObj.price !== undefined && fullObj.price !== null) {
+    return parseFloat(fullObj.price) || 0;
+  }
+  const allModels = [
+    ...(EQUIPMENT_DB.VRV || []),
+    ...(EQUIPMENT_DB.RA || []),
+    ...(EQUIPMENT_DB.SA || [])
+  ];
+  const matched = allModels.find(m => m.model && m.model.toUpperCase() === clean);
+  return matched && matched.price ? parseFloat(matched.price) : 0;
+};
+
+// 🎯 依據 EQUIPMENT_Data 查詢室外機價格 (NT$)
+export const lookupOutdoorPrice = (modelName) => {
+  if (!modelName) return 0;
+  const clean = String(modelName).trim().toUpperCase();
+  const fullObj = EQUIPMENT_FULL_DB.outdoor_units && EQUIPMENT_FULL_DB.outdoor_units[clean];
+  if (fullObj && fullObj.price !== undefined && fullObj.price !== null) {
+    return parseFloat(fullObj.price) || 0;
+  }
+  const matched = (OUTDOOR_UNITS_DB || []).find(m => m.model && m.model.toUpperCase() === clean);
+  return matched && matched.price ? parseFloat(matched.price) : 0;
 };
 

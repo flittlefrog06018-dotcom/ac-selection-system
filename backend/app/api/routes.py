@@ -121,6 +121,7 @@ class ExportRequest(BaseModel):
     data: List[ExportRowModel]
     outdoor_groups: Optional[List[Dict[str, Any]]] = None
     control_mode: Optional[str] = "無"
+    selected_controllers: Optional[List[str]] = None
 
 class OCRSpaceNameRequest(BaseModel):
     image_base64: str
@@ -629,7 +630,7 @@ async def export_excel(payload: ExportRequest):
                 if not r.get("control_mode") or r.get("control_mode") == "無":
                     r["control_mode"] = payload.control_mode
 
-        output = ExportService.generate_excel_report(raw_rooms_data, payload.outdoor_groups)
+        output = ExportService.generate_excel_report(raw_rooms_data, payload.outdoor_groups, selected_controllers=payload.selected_controllers)
 
         raw_case_name = payload.filename.strip() if payload.filename else ""
         if raw_case_name:

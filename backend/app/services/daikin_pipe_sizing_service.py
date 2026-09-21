@@ -292,9 +292,14 @@ class DaikinHVACCalculator:
     def flatten_tree_to_rows(self, node: HVACNode, prefix: str = "", is_last: bool = True, is_root: bool = True) -> List[Dict[str, Any]]:
         rows = []
         if is_root:
-            joint_info = f" | 主分歧: {node.joint_model}" if node.joint_model else ""
-            pipe_info = f"主管: {node.pipe_liquid}/{node.pipe_gas}" if node.pipe_liquid else ""
-            specs = f" ({pipe_info}{joint_info})" if (pipe_info or joint_info) else ""
+            is_vrv = any(k in str(node.model).upper() for k in ['RSUYQ', 'RXYQ', 'RXQ', 'VRV'])
+            if is_vrv:
+                joint_info = f" | 主分歧: {node.joint_model}" if node.joint_model else ""
+                pipe_info = f"主管: {node.pipe_liquid}/{node.pipe_gas}" if node.pipe_liquid else ""
+                specs = f" ({pipe_info}{joint_info})" if (pipe_info or joint_info) else ""
+            else:
+                # 🎯 RA 家用1對1、家用多聯、SUPER MULTI 等系統：室外機不顯示主機管徑，皆以室內機配管為主
+                specs = ""
             node_label = f"{node.name}{specs}"
             rows.append({"結構": node_label, "數量": node.qty, "node": node})
 
