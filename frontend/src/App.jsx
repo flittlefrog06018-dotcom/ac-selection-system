@@ -2994,7 +2994,7 @@ function App() {
 
       // 3. 渲染報價單工作表 (取消項次B欄位，首欄為系統類別)
       const titleCell = wsQuote.getCell(2, 2);
-      titleCell.value = "大金空調設備與工程配件報價清冊";
+      titleCell.value = "大金空調設備與配件報價清冊";
       titleCell.font = fontTitle;
 
       // 欄位抬頭 (無項次，首欄為系統類別)
@@ -3142,10 +3142,10 @@ function App() {
       }
       currRow += 2;
 
-      // 三、工程總計區塊
+      // 三、設備與配件總計區塊
       const untaxedRow = currRow;
       const untaxedLabel = wsQuote.getCell(currRow, 2);
-      untaxedLabel.value = "【全案設備工程未稅總計】";
+      untaxedLabel.value = "【設備與配件未稅總計】";
       untaxedLabel.font = fontBold;
       const untaxedVal = wsQuote.getCell(currRow, 7);
       untaxedVal.value = { formula: `G${subARow}+G${subBRow}` };
@@ -3176,7 +3176,7 @@ function App() {
       currRow++;
 
       const finalLabel = wsQuote.getCell(currRow, 2);
-      finalLabel.value = "【全案設備工程含稅總價】";
+      finalLabel.value = "【設備與配件含稅總價】";
       finalLabel.font = fontTotal;
       const finalVal = wsQuote.getCell(currRow, 7);
       finalVal.value = { formula: `G${untaxedRow}+G${taxRow}` };
@@ -5180,7 +5180,7 @@ function App() {
               <div style={{ ...styles.cardTitle, marginBottom: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span>📈 工程負荷試算與大金配機建議表</span>
                 <span style={{ fontSize: '11.5px', color: '#94a3b8', fontWeight: 'bold', backgroundColor: '#1e293b', padding: '2px 8px', borderRadius: '4px', border: '1px solid #334155' }}>
-                  v2.16.0 (2026.09.21 23:20)
+                  v2.17.0 (2026.09.23 00:25)
                 </span>
               </div>
               

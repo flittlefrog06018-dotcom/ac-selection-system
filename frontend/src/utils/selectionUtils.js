@@ -246,7 +246,7 @@ export const getRa1to1PairByIndoorModel = (indoorModel) => {
   const clean = String(indoorModel).trim().toUpperCase();
 
   // 1. FTHF (經典V / 經典VA / 豪菁Z / SUPER MULTI): 對應 RHF 室外機
-  // 例: FTHF50VVLT -> RHF50VVLT, FTHF50ZVLT -> RHF50ZVLT, FTHF20VAVLT -> RHF20VAVLT
+  // 例: FTHF50VAVLT -> RHF50VAVLT, FTHF50ZVLT -> RHF50ZVLT, FTHF20VAVLT -> RHF20VAVLT
   if (clean.startsWith('FTHF')) {
     return 'RHF' + clean.slice(4);
   }

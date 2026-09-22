@@ -16,7 +16,7 @@
       "adapter_p_board": "-",
       "wireless_receiver": "BRC084C45",
       "central_adapter_board": "KRP928BB2S",
-      "price": 0.0
+      "price": 18890.0
     },
     "FTXV28XVLT": {
       "model": "FTXV28XVLT",
@@ -34,7 +34,7 @@
       "adapter_p_board": "-",
       "wireless_receiver": "BRC084C45",
       "central_adapter_board": "KRP928BB2S",
-      "price": 0.0
+      "price": 21390.0
     },
     "FTXV36XVLT": {
       "model": "FTXV36XVLT",
@@ -52,7 +52,7 @@
       "adapter_p_board": "-",
       "wireless_receiver": "BRC084C45",
       "central_adapter_board": "KRP928BB2S",
-      "price": 0.0
+      "price": 24390.0
     },
     "FTXV41XVLT": {
       "model": "FTXV41XVLT",
@@ -70,7 +70,7 @@
       "adapter_p_board": "-",
       "wireless_receiver": "BRC084C45",
       "central_adapter_board": "KRP928BB2S",
-      "price": 0.0
+      "price": 26890.0
     },
     "FTXV50XVLT": {
       "model": "FTXV50XVLT",
@@ -88,7 +88,7 @@
       "adapter_p_board": "-",
       "wireless_receiver": "BRC084C45",
       "central_adapter_board": "KRP928BB2S",
-      "price": 0.0
+      "price": 30090.0
     },
     "FTXV60XVLT": {
       "model": "FTXV60XVLT",
@@ -106,7 +106,7 @@
       "adapter_p_board": "-",
       "wireless_receiver": "BRC084C45",
       "central_adapter_board": "KRP928BB2S",
-      "price": 0.0
+      "price": 34590.0
     },
     "FTXV71XVLT": {
       "model": "FTXV71XVLT",
@@ -124,7 +124,7 @@
       "adapter_p_board": "-",
       "wireless_receiver": "BRC084C45",
       "central_adapter_board": "KRP928BB2S",
-      "price": 0.0
+      "price": 37090.0
     },
     "FTXV80XVLT": {
       "model": "FTXV80XVLT",
@@ -142,7 +142,7 @@
       "adapter_p_board": "-",
       "wireless_receiver": "BRC084C45",
       "central_adapter_board": "KRP928BB2S",
-      "price": 0.0
+      "price": 43590.0
     },
     "FTXV90XVLT": {
       "model": "FTXV90XVLT",
@@ -160,7 +160,7 @@
       "adapter_p_board": "-",
       "wireless_receiver": "BRC084C45",
       "central_adapter_board": "KRP928BB2S",
-      "price": 0.0
+      "price": 48090.0
     },
     "FTXM22YVLT": {
       "model": "FTXM22YVLT",
@@ -466,7 +466,7 @@
       "adapter_p_board": "BRP067A42",
       "wireless_receiver": "BRP072C42",
       "central_adapter_board": "KRP928BB2S",
-      "price": 0.0
+      "price": 17890.0
     },
     "FTXV28UVLT": {
       "model": "FTXV28UVLT",
@@ -484,7 +484,7 @@
       "adapter_p_board": "BRP067A42",
       "wireless_receiver": "BRP072C42",
       "central_adapter_board": "KRP928BB2S",
-      "price": 0.0
+      "price": 19890.0
     },
     "FTXV36UVLT": {
       "model": "FTXV36UVLT",
@@ -502,7 +502,7 @@
       "adapter_p_board": "BRP067A42",
       "wireless_receiver": "BRP072C42",
       "central_adapter_board": "KRP928BB2S",
-      "price": 0.0
+      "price": 23390.0
     },
     "FTXV41UVLT": {
       "model": "FTXV41UVLT",
@@ -520,7 +520,7 @@
       "adapter_p_board": "BRP980B42",
       "wireless_receiver": "BRP072C42",
       "central_adapter_board": "KRP928BB2S",
-      "price": 0.0
+      "price": 24890.0
     },
     "FTXV50UVLT": {
       "model": "FTXV50UVLT",
@@ -538,7 +538,7 @@
       "adapter_p_board": "BRP980B42",
       "wireless_receiver": "BRP072C42",
       "central_adapter_board": "KRP928BB2S",
-      "price": 0.0
+      "price": 29090.0
     },
     "FTXV60UVLT": {
       "model": "FTXV60UVLT",
@@ -556,7 +556,7 @@
       "adapter_p_board": "BRP980B42",
       "wireless_receiver": "BRP072C42",
       "central_adapter_board": "KRP928BB2S",
-      "price": 0.0
+      "price": 33090.0
     },
     "FTXV71UVLT": {
       "model": "FTXV71UVLT",
@@ -574,7 +574,7 @@
       "adapter_p_board": "BRP980B42",
       "wireless_receiver": "BRP072C42",
       "central_adapter_board": "KRP928BB2S",
-      "price": 0.0
+      "price": 35590.0
     },
     "FTXV22ZVLT": {
       "model": "FTXV22ZVLT",
@@ -718,7 +718,7 @@
       "adapter_p_board": "BRP067A42",
       "wireless_receiver": "BRP072C42",
       "central_adapter_board": "KRP928BB2S",
-      "price": 0.0
+      "price": 13890.0
     },
     "FTHF25VAVLT": {
       "model": "FTHF25VAVLT",
@@ -736,7 +736,7 @@
       "adapter_p_board": "BRP067A42",
       "wireless_receiver": "BRP072C42",
       "central_adapter_board": "KRP928BB2S",
-      "price": 0.0
+      "price": 15390.0
     },
     "FTHF30VAVLT": {
       "model": "FTHF30VAVLT",
@@ -754,79 +754,7 @@
       "adapter_p_board": "BRP067A42",
       "wireless_receiver": "BRP072C42",
       "central_adapter_board": "KRP928BB2S",
-      "price": 0.0
-    },
-    "FTHF40VVLT": {
-      "model": "FTHF40VVLT",
-      "system": "RA",
-      "series": "經典VA系列",
-      "cap_kw": 4.0,
-      "nominal_cap": "-",
-      "power_supply": "室外機供電",
-      "power_consumption_kw": "-",
-      "rated_current_a": "-",
-      "esp_pa": "-",
-      "dimensions": "295×990×281",
-      "unit_type": "壁掛式",
-      "remote_model": "-",
-      "adapter_p_board": "BRP980B42",
-      "wireless_receiver": "BRP072C42",
-      "central_adapter_board": "KRP928BB2S",
-      "price": 0.0
-    },
-    "FTHF50VVLT": {
-      "model": "FTHF50VVLT",
-      "system": "RA",
-      "series": "經典VA系列",
-      "cap_kw": 5.0,
-      "nominal_cap": "-",
-      "power_supply": "室外機供電",
-      "power_consumption_kw": "-",
-      "rated_current_a": "-",
-      "esp_pa": "-",
-      "dimensions": "295×990×281",
-      "unit_type": "壁掛式",
-      "remote_model": "-",
-      "adapter_p_board": "BRP980B42",
-      "wireless_receiver": "BRP072C42",
-      "central_adapter_board": "KRP928BB2S",
-      "price": 0.0
-    },
-    "FTHF60VVLT": {
-      "model": "FTHF60VVLT",
-      "system": "RA",
-      "series": "經典VA系列",
-      "cap_kw": 6.0,
-      "nominal_cap": "-",
-      "power_supply": "室外機供電",
-      "power_consumption_kw": "-",
-      "rated_current_a": "-",
-      "esp_pa": "-",
-      "dimensions": "295×990×281",
-      "unit_type": "壁掛式",
-      "remote_model": "-",
-      "adapter_p_board": "BRP980B42",
-      "wireless_receiver": "BRP072C42",
-      "central_adapter_board": "KRP928BB2S",
-      "price": 0.0
-    },
-    "FTHF71VVLT": {
-      "model": "FTHF71VVLT",
-      "system": "RA",
-      "series": "經典VA系列",
-      "cap_kw": 7.2,
-      "nominal_cap": "-",
-      "power_supply": "室外機供電",
-      "power_consumption_kw": "-",
-      "rated_current_a": "-",
-      "esp_pa": "-",
-      "dimensions": "295×990×281",
-      "unit_type": "壁掛式",
-      "remote_model": "-",
-      "adapter_p_board": "BRP980B42",
-      "wireless_receiver": "BRP072C42",
-      "central_adapter_board": "KRP928BB2S",
-      "price": 0.0
+      "price": 16890.0
     },
     "FTHF20ZVLT": {
       "model": "FTHF20ZVLT",
@@ -3040,7 +2968,7 @@
       "adapter_p_board": "BRP067A42",
       "wireless_receiver": "BRP072C42",
       "central_adapter_board": "kRP928BB2S",
-      "price": 0.0
+      "price": 30990.0
     },
     "FAA100XVLT": {
       "model": "FAA100XVLT",
@@ -3058,7 +2986,7 @@
       "adapter_p_board": "-",
       "wireless_receiver": "BRP084C45",
       "central_adapter_board": "kRP928BB2S",
-      "price": 0.0
+      "price": 43990.0
     },
     "FCA71DVLT": {
       "model": "FCA71DVLT",
@@ -3076,7 +3004,7 @@
       "adapter_p_board": "-",
       "wireless_receiver": "BRP072C42-1",
       "central_adapter_board": "-",
-      "price": 0.0
+      "price": 44590.0
     },
     "FCA71CVLT": {
       "model": "FCA71CVLT",
@@ -3112,7 +3040,7 @@
       "adapter_p_board": "-",
       "wireless_receiver": "BRP072C42-1",
       "central_adapter_board": "-",
-      "price": 0.0
+      "price": 53840.0
     },
     "FCA125CVLT": {
       "model": "FCA125CVLT",
@@ -3130,7 +3058,7 @@
       "adapter_p_board": "-",
       "wireless_receiver": "BRP072C42-1",
       "central_adapter_board": "-",
-      "price": 0.0
+      "price": 60640.0
     },
     "FCA140CVLT": {
       "model": "FCA140CVLT",
@@ -3148,7 +3076,7 @@
       "adapter_p_board": "-",
       "wireless_receiver": "BRP072C42-1",
       "central_adapter_board": "-",
-      "price": 0.0
+      "price": 63890.0
     },
     "FCA140DVLT": {
       "model": "FCA140DVLT",
@@ -3166,7 +3094,7 @@
       "adapter_p_board": "-",
       "wireless_receiver": "BRP072C42-1",
       "central_adapter_board": "-",
-      "price": 0.0
+      "price": 64890.0
     },
     "FBA71BVLT": {
       "model": "FBA71BVLT",
@@ -3184,7 +3112,7 @@
       "adapter_p_board": "-",
       "wireless_receiver": "BRP072C42-1",
       "central_adapter_board": "-",
-      "price": 0.0
+      "price": 40790.0
     },
     "FBA100BVLT": {
       "model": "FBA100BVLT",
@@ -3202,7 +3130,7 @@
       "adapter_p_board": "-",
       "wireless_receiver": "BRP072C42-1",
       "central_adapter_board": "-",
-      "price": 0.0
+      "price": 51090.0
     },
     "FBA125BVLT": {
       "model": "FBA125BVLT",
@@ -3220,7 +3148,7 @@
       "adapter_p_board": "-",
       "wireless_receiver": "BRP072C42-1",
       "central_adapter_board": "-",
-      "price": 0.0
+      "price": 59790.0
     },
     "FBA140BVLT": {
       "model": "FBA140BVLT",
@@ -3238,7 +3166,79 @@
       "adapter_p_board": "-",
       "wireless_receiver": "BRP072C42-1",
       "central_adapter_board": "-",
-      "price": 0.0
+      "price": 62290.0
+    },
+    "FTHF40VAVLT": {
+      "model": "FTHF40VAVLT",
+      "system": "RA",
+      "series": "經典VA系列",
+      "cap_kw": 4.0,
+      "nominal_cap": "-",
+      "power_supply": "室外機供電",
+      "power_consumption_kw": "-",
+      "rated_current_a": "-",
+      "esp_pa": "-",
+      "dimensions": "295×990×281",
+      "unit_type": "壁掛式",
+      "remote_model": "-",
+      "adapter_p_board": "BRP980B42",
+      "wireless_receiver": "BRP072C42",
+      "central_adapter_board": "KRP928BB2S",
+      "price": 20390.0
+    },
+    "FTHF50VAVLT": {
+      "model": "FTHF50VAVLT",
+      "system": "RA",
+      "series": "經典VA系列",
+      "cap_kw": 5.0,
+      "nominal_cap": "-",
+      "power_supply": "室外機供電",
+      "power_consumption_kw": "-",
+      "rated_current_a": "-",
+      "esp_pa": "-",
+      "dimensions": "295×990×281",
+      "unit_type": "壁掛式",
+      "remote_model": "-",
+      "adapter_p_board": "BRP980B42",
+      "wireless_receiver": "BRP072C42",
+      "central_adapter_board": "KRP928BB2S",
+      "price": 24590.0
+    },
+    "FTHF60VAVLT": {
+      "model": "FTHF60VAVLT",
+      "system": "RA",
+      "series": "經典VA系列",
+      "cap_kw": 6.0,
+      "nominal_cap": "-",
+      "power_supply": "室外機供電",
+      "power_consumption_kw": "-",
+      "rated_current_a": "-",
+      "esp_pa": "-",
+      "dimensions": "295×990×281",
+      "unit_type": "壁掛式",
+      "remote_model": "-",
+      "adapter_p_board": "BRP980B42",
+      "wireless_receiver": "BRP072C42",
+      "central_adapter_board": "KRP928BB2S",
+      "price": 28590.0
+    },
+    "FTHF71VAVLT": {
+      "model": "FTHF71VAVLT",
+      "system": "RA",
+      "series": "經典VA系列",
+      "cap_kw": 7.2,
+      "nominal_cap": "-",
+      "power_supply": "室外機供電",
+      "power_consumption_kw": "-",
+      "rated_current_a": "-",
+      "esp_pa": "-",
+      "dimensions": "295×990×281",
+      "unit_type": "壁掛式",
+      "remote_model": "-",
+      "adapter_p_board": "BRP980B42",
+      "wireless_receiver": "BRP072C42",
+      "central_adapter_board": "KRP928BB2S",
+      "price": 32090.0
     }
   },
   "outdoor_units": {
@@ -3495,7 +3495,7 @@
       "esp_pa": "-",
       "dimensions": "550×675×284",
       "outdoor_type": "側吹單風扇",
-      "price": 0.0
+      "price": 18890.0
     },
     "RXM28XVLT": {
       "model": "RXM28XVLT",
@@ -3510,7 +3510,7 @@
       "esp_pa": "-",
       "dimensions": "550×675×284",
       "outdoor_type": "側吹單風扇",
-      "price": 0.0
+      "price": 21390.0
     },
     "RXM36XVLT": {
       "model": "RXM36XVLT",
@@ -3525,7 +3525,7 @@
       "esp_pa": "-",
       "dimensions": "595×845×300",
       "outdoor_type": "側吹單風扇",
-      "price": 0.0
+      "price": 24390.0
     },
     "RXM41XVLT": {
       "model": "RXM41XVLT",
@@ -3540,7 +3540,7 @@
       "esp_pa": "-",
       "dimensions": "595×845×300",
       "outdoor_type": "側吹單風扇",
-      "price": 0.0
+      "price": 26890.0
     },
     "RXM50XVLT": {
       "model": "RXM50XVLT",
@@ -3555,7 +3555,7 @@
       "esp_pa": "-",
       "dimensions": "595×845×300",
       "outdoor_type": "側吹單風扇",
-      "price": 0.0
+      "price": 30090.0
     },
     "RXM60XVLT": {
       "model": "RXM60XVLT",
@@ -3570,7 +3570,7 @@
       "esp_pa": "-",
       "dimensions": "695×930×350",
       "outdoor_type": "側吹單風扇",
-      "price": 0.0
+      "price": 34590.0
     },
     "RXM71XVLT": {
       "model": "RXM71XVLT",
@@ -3585,7 +3585,7 @@
       "esp_pa": "-",
       "dimensions": "695×930×350",
       "outdoor_type": "側吹單風扇",
-      "price": 0.0
+      "price": 37090.0
     },
     "RXM80XVLT": {
       "model": "RXM80XVLT",
@@ -3600,7 +3600,7 @@
       "esp_pa": "-",
       "dimensions": "990×940×320",
       "outdoor_type": "側吹單風扇",
-      "price": 0.0
+      "price": 43590.0
     },
     "RXM90XVLT": {
       "model": "RXM90XVLT",
@@ -3615,7 +3615,7 @@
       "esp_pa": "-",
       "dimensions": "990×940×320",
       "outdoor_type": "側吹單風扇",
-      "price": 0.0
+      "price": 48090.0
     },
     "RXV22ZVLT": {
       "model": "RXV22ZVLT",
@@ -3735,7 +3735,7 @@
       "esp_pa": "-",
       "dimensions": "550×675×284",
       "outdoor_type": "側吹單風扇",
-      "price": 0.0
+      "price": 17890.0
     },
     "RXV28UVLT": {
       "model": "RXV28UVLT",
@@ -3750,7 +3750,7 @@
       "esp_pa": "-",
       "dimensions": "550×675×284",
       "outdoor_type": "側吹單風扇",
-      "price": 0.0
+      "price": 19890.0
     },
     "RXV36UVLT": {
       "model": "RXV36UVLT",
@@ -3765,7 +3765,7 @@
       "esp_pa": "-",
       "dimensions": "550×845×300",
       "outdoor_type": "側吹單風扇",
-      "price": 0.0
+      "price": 23390.0
     },
     "RXV41UVLT": {
       "model": "RXV41UVLT",
@@ -3780,7 +3780,7 @@
       "esp_pa": "-",
       "dimensions": "550×845×300",
       "outdoor_type": "側吹單風扇",
-      "price": 0.0
+      "price": 24890.0
     },
     "RXV50UVLT": {
       "model": "RXV50UVLT",
@@ -3795,7 +3795,7 @@
       "esp_pa": "-",
       "dimensions": "550×845×300",
       "outdoor_type": "側吹單風扇",
-      "price": 0.0
+      "price": 29090.0
     },
     "RXV60UVLT": {
       "model": "RXV60UVLT",
@@ -3810,7 +3810,7 @@
       "esp_pa": "-",
       "dimensions": "695×930×350",
       "outdoor_type": "側吹單風扇",
-      "price": 0.0
+      "price": 33090.0
     },
     "RXV71UVLT": {
       "model": "RXV71UVLT",
@@ -3825,7 +3825,7 @@
       "esp_pa": "-",
       "dimensions": "695×930×350",
       "outdoor_type": "側吹單風扇",
-      "price": 0.0
+      "price": 35590.0
     },
     "RHF20ZVLT": {
       "model": "RHF20ZVLT",
@@ -3945,7 +3945,7 @@
       "esp_pa": "-",
       "dimensions": "550×675×284",
       "outdoor_type": "側吹單風扇",
-      "price": 0.0
+      "price": 13890.0
     },
     "RHF25VAVLT": {
       "model": "RHF25VAVLT",
@@ -3960,7 +3960,7 @@
       "esp_pa": "-",
       "dimensions": "550×675×284",
       "outdoor_type": "側吹單風扇",
-      "price": 0.0
+      "price": 15390.0
     },
     "RHF30VAVLT": {
       "model": "RHF30VAVLT",
@@ -3975,67 +3975,7 @@
       "esp_pa": "-",
       "dimensions": "550×675×284",
       "outdoor_type": "側吹單風扇",
-      "price": 0.0
-    },
-    "RHF40VVLT": {
-      "model": "RHF40VVLT",
-      "system": "RA",
-      "series": "經典V系列",
-      "cap_kw": 4.1,
-      "cap_index": 41.0,
-      "power_supply": "1φ, 220V, 60Hz",
-      "power_consumption_kw": "0.952",
-      "mca": "5.1",
-      "mfa": "15",
-      "esp_pa": "-",
-      "dimensions": "595×845×300",
-      "outdoor_type": "側吹單風扇",
-      "price": 0.0
-    },
-    "RHF50VVLT": {
-      "model": "RHF50VVLT",
-      "system": "RA",
-      "series": "經典V系列",
-      "cap_kw": 5.0,
-      "cap_index": 50.0,
-      "power_supply": "1φ, 220V, 60Hz",
-      "power_consumption_kw": "1.315",
-      "mca": "6.1",
-      "mfa": "15",
-      "esp_pa": "-",
-      "dimensions": "595×845×300",
-      "outdoor_type": "側吹單風扇",
-      "price": 0.0
-    },
-    "RHF60VVLT": {
-      "model": "RHF60VVLT",
-      "system": "RA",
-      "series": "經典V系列",
-      "cap_kw": 6.0,
-      "cap_index": 60.0,
-      "power_supply": "1φ, 220V, 60Hz",
-      "power_consumption_kw": "1.78",
-      "mca": "8.2",
-      "mfa": "15",
-      "esp_pa": "-",
-      "dimensions": "595×845×300",
-      "outdoor_type": "側吹單風扇",
-      "price": 0.0
-    },
-    "RHF71VVLT": {
-      "model": "RHF71VVLT",
-      "system": "RA",
-      "series": "經典V系列",
-      "cap_kw": 7.2,
-      "cap_index": 72.0,
-      "power_supply": "1φ, 220V, 60Hz",
-      "power_consumption_kw": "2.23",
-      "mca": "10.2",
-      "mfa": "15",
-      "esp_pa": "-",
-      "dimensions": "595×845×300",
-      "outdoor_type": "側吹單風扇",
-      "price": 0.0
+      "price": 16890.0
     },
     "2MXM56YVLT": {
       "model": "2MXM56YVLT",
@@ -5160,7 +5100,7 @@
       "esp_pa": "-",
       "dimensions": "595×845×300",
       "outdoor_type": "側吹單風扇",
-      "price": 61980.0
+      "price": 30990.0
     },
     "RKF100XVLT": {
       "model": "RKF100XVLT",
@@ -5175,7 +5115,7 @@
       "esp_pa": "-",
       "dimensions": "990×940×320",
       "outdoor_type": "側吹單風扇",
-      "price": 87980.0
+      "price": 43990.0
     },
     "RZF71DVLT": {
       "model": "RZF71DVLT",
@@ -5190,7 +5130,7 @@
       "esp_pa": "-",
       "dimensions": "608×845×300",
       "outdoor_type": "側吹單風扇",
-      "price": 0.0
+      "price": 36690.0
     },
     "RZF71CVLT": {
       "model": "RZF71CVLT",
@@ -5220,7 +5160,7 @@
       "esp_pa": "-",
       "dimensions": "990×940×320",
       "outdoor_type": "側吹單風扇",
-      "price": 0.0
+      "price": 45890.0
     },
     "RZF125CVLT": {
       "model": "RZF125CVLT",
@@ -5235,7 +5175,7 @@
       "esp_pa": "-",
       "dimensions": "990×940×320",
       "outdoor_type": "側吹單風扇",
-      "price": 0.0
+      "price": 53790.0
     },
     "RZF140CVLT": {
       "model": "RZF140CVLT",
@@ -5250,7 +5190,7 @@
       "esp_pa": "-",
       "dimensions": "990×940×320",
       "outdoor_type": "側吹單風扇",
-      "price": 0.0
+      "price": 56040.0
     },
     "RZF140DTLT": {
       "model": "RZF140DTLT",
@@ -5265,7 +5205,7 @@
       "esp_pa": "-",
       "dimensions": "990×940×320",
       "outdoor_type": "側吹單風扇",
-      "price": 0.0
+      "price": 56790.0
     },
     "RZF140CYLT": {
       "model": "RZF140CYLT",
@@ -5280,7 +5220,7 @@
       "esp_pa": "-",
       "dimensions": "990×940×320",
       "outdoor_type": "側吹單風扇",
-      "price": 0.0
+      "price": 56040.0
     },
     "RZAC71EVLT": {
       "model": "RZAC71EVLT",
@@ -5295,7 +5235,7 @@
       "esp_pa": "-",
       "dimensions": "608×845×300",
       "outdoor_type": "側吹單風扇",
-      "price": 0.0
+      "price": 40790.0
     },
     "RZAC100DVLT": {
       "model": "RZAC100DVLT",
@@ -5310,7 +5250,7 @@
       "esp_pa": "-",
       "dimensions": "990×940×320",
       "outdoor_type": "側吹單風扇",
-      "price": 0.0
+      "price": 51090.0
     },
     "RZAC125DVLT": {
       "model": "RZAC125DVLT",
@@ -5325,7 +5265,7 @@
       "esp_pa": "-",
       "dimensions": "990×940×320",
       "outdoor_type": "側吹單風扇",
-      "price": 0.0
+      "price": 59790.0
     },
     "RZAC140DVLT": {
       "model": "RZAC140DVLT",
@@ -5340,7 +5280,7 @@
       "esp_pa": "-",
       "dimensions": "990×940×320",
       "outdoor_type": "側吹單風扇",
-      "price": 0.0
+      "price": 62290.0
     },
     "RZAC140ETLT": {
       "model": "RZAC140ETLT",
@@ -5355,7 +5295,7 @@
       "esp_pa": "-",
       "dimensions": "990×940×320",
       "outdoor_type": "側吹單風扇",
-      "price": 0.0
+      "price": 64890.0
     },
     "RZAC140DYLT": {
       "model": "RZAC140DYLT",
@@ -5370,7 +5310,7 @@
       "esp_pa": "-",
       "dimensions": "990×940×320",
       "outdoor_type": "側吹單風扇",
-      "price": 0.0
+      "price": 62290.0
     },
     "RZAC140DTLT": {
       "model": "RZAC140DTLT",
@@ -5386,6 +5326,66 @@
       "dimensions": "990×940×320",
       "outdoor_type": "側吹單風扇",
       "price": 0.0
+    },
+    "RHF40VAVLT": {
+      "model": "RHF40VAVLT",
+      "system": "RA",
+      "series": "經典V系列",
+      "cap_kw": 4.1,
+      "cap_index": 41.0,
+      "power_supply": "1φ, 220V, 60Hz",
+      "power_consumption_kw": "0.952",
+      "mca": "5.1",
+      "mfa": "15",
+      "esp_pa": "-",
+      "dimensions": "595×845×300",
+      "outdoor_type": "側吹單風扇",
+      "price": 20390.0
+    },
+    "RHF50VAVLT": {
+      "model": "RHF50VAVLT",
+      "system": "RA",
+      "series": "經典V系列",
+      "cap_kw": 5.0,
+      "cap_index": 50.0,
+      "power_supply": "1φ, 220V, 60Hz",
+      "power_consumption_kw": "1.315",
+      "mca": "6.1",
+      "mfa": "15",
+      "esp_pa": "-",
+      "dimensions": "595×845×300",
+      "outdoor_type": "側吹單風扇",
+      "price": 24590.0
+    },
+    "RHF60VAVLT": {
+      "model": "RHF60VAVLT",
+      "system": "RA",
+      "series": "經典V系列",
+      "cap_kw": 6.0,
+      "cap_index": 60.0,
+      "power_supply": "1φ, 220V, 60Hz",
+      "power_consumption_kw": "1.78",
+      "mca": "8.2",
+      "mfa": "15",
+      "esp_pa": "-",
+      "dimensions": "595×845×300",
+      "outdoor_type": "側吹單風扇",
+      "price": 28590.0
+    },
+    "RHF71VAVLT": {
+      "model": "RHF71VAVLT",
+      "system": "RA",
+      "series": "經典V系列",
+      "cap_kw": 7.2,
+      "cap_index": 72.0,
+      "power_supply": "1φ, 220V, 60Hz",
+      "power_consumption_kw": "2.23",
+      "mca": "10.2",
+      "mfa": "15",
+      "esp_pa": "-",
+      "dimensions": "595×845×300",
+      "outdoor_type": "側吹單風扇",
+      "price": 32090.0
     }
   },
   "controllers": [

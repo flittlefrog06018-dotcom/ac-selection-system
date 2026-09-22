@@ -276,10 +276,110 @@ class EquipmentDBService:
                         outdoors_map[m_str] = obj
             self.outdoor_units = outdoors
             self._outdoor_units_map = outdoors_map
+
+            # --- 3. 讀取 controller 工作表 (集中控制器、轉接小P版、無線接收、集控轉接基板) ---
+            controllers_map = {}
+            p_board_price_map = {}
+            c_board_price_map = {}
+            wireless_price_map = {}
+            if "controller" in wb.sheetnames:
+                ws_ctrl = wb["controller"]
+                for r in range(3, ws_ctrl.max_row + 1):
+                    c_model = ws_ctrl.cell(row=r, column=1).value
+                    c_name = ws_ctrl.cell(row=r, column=2).value
+                    c_price = ws_ctrl.cell(row=r, column=3).value
+                    c_note = ws_ctrl.cell(row=r, column=4).value
+                    if c_model:
+                        m_str = str(c_model).strip().upper()
+                        try:
+                            p_num = float(c_price) if c_price is not None else 0.0
+                        except (ValueError, TypeError):
+                            p_num = 0.0
+                        controllers_map[m_str] = {
+                            "name": str(c_name or "").strip(),
+                            "price": p_num,
+                            "note": str(c_note or "").strip()
+                        }
+                    
+                    pb_model = ws_ctrl.cell(row=r, column=6).value
+                    pb_price = ws_ctrl.cell(row=r, column=7).value
+                    if pb_model:
+                        pb_str = str(pb_model).strip().upper()
+                        try:
+                            pb_p = float(pb_price) if pb_price is not None else None
+                        except (ValueError, TypeError):
+                            pb_p = None
+                        if pb_p is not None:
+                            p_board_price_map[pb_str] = pb_p
+
+                    # 無線接收 (APP控制卡, BRP084C45, BRP072C42 等)
+                    wr_model = ws_ctrl.cell(row=r, column=9).value
+                    wr_price = ws_ctrl.cell(row=r, column=10).value
+                    if wr_model:
+                        wr_str = str(wr_model).strip().upper()
+                        try:
+                            wr_p = float(wr_price) if wr_price is not None else None
+                        except (ValueError, TypeError):
+                            wr_p = None
+                        if wr_p is not None:
+                            wireless_price_map[wr_str] = wr_p
+
+                    # 集控轉接基板 (KRP928BB2S 等)
+                    cb_model = ws_ctrl.cell(row=r, column=12).value
+                    cb_price = ws_ctrl.cell(row=r, column=13).value
+                    if cb_model:
+                        cb_str = str(cb_model).strip().upper()
+                        try:
+                            cb_p = float(cb_price) if cb_price is not None else None
+                        except (ValueError, TypeError):
+                            cb_p = None
+                        if cb_p is not None:
+                            c_board_price_map[cb_str] = cb_p
+
+            self.controllers_map = controllers_map
+            self.p_board_price_map = p_board_price_map
+            self.c_board_price_map = c_board_price_map
+            self.wireless_price_map = wireless_price_map
         except Exception as e:
-            logger.error(f"Failed to parse outdoor_units sheet: {e}")
+            logger.error(f"Failed to parse outdoor_units/controller sheet: {e}")
             self.outdoor_units = []
             self._outdoor_units_map = {}
+            self.controllers_map = {}
+            self.p_board_price_map = {}
+            self.c_board_price_map = {}
+            self.wireless_price_map = {}
+
+    def get_controller_info(self, model_name: str) -> Optional[Dict[str, Any]]:
+        if not self.is_loaded:
+            self.load_equipment_db()
+        if not model_name:
+            return None
+        m_upper = str(model_name).strip().upper()
+        return getattr(self, "controllers_map", {}).get(m_upper)
+
+    def get_p_board_price(self, model_name: str) -> Optional[float]:
+        if not self.is_loaded:
+            self.load_equipment_db()
+        if not model_name:
+            return None
+        m_upper = str(model_name).strip().upper()
+        return getattr(self, "p_board_price_map", {}).get(m_upper)
+
+    def get_c_board_price(self, model_name: str) -> Optional[float]:
+        if not self.is_loaded:
+            self.load_equipment_db()
+        if not model_name:
+            return None
+        m_upper = str(model_name).strip().upper()
+        return getattr(self, "c_board_price_map", {}).get(m_upper)
+
+    def get_wireless_price(self, model_name: str) -> Optional[float]:
+        if not self.is_loaded:
+            self.load_equipment_db()
+        if not model_name:
+            return None
+        m_upper = str(model_name).strip().upper()
+        return getattr(self, "wireless_price_map", {}).get(m_upper)
 
     def get_indoor_unit_info(self, model_name: str) -> Optional[Dict[str, Any]]:
         if not self.is_loaded:

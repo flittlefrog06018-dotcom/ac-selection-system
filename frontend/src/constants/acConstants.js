@@ -409,28 +409,28 @@ export const EQUIPMENT_DB = {
       "price": 0.0
     },
     {
-      "model": "FTHF40VVLT",
+      "model": "FTHF40VAVLT",
       "cap": 4.0,
       "series": "經典VA系列",
       "unit_type": "壁掛式",
       "price": 0.0
     },
     {
-      "model": "FTHF50VVLT",
+      "model": "FTHF50VAVLT",
       "cap": 5.0,
       "series": "經典VA系列",
       "unit_type": "壁掛式",
       "price": 0.0
     },
     {
-      "model": "FTHF60VVLT",
+      "model": "FTHF60VAVLT",
       "cap": 6.0,
       "series": "經典VA系列",
       "unit_type": "壁掛式",
       "price": 0.0
     },
     {
-      "model": "FTHF71VVLT",
+      "model": "FTHF71VAVLT",
       "cap": 7.2,
       "series": "經典VA系列",
       "unit_type": "壁掛式",
@@ -2009,7 +2009,7 @@ export const OUTDOOR_UNITS_DB = [
     "series": "經典V系列",
     "outdoor_type": "側吹單風扇",
     "power_supply": "1φ, 220V, 60Hz",
-    "model": "RHF40VVLT",
+    "model": "RHF40VAVLT",
     "cap_kw": 4.1,
     "cap_index": 41.0,
     "price": 0.0
@@ -2019,7 +2019,7 @@ export const OUTDOOR_UNITS_DB = [
     "series": "經典V系列",
     "outdoor_type": "側吹單風扇",
     "power_supply": "1φ, 220V, 60Hz",
-    "model": "RHF50VVLT",
+    "model": "RHF50VAVLT",
     "cap_kw": 5.0,
     "cap_index": 50.0,
     "price": 0.0
@@ -2029,7 +2029,7 @@ export const OUTDOOR_UNITS_DB = [
     "series": "經典V系列",
     "outdoor_type": "側吹單風扇",
     "power_supply": "1φ, 220V, 60Hz",
-    "model": "RHF60VVLT",
+    "model": "RHF60VAVLT",
     "cap_kw": 6.0,
     "cap_index": 60.0,
     "price": 0.0
@@ -2039,7 +2039,7 @@ export const OUTDOOR_UNITS_DB = [
     "series": "經典V系列",
     "outdoor_type": "側吹單風扇",
     "power_supply": "1φ, 220V, 60Hz",
-    "model": "RHF71VVLT",
+    "model": "RHF71VAVLT",
     "cap_kw": 7.2,
     "cap_index": 72.0,
     "price": 0.0

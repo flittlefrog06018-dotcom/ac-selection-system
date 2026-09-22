@@ -133,27 +133,8 @@ class DaikinHVACCalculator:
         """
         依室外機容量選用第一分歧頭
         """
-        is_side = self.is_side_discharge(outdoor_model)
-        hp = self.extract_outdoor_hp(outdoor_model)
-
-        if is_side:
-            # 側吹型表 1
-            if hp < 200 and hp < 8:
-                return "KHRP26A22T"
-            elif hp <= 250 or hp <= 10:
-                return "KHRP26A33T"
-            else:
-                return "KHRP26A72T"
-        else:
-            # 上吹型表 1
-            if hp <= 6:
-                return "KHRP26A22T"
-            elif hp <= 10:
-                return "KHRP26A33T"
-            elif hp <= 22:
-                return "KHRP26A72T"
-            else:
-                return "KHRP26A73T+KHRP26M73TP"
+        from app.services.daikin_vrv_piping_engine import DaikinVRVPipingEngine
+        return DaikinVRVPipingEngine.get_first_joint(outdoor_model)
 
     # ----------------------------------------------------
     # 3. 次幹管選用 (表 4 - 依下游標稱能力總和 X)
@@ -294,8 +275,8 @@ class DaikinHVACCalculator:
         if is_root:
             is_vrv = any(k in str(node.model).upper() for k in ['RSUYQ', 'RXYQ', 'RXQ', 'VRV'])
             if is_vrv:
-                joint_info = f" | 主分歧: {node.joint_model}" if node.joint_model else ""
-                pipe_info = f"主管: {node.pipe_liquid}/{node.pipe_gas}" if node.pipe_liquid else ""
+                joint_info = f" | 第一分歧頭: {node.joint_model}" if node.joint_model else ""
+                pipe_info = f"主幹管: {node.pipe_liquid}/{node.pipe_gas}" if node.pipe_liquid else ""
                 specs = f" ({pipe_info}{joint_info})" if (pipe_info or joint_info) else ""
             else:
                 # 🎯 RA 家用1對1、家用多聯、SUPER MULTI 等系統：室外機不顯示主機管徑，皆以室內機配管為主

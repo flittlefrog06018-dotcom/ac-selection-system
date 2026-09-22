@@ -59,7 +59,10 @@ class EquipmentSummaryService:
         """
         rules = {}
         try:
-            from app.services.equipment_db_service import EquipmentDBService
+            try:
+                from app.services.equipment_db_service import EquipmentDBService
+            except ImportError:
+                from backend.app.services.equipment_db_service import EquipmentDBService
             db_srv = EquipmentDBService.get_instance()
             if not getattr(db_srv, "units", None):
                 db_srv.load_equipment_db()
@@ -268,60 +271,29 @@ class EquipmentSummaryService:
         except Exception as act_err:
             logger.warning(f"Failed to extract control accessories: {act_err}")
 
-        # 🎯 利用 DaikinHVACCalculator 獨立運算管徑與分歧頭 (只有 VRV 系統會用到分歧頭以及 BP 箱)
+        # 🎯 利用 DaikinVRVPipingEngine 獨立運算管徑與分歧頭 (只有 VRV 系統會用到分歧頭以及 BP 箱)
         joint_items = []
         try:
-            from app.services.daikin_pipe_sizing_service import DaikinHVACCalculator, HVACNode
-            pipe_calc = DaikinHVACCalculator()
+            from app.services.daikin_vrv_piping_engine import DaikinVRVPipingEngine
             for sys_k, g_data in grouped_by_outdoor.items():
                 out_m = g_data["outdoor_model"] or ""
                 if not out_m or out_m == "-":
                     continue
-                root_node = HVACNode('main', out_m, qty=g_data["outdoor_qty"], model=out_m)
-                child_nodes = []
                 is_vrv_sys = any(k in out_m.upper() for k in ['RSUYQ', 'RXYQ', 'RXQ']) or ('VRV' in g_data.get("sys_name", "").upper())
 
-                for in_item in g_data["indoor_list"]:
-                    in_m = in_item["model"]
-                    in_q = in_item["qty"]
-                    is_ra_unit = any(k in in_m.upper() for k in ['FTX', 'CTX', 'FTHF', 'FDXV'])
-                    is_sa_unit = any(k in in_m.upper() for k in ['FBA', 'FAA', 'FCA', 'FFA', 'FHQ'])
-                    if is_ra_unit:
-                        n_type = 'ra'
-                    elif is_sa_unit:
-                        n_type = 'sa'
-                    else:
-                        n_type = 'vrv'
-                    c_idx = pipe_calc.extract_capacity_index(in_m)
-                    child_nodes.append(HVACNode(n_type, in_m, capacity=c_idx, qty=in_q, model=in_m))
-                
-                # 🎯 只有 VRV 系統才會用到 BP 箱與分歧頭！
-                if is_vrv_sys:
-                    grouped_children = pipe_calc.build_system_with_bp_boxes(child_nodes)
-                    for ch in grouped_children:
-                        root_node.add_child(ch)
-                    pipe_calc.evaluate_tree(root_node, is_root=True)
-                    
-                    # 只有 VRV 系統才清點分歧頭
-                    def collect_joints(node: HVACNode):
-                        if node.joint_model:
-                            for j_single in node.joint_model.split('+'):
-                                joint_items.append({"model": j_single.strip(), "qty": 1, "sys": "冷媒分歧頭"})
-                        for c_node in node.children:
-                            collect_joints(c_node)
-                    collect_joints(root_node)
-                else:
-                    # SA 商用與 RA 家用多聯/1對1：直接配管至室內機，無分歧頭、無 BP 箱！
-                    for ch in child_nodes:
-                        pipes = pipe_calc.get_indoor_pipe(ch.node_type, ch.capacity)
-                        ch.pipe_liquid, ch.pipe_gas = pipes["l"], pipes["g"]
-                        root_node.add_child(ch)
-                    # 主管由室外機型號判定
-                    m_pipes = pipe_calc.get_main_pipe(out_m, sum(ch.capacity for ch in child_nodes))
-                    root_node.pipe_liquid, root_node.pipe_gas = m_pipes["l"], m_pipes["g"]
-                    root_node.joint_model = None
+                # 構建完整級聯管路架構與全部分歧頭
+                root_node, sys_joints = DaikinVRVPipingEngine.build_cascading_system(out_m, g_data["indoor_list"])
+                flat_rows = DaikinVRVPipingEngine.flatten_system_to_rows(out_m, g_data["indoor_list"])
+                g_data["piping_root"] = root_node
+                g_data["piping_joints"] = sys_joints
+                g_data["evaluated_tree_rows"] = flat_rows
 
-                g_data["evaluated_tree"] = root_node
+                # 只有 VRV 系統才清點分歧頭計入報價單與總表 (含第一分歧頭與所有次分歧頭)
+                if is_vrv_sys:
+                    for j_info in sys_joints:
+                        j_m = j_info["model"]
+                        for j_single in j_m.split('+'):
+                            joint_items.append({"model": j_single.strip(), "qty": 1, "sys": "冷媒分歧頭"})
         except Exception as pipe_err:
             logger.warning(f"Failed to evaluate pipe sizing: {pipe_err}")
 
@@ -430,35 +402,40 @@ class EquipmentSummaryService:
         ws2.cell(row=2, column=2).value = "空調系統套數、樹狀結構與冷媒管徑選用"
         ws2.cell(row=2, column=2).font = Font(name="微軟正黑體", size=14, bold=True, color="0F172A")
 
-        c1 = ws2.cell(row=4, column=2, value="系統結構與配管規格 (室外機 -> 主管/分歧頭 -> 配接室內機)")
+        c1 = ws2.cell(row=4, column=2, value="系統結構與配管規格 (室外機 -> 主幹管/第一分歧頭/次分歧頭 -> 配接室內機)")
         c2 = ws2.cell(row=4, column=3, value="台數")
         c1.font = font_header; c1.fill = fill_header; c1.alignment = align_left; c1.border = border_thin
         c2.font = font_header; c2.fill = fill_header; c2.alignment = align_center; c2.border = border_thin
 
+        # 右側流程示意架構圖抬頭
+        has_any_vrv = any("VRV" in g.get("sys_name", "").upper() or any(k in str(g.get("outdoor_model", "")).upper() for k in ['RSUYQ', 'RXYQ', 'RXQ']) for g in grouped_by_outdoor.values())
+        if has_any_vrv:
+            ws2.cell(row=2, column=5).value = "大金 VRV 冷媒管路示意架構圖 (流程圖與管徑標註)"
+            ws2.cell(row=2, column=5).font = Font(name="微軟正黑體", size=14, bold=True, color="005A9E")
+
         curr_r = 5
         sys_counter = 1
+        img_curr_row = 4
 
         for sys_k, g_data in grouped_by_outdoor.items():
             out_m = g_data["outdoor_model"] or "待配室外機"
             out_q = g_data["outdoor_qty"]
             sys_lbl = g_data["sys_name"]
+            is_vrv = "VRV" in sys_lbl.upper() or any(k in out_m.upper() for k in ['RSUYQ', 'RXYQ', 'RXQ'])
 
             # 若有樹狀運算結果
-            tree_root = g_data.get("evaluated_tree")
-            if tree_root:
+            tree_rows = g_data.get("evaluated_tree_rows")
+            if tree_rows:
                 try:
-                    from app.services.daikin_pipe_sizing_service import DaikinHVACCalculator
-                    pipe_calc = DaikinHVACCalculator()
-                    flat_rows = pipe_calc.flatten_tree_to_rows(tree_root)
-                    for r_item in flat_rows:
-                        is_main = (r_item["node"].node_type == "main")
-                        is_vrv = "VRV" in sys_lbl.upper()
-                        if is_main and not is_vrv:
-                            clean_label = re.sub(r'\s*\([^\)]*主管[^\)]*\)', '', str(r_item['結構']))
-                            cell_node = ws2.cell(row=curr_r, column=2, value=f"{sys_counter}. [{sys_lbl}] {clean_label}")
+                    for r_item in tree_rows:
+                        is_main = r_item.get("is_main", False)
+                        raw_label = r_item.get("結構", "")
+                        if is_main:
+                            cell_val = f"{sys_counter}. [{sys_lbl}] {raw_label}"
                         else:
-                            cell_node = ws2.cell(row=curr_r, column=2, value=f"{sys_counter}. [{sys_lbl}] {r_item['結構']}" if is_main else r_item['結構'])
-                        cell_q = ws2.cell(row=curr_r, column=3, value=r_item["數量"])
+                            cell_val = f"    {raw_label}"
+                        cell_node = ws2.cell(row=curr_r, column=2, value=cell_val)
+                        cell_q = ws2.cell(row=curr_r, column=3, value=r_item.get("數量", 1))
                         cell_node.font = font_bold if is_main else font_data
                         cell_node.border = border_thin
                         cell_node.fill = fill_subtotal if is_main else PatternFill(fill_type=None)
@@ -477,22 +454,27 @@ class EquipmentSummaryService:
                 cell_q.font = font_bold; cell_q.alignment = align_center; cell_q.border = border_thin; cell_q.fill = fill_subtotal
                 curr_r += 1
 
-                # 聚合室內機型號
-                in_grouped = {}
-                for in_item in g_data["indoor_list"]:
-                    m = in_item["model"]
-                    in_grouped[m] = in_grouped.get(m, 0) + in_item["qty"]
-
-                in_list = [{"model": m, "qty": q, "series": cls.get_model_series(m), "cap": cls.get_cap(m)} for m, q in in_grouped.items()]
-                in_list.sort(key=lambda x: (x["series"], -x["cap"]))
-
-                for j, in_node in enumerate(in_list):
-                    pref = "    └─ " if j == len(in_list) - 1 else "    ├─ "
-                    c_tree = ws2.cell(row=curr_r, column=2, value=f"{pref}{in_node['model']}")
-                    c_tree_q = ws2.cell(row=curr_r, column=3, value=in_node["qty"])
+                for j, in_item in enumerate(g_data["indoor_list"]):
+                    pref = "    └─ " if j == len(g_data["indoor_list"]) - 1 else "    ├─ "
+                    c_tree = ws2.cell(row=curr_r, column=2, value=f"{pref}{in_item['model']}")
+                    c_tree_q = ws2.cell(row=curr_r, column=3, value=in_item.get("qty", 1))
                     c_tree.font = font_data; c_tree.border = border_thin
                     c_tree_q.font = font_data; c_tree_q.alignment = align_center; c_tree_q.border = border_thin
                     curr_r += 1
+
+            # 🎯 若為 VRV 系統，繪製專業 CAD 架構示意圖 (流程圖與管徑標註) 並嵌入至右側欄位 E
+            if is_vrv and g_data.get("indoor_list"):
+                try:
+                    from openpyxl.drawing.image import Image as OpenpyxlImage
+                    from app.services.daikin_vrv_piping_engine import DaikinFlowchartDiagramDrawer
+                    diagram_buf = DaikinFlowchartDiagramDrawer.draw_system_diagram(out_m, g_data["indoor_list"])
+                    xl_img = OpenpyxlImage(diagram_buf)
+                    ws2.add_image(xl_img, f"E{img_curr_row}")
+                    num_u = max(len(g_data["indoor_list"]), 2)
+                    rows_occupied = max(num_u * 4 + 10, 18)
+                    img_curr_row += rows_occupied
+                except Exception as diag_err:
+                    logger.warning(f"Failed to embed flowchart diagram: {diag_err}")
 
             # 空行隔開不同系統
             curr_r += 1
@@ -646,17 +628,37 @@ class EquipmentSummaryService:
                 in_m = in_item["model"]
                 in_q = in_item["qty"]
                 total_sets = max(out_q, in_q)
-                
+
+                in_info = db_srv.get_indoor_unit_info(in_m) or {}
+                in_price = in_info.get("price")
+                out_price = out_info.get("price")
+
+                # 🎯 家用 1對1 空調系統 (RA 1對1)：室內機定價 + 室外機定價相加
+                is_ra_one_to_one = ("RA" in sys_name) or out_m.startswith(("RX", "RK", "RH")) or in_m.startswith(("FT", "CT", "FD"))
+                if is_ra_one_to_one:
+                    if in_price is not None or out_price is not None:
+                        combo_price = (in_price or 0.0) + (out_price or 0.0)
+                    else:
+                        combo_price = None
+                else:
+                    # 商用 1對1 或其他：室外機若已有整組定價則直接採用，若無則相加
+                    if out_price is not None and out_price > 0:
+                        combo_price = out_price
+                    elif in_price is not None or out_price is not None:
+                        combo_price = (in_price or 0.0) + (out_price or 0.0)
+                    else:
+                        combo_price = None
+
                 pair_name = f"{out_m} / {in_m}"
-                disp_sys = "RA 家用1對1" if "RA" in sys_name or out_m.startswith(("RX", "RK")) else ("SA 商用1對1" if "SA" in sys_name or "商用" in sys_name else "1對1空調系統")
-                
+                disp_sys = "RA 家用1對1" if is_ra_one_to_one else ("SA 商用1對1" if "SA" in sys_name or "商用" in sys_name else "1對1空調系統")
+
                 equip_items.append({
                     "item_code": f"A-{item_counter_a}",
                     "sys_cat": disp_sys,
                     "name": f"{disp_sys} ({pair_name})",
                     "qty": total_sets,
                     "unit": "組",
-                    "unit_price": out_price,
+                    "unit_price": combo_price,
                     "notes": "含室內機+室外機整組"
                 })
                 item_counter_a += 1
@@ -762,7 +764,10 @@ class EquipmentSummaryService:
 
         # APP / 集中控制需求
         has_app = any("APP" in str(r.get("control_mode") or r.get("ctrl_mode") or "").upper() for r in rooms_data)
-        has_central = any("集控" in str(r.get("control_mode") or r.get("ctrl_mode") or "") for r in rooms_data)
+        has_central = (
+            any("集控" in str(r.get("control_mode") or r.get("ctrl_mode") or "") or "CENTRAL" in str(r.get("control_mode") or r.get("ctrl_mode") or "").upper() for r in rooms_data)
+            or bool(selected_controllers and len(selected_controllers) > 0)
+        )
 
         # 🎯 APP 遠端控制配件精準對應 (參照 EQUIPMENT_Data 分頁之 轉接小P版 與 無線接收器)
         if has_app:
@@ -786,22 +791,24 @@ class EquipmentSummaryService:
                     p_board_counts[p_board] = p_board_counts.get(p_board, 0) + q_in
 
             for rec_m, rec_q in app_receiver_counts.items():
+                rec_price = db_srv.get_wireless_price(rec_m)
                 accessory_items.append({
                     "cat": "控制配件",
                     "name": f"Daikin Mobile Controller APP 智慧遠端控制卡 ({rec_m})",
                     "qty": rec_q,
                     "unit": "個",
-                    "unit_price": None,
+                    "unit_price": rec_price,
                     "notes": "智慧手機雲端遠端開關與定時"
                 })
 
             for pb_m, pb_q in p_board_counts.items():
+                pb_price = db_srv.get_p_board_price(pb_m)
                 accessory_items.append({
                     "cat": "控制配件",
                     "name": f"原廠室內機轉接小P板 ({pb_m})",
                     "qty": pb_q,
                     "unit": "個",
-                    "unit_price": None,
+                    "unit_price": pb_price,
                     "notes": "搭配 APP 遠端控制卡專用介面基板"
                 })
 
@@ -821,22 +828,24 @@ class EquipmentSummaryService:
                     p_board_counts[p_board] = p_board_counts.get(p_board, 0) + q_in
 
             for cb_m, cb_q in c_board_counts.items():
+                cb_price = db_srv.get_c_board_price(cb_m)
                 accessory_items.append({
                     "cat": "控制配件",
                     "name": f"集中控制轉接基板 ({cb_m})",
                     "qty": cb_q,
                     "unit": "個",
-                    "unit_price": None,
+                    "unit_price": cb_price,
                     "notes": "連接中央集中控制器專用轉接基板"
                 })
 
             for pb_m, pb_q in p_board_counts.items():
+                pb_price = db_srv.get_p_board_price(pb_m)
                 accessory_items.append({
                     "cat": "控制配件",
                     "name": f"原廠室內機轉接小P板 ({pb_m})",
                     "qty": pb_q,
                     "unit": "個",
-                    "unit_price": None,
+                    "unit_price": pb_price,
                     "notes": "搭配集控介面專用轉接小P板"
                 })
 
@@ -853,7 +862,9 @@ class EquipmentSummaryService:
             }
             if selected_controllers and len(selected_controllers) > 0:
                 for ctrl_m in selected_controllers:
-                    c_info = CONTROLLER_INFO_MAP.get(ctrl_m, {'name': '集中控制器', 'price': 0, 'note': '高階'})
+                    c_info = db_srv.get_controller_info(ctrl_m)
+                    if not c_info:
+                        c_info = CONTROLLER_INFO_MAP.get(ctrl_m, {'name': '集中控制器', 'price': 0, 'note': '高階'})
                     accessory_items.append({
                         "cat": "控制配件",
                         "name": f"大金空調{c_info['name']} ({ctrl_m})",
@@ -863,17 +874,19 @@ class EquipmentSummaryService:
                         "notes": f"大金原廠集中控制器【{c_info['note']}】"
                     })
             else:
+                c_info = db_srv.get_controller_info("DCM601B51")
+                price_default = c_info['price'] if c_info else 108200
                 accessory_items.append({
                     "cat": "控制配件",
                     "name": "大金空調ITM集中控制器 (DCM601B51)",
                     "qty": 1,
                     "unit": "台",
-                    "unit_price": 108200,
+                    "unit_price": price_default,
                     "notes": "大金原廠集中控制器【高階】"
                 })
 
         # --- 3. 渲染報價單到工作表 ---
-        ws_quote.cell(row=2, column=2, value="大金空調設備與工程配件報價清冊").font = font_title
+        ws_quote.cell(row=2, column=2, value="大金空調設備與配件報價清冊").font = font_title
         ws_quote.cell(row=2, column=2).alignment = align_left
 
         quote_headers = [
@@ -992,9 +1005,9 @@ class EquipmentSummaryService:
             c.border = border_total
         curr_row += 2
 
-        # 三、工程總計
+        # 三、設備與配件總計
         untaxed_row = curr_row
-        ws_quote.cell(row=curr_row, column=2, value="【全案設備工程未稅總計】").font = font_bold
+        ws_quote.cell(row=curr_row, column=2, value="【設備與配件未稅總計】").font = font_bold
         c_untaxed = ws_quote.cell(row=curr_row, column=7, value=f"=G{sub_a_row}+G{sub_b_row}")
         c_untaxed.font = font_bold
         c_untaxed.number_format = '#,##0'
@@ -1018,7 +1031,7 @@ class EquipmentSummaryService:
         curr_row += 1
 
         final_row = curr_row
-        ws_quote.cell(row=curr_row, column=2, value="【全案設備工程含稅總價】").font = font_total
+        ws_quote.cell(row=curr_row, column=2, value="【設備與配件含稅總價】").font = font_total
         c_final = ws_quote.cell(row=curr_row, column=7, value=f"=G{untaxed_row}+G{tax_row}")
         c_final.font = font_total
         c_final.number_format = '#,##0'
