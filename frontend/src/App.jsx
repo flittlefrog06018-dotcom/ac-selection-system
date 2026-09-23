@@ -30,6 +30,32 @@ const ACCESSORY_PRICE_MAP = {
   'BRC1H61W': 4300,
 };
 
+// 🎯 依據《VRV冷媒管徑選用工具2026.5》表 5 與 SA 規範取得室內機分支管徑
+const getIndoorBranchPipeSize = (modelStr, systemType) => {
+  const mUpper = (modelStr || "").trim().toUpperCase();
+  const sysUpper = (systemType || "").trim().toUpperCase();
+  
+  if (sysUpper === 'SA' || mUpper.startsWith('FBA') || mUpper.startsWith('FCA') || mUpper.startsWith('FHQ')) {
+    return 'Ø9.5 / Ø15.9';
+  }
+  
+  // VRV 系統：依據表 5 室內機分支管選用表
+  const match = mUpper.match(/FX[A-Z]*?(\d+)/);
+  if (match) {
+    const num = parseInt(match[1]);
+    if ([20, 25, 32, 40, 50].includes(num)) {
+      return 'Ø6.4 / Ø12.7';
+    } else if ([63, 71, 80, 90, 100, 112, 125, 140].includes(num)) {
+      return 'Ø9.5 / Ø15.9';
+    } else if (num === 200) {
+      return 'Ø9.5 / Ø19.1';
+    } else if (num === 250) {
+      return 'Ø9.5 / Ø22.2';
+    }
+  }
+  return 'Ø6.4 / Ø12.7';
+};
+
 
 import 'react-toastify/dist/ReactToastify.css';
 import * as XLSX from 'xlsx';
@@ -3519,7 +3545,9 @@ function App() {
         const inEntries = Object.entries(inAgg);
         inEntries.forEach(([m, q], j) => {
           const pref = j === inEntries.length - 1 ? "    └─ " : "    ├─ ";
-          const cTree = ws2.getCell(currR2, 2); cTree.value = `${pref}${m}`; cTree.font = fontData; cTree.border = borderThin;
+          const pipeSize = getIndoorBranchPipeSize(m, sysLbl);
+          const pipeLabel = pipeSize ? ` (液氣管: ${pipeSize})` : '';
+          const cTree = ws2.getCell(currR2, 2); cTree.value = `${pref}${m}${pipeLabel}`; cTree.font = fontData; cTree.border = borderThin;
           const cTreeQ = ws2.getCell(currR2, 3); cTreeQ.value = q; cTreeQ.font = fontData; cTreeQ.border = borderThin; cTreeQ.alignment = { horizontal: "center" };
           currR2++;
         });
@@ -3850,8 +3878,32 @@ function App() {
           excelRow.getCell(38).value = outPwrSup;                             // Col AL (38): 電源
           excelRow.getCell(39).value = outMca;                                // Col AM (39): 電路最大電流 (A)
           excelRow.getCell(40).value = outMfa;                                // Col AN (40): 保險絲最大電流 (A)
-          excelRow.getCell(41).value = outDim;                                // Col AO (41): 尺寸 mm (H×W×D)
         }
+
+        // 🎯 填入備註 (Col 42, AP)：若選 APP 或集控，帶入轉接小P板與無線接收器/集控轉接基板型號
+        const ctrlMode = String(row.control_mode || fastControlMode || "").trim();
+        let noteParts = [];
+        if (ctrlMode && ctrlMode !== "無" && indoorInfo) {
+          if (ctrlMode.includes("APP")) {
+            if (indoorInfo.adapter_p_board && indoorInfo.adapter_p_board !== "-" && indoorInfo.adapter_p_board !== "內建") {
+              noteParts.push(`小P板:${indoorInfo.adapter_p_board}`);
+            }
+            if (indoorInfo.wireless_receiver && indoorInfo.wireless_receiver !== "-" && indoorInfo.wireless_receiver !== "內建") {
+              noteParts.push(`APP卡:${indoorInfo.wireless_receiver}`);
+            } else if (!mUpper.startsWith("FX")) {
+              noteParts.push("APP卡:BRP072C42");
+            }
+          }
+          if (ctrlMode.includes("集控") || ctrlMode.includes("CENTRAL")) {
+            if (indoorInfo.adapter_p_board && indoorInfo.adapter_p_board !== "-" && indoorInfo.adapter_p_board !== "內建" && !ctrlMode.includes("APP")) {
+              noteParts.push(`小P板:${indoorInfo.adapter_p_board}`);
+            }
+            if (indoorInfo.central_adapter_board && indoorInfo.central_adapter_board !== "-") {
+              noteParts.push(`集控板:${indoorInfo.central_adapter_board}`);
+            }
+          }
+        }
+        excelRow.getCell(42).value = noteParts.length > 0 ? noteParts.join(", ") : (row.notes || "-");
 
         excelRow.commit();
       });
@@ -4048,8 +4100,15 @@ function App() {
         }))
       };
 
+      // 🎯 若在 Vercel 線上環境，優先採用最新版 ExcelJS 官方底稿引擎瞬發匯出，避免外部代理 502 或超時！
+      const isOnlineVercel = typeof window !== 'undefined' && window.location.hostname.includes('vercel.app');
+      if (isOnlineVercel) {
+        await exportExcelClientSideFallback(baseCaseName, filteredRows);
+        return;
+      }
+
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
 
       const res = await fetch("/api/export-excel", {
         method: "POST",
@@ -4059,8 +4118,9 @@ function App() {
       });
       clearTimeout(timeoutId);
 
-      if (!res.ok) {
-        throw new Error(`HTTP 狀態碼: ${res.status}`);
+      const contentType = res.headers.get("Content-Type") || "";
+      if (!res.ok || contentType.includes("text/html") || contentType.includes("text/plain")) {
+        throw new Error(`後端回應非二進位試算表 (${res.status})，自動切換至純前端官方底稿引擎！`);
       }
 
       const blob = await res.blob();

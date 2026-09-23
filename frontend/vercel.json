@@ -16,8 +16,12 @@
   ],
   "rewrites": [
     {
-      "source": "/api/:path*",
-      "destination": "https://ac-selection-backend.onrender.com/api/:path*"
+      "source": "/assets/(.*)",
+      "destination": "/assets/$1"
+    },
+    {
+      "source": "/template_excel.xlsx",
+      "destination": "/template_excel.xlsx"
     },
     {
       "source": "/(.*)",

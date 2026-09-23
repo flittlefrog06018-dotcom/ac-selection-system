@@ -20,6 +20,10 @@
       "destination": "/assets/$1"
     },
     {
+      "source": "/template_excel.xlsx",
+      "destination": "/template_excel.xlsx"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
