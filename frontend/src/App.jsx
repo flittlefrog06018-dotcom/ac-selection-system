@@ -2850,6 +2850,18 @@ function App() {
         }
       });
 
+      // 🎯 自動加總重複之空調設備項目與型號 (不用按系統別重複分列，以設備名稱/型號與單價聚合數量)
+      const aggregatedEquipMap = new Map();
+      equipItems.forEach((item) => {
+        const key = `${item.sys_cat}__${item.name}__${item.unit}__${item.unit_price}__${item.notes}`;
+        if (!aggregatedEquipMap.has(key)) {
+          aggregatedEquipMap.set(key, { ...item });
+        } else {
+          aggregatedEquipMap.get(key).qty += item.qty;
+        }
+      });
+      const finalEquipItems = Array.from(aggregatedEquipMap.values());
+
       // 2. 整理其他配件清單 (參照 EQUIPMENT_Data)
       const accessoryItems = [];
 
@@ -2981,17 +2993,6 @@ function App() {
           });
         });
 
-        Object.entries(pBoardCounts).forEach(([pbM, pbQ]) => {
-          accessoryItems.push({
-            cat: "控制配件",
-            name: `原廠室內機轉接小P板 (${pbM})`,
-            qty: pbQ,
-            unit: "個",
-            unit_price: null,
-            notes: "搭配集控介面專用小P板",
-          });
-        });
-
         // 🎯 匯出已勾選之集中控制器主機與介面
         if (selectedControllers && selectedControllers.length > 0) {
           selectedControllers.forEach(ctrlModel => {
@@ -3053,12 +3054,12 @@ function App() {
       currRow++;
 
       const equipStart = currRow;
-      if (equipItems.length === 0) {
+      if (finalEquipItems.length === 0) {
         wsQuote.getCell(currRow, 3).value = "無選定設備";
         wsQuote.getCell(currRow, 3).font = fontData;
         currRow++;
       } else {
-        equipItems.forEach((it) => {
+        finalEquipItems.forEach((it) => {
           const rCell2 = wsQuote.getCell(currRow, 2); rCell2.value = it.sys_cat; rCell2.alignment = { horizontal: "center", vertical: "middle" };
           const rCell3 = wsQuote.getCell(currRow, 3); rCell3.value = it.name; rCell3.alignment = { horizontal: "left", vertical: "middle" };
           const rCell4 = wsQuote.getCell(currRow, 4); rCell4.value = it.qty; rCell4.alignment = { horizontal: "center", vertical: "middle" };

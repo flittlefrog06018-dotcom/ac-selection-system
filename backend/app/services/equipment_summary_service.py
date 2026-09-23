@@ -279,7 +279,7 @@ class EquipmentSummaryService:
                 out_m = g_data["outdoor_model"] or ""
                 if not out_m or out_m == "-":
                     continue
-                is_vrv_sys = any(k in out_m.upper() for k in ['RSUYQ', 'RXYQ', 'RXQ']) or ('VRV' in g_data.get("sys_name", "").upper())
+                is_vrv_sys = any(k in out_m.upper() for k in ['RSUYQ', 'RXYQ', 'RXQ', 'RXYMQ', 'RXMQ', 'RXSQ', 'RWEYQ']) or ('VRV' in g_data.get("sys_name", "").upper()) or any(str(i.get("model", "")).upper().startswith("FX") for i in g_data.get("indoor_list", []))
 
                 # 構建完整級聯管路架構與全部分歧頭
                 root_node, sys_joints = DaikinVRVPipingEngine.build_cascading_system(out_m, g_data["indoor_list"])
@@ -407,11 +407,13 @@ class EquipmentSummaryService:
         c1.font = font_header; c1.fill = fill_header; c1.alignment = align_left; c1.border = border_thin
         c2.font = font_header; c2.fill = fill_header; c2.alignment = align_center; c2.border = border_thin
 
-        # 右側流程示意架構圖抬頭
-        has_any_vrv = any("VRV" in g.get("sys_name", "").upper() or any(k in str(g.get("outdoor_model", "")).upper() for k in ['RSUYQ', 'RXYQ', 'RXQ']) for g in grouped_by_outdoor.values())
+        # 右側流程示意架構圖抬頭 (直式與橫式並列)
+        has_any_vrv = any("VRV" in g.get("sys_name", "").upper() or any(k in str(g.get("outdoor_model", "")).upper() for k in ['RSUYQ', 'RXYQ', 'RXQ', 'RXYMQ', 'RXMQ', 'RXSQ', 'RWEYQ']) or any(str(i.get("model", "")).upper().startswith("FX") for i in g.get("indoor_list", [])) for g in grouped_by_outdoor.values())
         if has_any_vrv:
-            ws2.cell(row=2, column=5).value = "大金 VRV 冷媒管路示意架構圖 (流程圖與管徑標註)"
+            ws2.cell(row=2, column=5).value = "大金 VRV 冷媒管路示意架構圖 (直式流程圖與管徑標註)"
             ws2.cell(row=2, column=5).font = Font(name="微軟正黑體", size=14, bold=True, color="005A9E")
+            ws2.cell(row=2, column=14).value = "大金 VRV 冷媒管路水平示意架構圖 (橫式管路配置與管徑標註)"
+            ws2.cell(row=2, column=14).font = Font(name="微軟正黑體", size=14, bold=True, color="005A9E")
 
         curr_r = 5
         sys_counter = 1
@@ -421,7 +423,7 @@ class EquipmentSummaryService:
             out_m = g_data["outdoor_model"] or "待配室外機"
             out_q = g_data["outdoor_qty"]
             sys_lbl = g_data["sys_name"]
-            is_vrv = "VRV" in sys_lbl.upper() or any(k in out_m.upper() for k in ['RSUYQ', 'RXYQ', 'RXQ'])
+            is_vrv = "VRV" in sys_lbl.upper() or any(k in out_m.upper() for k in ['RSUYQ', 'RXYQ', 'RXQ', 'RXYMQ', 'RXMQ', 'RXSQ', 'RWEYQ']) or any(str(i.get("model", "")).upper().startswith("FX") for i in g_data.get("indoor_list", []))
 
             # 若有樹狀運算結果
             tree_rows = g_data.get("evaluated_tree_rows")
@@ -462,19 +464,27 @@ class EquipmentSummaryService:
                     c_tree_q.font = font_data; c_tree_q.alignment = align_center; c_tree_q.border = border_thin
                     curr_r += 1
 
-            # 🎯 若為 VRV 系統，繪製專業 CAD 架構示意圖 (流程圖與管徑標註) 並嵌入至右側欄位 E
+            # 🎯 若為 VRV 系統，同時提供直式與橫式 CAD 架構示意圖 (並列於同分頁)
             if is_vrv and g_data.get("indoor_list"):
                 try:
                     from openpyxl.drawing.image import Image as OpenpyxlImage
                     from app.services.daikin_vrv_piping_engine import DaikinFlowchartDiagramDrawer
-                    diagram_buf = DaikinFlowchartDiagramDrawer.draw_system_diagram(out_m, g_data["indoor_list"])
-                    xl_img = OpenpyxlImage(diagram_buf)
-                    ws2.add_image(xl_img, f"E{img_curr_row}")
+
+                    # 1. 直式流程圖 (直式的保留不刪除)
+                    diag_vert_buf = DaikinFlowchartDiagramDrawer.draw_system_diagram(out_m, g_data["indoor_list"])
+                    xl_img_vert = OpenpyxlImage(diag_vert_buf)
+                    ws2.add_image(xl_img_vert, f"E{img_curr_row}")
+
+                    # 2. 橫式水平配置圖 (同分頁同時提供參考)
+                    diag_horiz_buf = DaikinFlowchartDiagramDrawer.draw_horizontal_system_diagram(out_m, g_data["indoor_list"])
+                    xl_img_horiz = OpenpyxlImage(diag_horiz_buf)
+                    ws2.add_image(xl_img_horiz, f"N{img_curr_row}")
+
                     num_u = max(len(g_data["indoor_list"]), 2)
-                    rows_occupied = max(num_u * 4 + 10, 18)
+                    rows_occupied = max(num_u * 4 + 4, 18)
                     img_curr_row += rows_occupied
                 except Exception as diag_err:
-                    logger.warning(f"Failed to embed flowchart diagram: {diag_err}")
+                    logger.warning(f"Failed to embed flowchart diagrams: {diag_err}")
 
             # 空行隔開不同系統
             curr_r += 1
@@ -715,6 +725,20 @@ class EquipmentSummaryService:
                 "notes": "換氣淨化"
             })
             item_counter_a += 1
+
+        # 🎯 自動加總重複之空調設備項目與型號 (不用按系統別重複分列，以設備名稱/型號與單價聚合數量)
+        aggregated_equip = {}
+        for item in equip_items:
+            key = (item["sys_cat"], item["name"], item["unit"], item["unit_price"], item["notes"])
+            if key not in aggregated_equip:
+                aggregated_equip[key] = dict(item)
+            else:
+                aggregated_equip[key]["qty"] += item["qty"]
+
+        equip_items = []
+        for idx, item in enumerate(aggregated_equip.values(), start=1):
+            item["item_code"] = f"A-{idx}"
+            equip_items.append(item)
 
         # --- 2. 彙整其他配件項目 ---
         accessory_items = []
