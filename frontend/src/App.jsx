@@ -1026,6 +1026,61 @@ function App() {
     });
   };
 
+  // 🎯 右鍵快捷選單：移除指定空間或所有已勾選空間
+  const handleDeleteSpaces = (explicitIndices = null) => {
+    setContextMenu(prev => ({ ...prev, show: false }));
+    const currentRows = rowsRef.current || rows;
+    if (!currentRows || currentRows.length === 0) return;
+
+    let indicesToRemove = [];
+    if (explicitIndices && explicitIndices.length > 0) {
+      indicesToRemove = explicitIndices;
+    } else {
+      indicesToRemove = currentRows.map((r, idx) => r.selected ? idx : null).filter(idx => idx !== null);
+      if (indicesToRemove.length === 0 && contextMenu.targetRowIndex !== null && contextMenu.targetRowIndex !== undefined) {
+        indicesToRemove = [contextMenu.targetRowIndex];
+      }
+    }
+
+    if (indicesToRemove.length === 0) {
+      toast.info('💡 請先選擇欲移除的空間！');
+      return;
+    }
+
+    const removedNames = indicesToRemove.map(i => currentRows[i]?.space_name || currentRows[i]?.name || `空間 ${i + 1}`);
+    const indicesSet = new Set(indicesToRemove);
+    const newRows = currentRows.filter((_, idx) => !indicesSet.has(idx));
+
+    if (newRows.length === 0) {
+      setRows([]);
+      setOutdoorGroups([]);
+      setUserHasCustomGroups(false);
+      toast.success('🗑️ 已移除所有空間！');
+      return;
+    }
+
+    // 依照刪除後的空間重新連動室外機與群組
+    if (!userHasCustomGroups && fastSystem && fastSeries) {
+      const { updatedRows, groups } = autoGroupAllRows(newRows, fastSystem, fastSeries, fastOutdoorType, fastOutdoorPower, fastUnitType);
+      setRows(updatedRows);
+      setOutdoorGroups(groups);
+    } else if (outdoorGroups.length > 0) {
+      const updatedGroups = outdoorGroups.map(g => {
+        const newIndices = newRows.map((r, idx) => r.outdoorGroupId === g.id ? idx : null).filter(i => i !== null);
+        return { ...g, space_indices: newIndices };
+      }).filter(g => g.space_indices.length > 0);
+      setRows(newRows);
+      setOutdoorGroups(updatedGroups);
+    } else {
+      setRows(newRows);
+    }
+
+    const labelText = removedNames.length === 1 
+      ? `「${removedNames[0]}」` 
+      : `${removedNames.length} 間空間 (${removedNames.slice(0, 3).join('、')}${removedNames.length > 3 ? '…' : ''})`;
+    toast.success(`🗑️ 已成功移除空間：${labelText}`);
+  };
+
   const handleCreateGroupFromSelection = (explicitIndices = null) => {
     setContextMenu({ show: false, x: 0, y: 0, targetRowIndex: null });
     const currentRows = rowsRef.current || rows;
@@ -5308,7 +5363,7 @@ function App() {
               <div style={{ ...styles.cardTitle, marginBottom: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span>📈 工程負荷試算與大金配機建議表</span>
                 <span style={{ fontSize: '11.5px', color: '#94a3b8', fontWeight: 'bold', backgroundColor: '#1e293b', padding: '2px 8px', borderRadius: '4px', border: '1px solid #334155' }}>
-                  v2.17.0 (2026.09.23 00:25)
+                  v2.19.0 (2026.09.24 00:15)
                 </span>
               </div>
               
@@ -7091,7 +7146,7 @@ function App() {
         <div
           style={{
             position: 'fixed',
-            top: typeof window !== 'undefined' ? Math.max(10, Math.min(contextMenu.y, window.innerHeight - 230)) : contextMenu.y,
+            top: typeof window !== 'undefined' ? Math.max(10, Math.min(contextMenu.y, window.innerHeight - 340)) : contextMenu.y,
             left: typeof window !== 'undefined' ? Math.max(10, Math.min(contextMenu.x, window.innerWidth - 280)) : contextMenu.x,
             zIndex: 9999999,
             backgroundColor: 'rgba(15, 23, 42, 0.96)',
@@ -7300,6 +7355,131 @@ function App() {
             >
               <span style={{ fontSize: '14px' }}>🧹</span>
               <span>重置全場一併 (恢復智慧配對)</span>
+            </button>
+          )}
+
+          <div style={{ height: '1px', backgroundColor: '#334155', margin: '4px 6px' }} />
+
+          {/* 選項 5: 🗑️ 移除空間 (針對目前右鍵選取之空間) */}
+          {contextMenu.targetRowIndex !== null && contextMenu.targetRowIndex !== undefined && rows[contextMenu.targetRowIndex] ? (
+            <button
+              type="button"
+              onClick={() => handleDeleteSpaces([contextMenu.targetRowIndex])}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '8px 12px',
+                backgroundColor: 'transparent',
+                color: '#f87171',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '12.5px',
+                fontWeight: '500',
+                cursor: 'pointer',
+                textAlign: 'left',
+                transition: 'all 0.15s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.18)';
+                e.currentTarget.style.color = '#ef4444';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.color = '#f87171';
+              }}
+            >
+              <span style={{ fontSize: '15px' }}>🗑️</span>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ color: '#f87171', fontWeight: 'bold' }}>
+                  移除空間（{rows[contextMenu.targetRowIndex]?.space_name || rows[contextMenu.targetRowIndex]?.name || `空間 ${contextMenu.targetRowIndex + 1}`}）
+                </span>
+                <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 'normal' }}>
+                  從清單與圖面中刪除此空間
+                </span>
+              </div>
+            </button>
+          ) : (rows.filter(r => r.selected).length > 0 && (
+            <button
+              type="button"
+              onClick={() => handleDeleteSpaces()}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '8px 12px',
+                backgroundColor: 'transparent',
+                color: '#f87171',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '12.5px',
+                fontWeight: '500',
+                cursor: 'pointer',
+                textAlign: 'left',
+                transition: 'all 0.15s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.18)';
+                e.currentTarget.style.color = '#ef4444';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.color = '#f87171';
+              }}
+            >
+              <span style={{ fontSize: '15px' }}>🗑️</span>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ color: '#f87171', fontWeight: 'bold' }}>
+                  移除已勾選空間（{rows.filter(r => r.selected).length} 間）
+                </span>
+                <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 'normal' }}>
+                  批次刪除所有已勾選之空間
+                </span>
+              </div>
+            </button>
+          ))}
+
+          {/* 若同時勾選了多個空間，且目前點擊特定列，額外提供批次移除勾選空間選項 */}
+          {contextMenu.targetRowIndex !== null && rows.filter(r => r.selected).length > 1 && (
+            <button
+              type="button"
+              onClick={() => handleDeleteSpaces()}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '7px 12px',
+                backgroundColor: 'transparent',
+                color: '#f87171',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '12px',
+                fontWeight: '500',
+                cursor: 'pointer',
+                textAlign: 'left',
+                transition: 'all 0.15s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.18)';
+                e.currentTarget.style.color = '#ef4444';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.color = '#f87171';
+              }}
+            >
+              <span style={{ fontSize: '14px' }}>🗑️</span>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ color: '#f87171', fontWeight: 'bold' }}>
+                  批次移除已勾選空間（共 {rows.filter(r => r.selected).length} 間）
+                </span>
+                <span style={{ fontSize: '10.5px', color: '#94a3b8', fontWeight: 'normal' }}>
+                  刪除所有目前已勾選之空間
+                </span>
+              </div>
             </button>
           )}
         </div>
