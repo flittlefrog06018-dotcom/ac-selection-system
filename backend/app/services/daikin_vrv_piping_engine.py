@@ -270,7 +270,9 @@ class DaikinVRVPipingEngine:
             else:
                 return {"l": "Ø6.4", "g": "Ø15.9", "code": "RA3"}
         else:
-            if capacity <= 50:
+            if capacity <= 28:
+                return {"l": "Ø6.4", "g": "Ø9.5", "code": "TR0"}
+            elif capacity <= 50:
                 return {"l": "Ø6.4", "g": "Ø12.7", "code": "TR1"}
             elif capacity <= 140:
                 return {"l": "Ø9.5", "g": "Ø15.9", "code": "TR2"}
@@ -294,6 +296,20 @@ class DaikinVRVPipingEngine:
             return {"l": "Ø9.5", "g": "Ø22.2", "code": "BP4"}
 
     # ----------------------------------------------------
+    # VRV 系統判斷輔助函式
+    # ----------------------------------------------------
+    @classmethod
+    def check_is_vrv(cls, outdoor_model: str, indoor_items: List[Dict[str, Any]] = None) -> bool:
+        om = (outdoor_model or "").upper()
+        if any(k in om for k in ['RSUYQ', 'RXYQ', 'RXQ', 'RXYMQ', 'RXMQ', 'RXSQ', 'RWEYQ', 'VRV']):
+            return True
+        if re.search(r'R[A-Z0-9]*Q', om):
+            return True
+        if indoor_items and any(str(it.get("model", "")).upper().startswith("FX") for it in indoor_items):
+            return True
+        return False
+
+    # ----------------------------------------------------
     # 級聯拓撲樹構建器 (核心邏輯：N台內機推導 N-1 個分歧頭)
     # ----------------------------------------------------
     @classmethod
@@ -307,7 +323,7 @@ class DaikinVRVPipingEngine:
         - 直至末端第 N-1 與第 N 台內機
         返回：(root_node, all_joints_list)
         """
-        is_vrv = any(k in outdoor_model.upper() for k in ['RSUYQ', 'RXYQ', 'RXQ', 'VRV'])
+        is_vrv = cls.check_is_vrv(outdoor_model, indoor_items)
         root = PipingNode('main', outdoor_model, model=outdoor_model)
         
         # 1. 整理末端負載節點 (支援 BP 箱連續 3 台 RA 自動聚合)
@@ -442,62 +458,23 @@ class DaikinVRVPipingEngine:
     # ----------------------------------------------------
     @classmethod
     def flatten_system_to_rows(cls, outdoor_model: str, indoor_items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        is_vrv = any(k in outdoor_model.upper() for k in ['RSUYQ', 'RXYQ', 'RXQ', 'VRV'])
-        root, all_joints = cls.build_cascading_system(outdoor_model, indoor_items)
+        is_vrv = cls.check_is_vrv(outdoor_model, indoor_items)
         rows = []
-        if not is_vrv:
-            rows.append({"結構": outdoor_model, "數量": 1, "is_main": True, "node_type": "main"})
-            for idx, item in enumerate(indoor_items):
-                is_last = (idx == len(indoor_items) - 1)
-                pref = "└─ " if is_last else "├─ "
-                m = item.get("model", "")
-                c = cls.extract_capacity_index(m)
-                p = cls.get_indoor_branch_pipe('ra', c)
-                label = f"{pref}[家用] {m} (配管: {p['l']}/{p['g']})"
-                rows.append({"結構": label, "數量": item.get("qty", 1), "is_main": False, "node_type": "ra"})
-            return rows
-
-        # VRV 系統
-        first_joint = root.joint_model or cls.get_first_joint(outdoor_model)
-        main_pipe_str = f"主幹管: {root.pipe_liquid}/{root.pipe_gas}"
-        joint_str = f"第一分歧頭: {first_joint}"
-        out_label = f"{outdoor_model} ({main_pipe_str} | {joint_str})"
-        rows.append({"結構": out_label, "數量": 1, "is_main": True, "node_type": "main"})
+        rows.append({"結構": outdoor_model, "數量": 1, "is_main": True, "node_type": "main"})
 
         num_units = len(indoor_items)
-        if num_units <= 1:
-            for item in indoor_items:
-                m = item.get("model", "")
-                c = cls.extract_capacity_index(m)
-                p = cls.get_indoor_branch_pipe('vrv', c)
-                rows.append({"結構": f"└─ [VRV] {m} (配管: {p['l']}/{p['g']})", "數量": item.get("qty", 1), "is_main": False, "node_type": "vrv"})
-            return rows
-
-        # 多台內機：第一分歧頭 + 各級次分歧頭
         for idx, item in enumerate(indoor_items):
             is_last = (idx == num_units - 1)
-            is_first = (idx == 0)
             pref = "└─ " if is_last else "├─ "
             m = item.get("model", "")
             c = cls.extract_capacity_index(m)
-            p = cls.get_indoor_branch_pipe('vrv', c)
-
-            if is_first:
-                tag = f"[第一分歧頭: {first_joint}] "
-                spec = f"(配管: {p['l']}/{p['g']})"
-            elif is_last:
-                tag = f"[末端配接] "
-                spec = f"(配管: {p['l']}/{p['g']})"
-            else:
-                j_info = all_joints[idx] if idx < len(all_joints) else None
-                rem_cap = sum(cls.extract_capacity_index(u.get("model", "")) for u in indoor_items[idx:])
-                sub_p = cls.get_sub_trunk_pipe(rem_cap)
-                j_m = j_info["model"] if j_info else cls.get_secondary_joint(rem_cap)
-                tag = f"[次分歧頭-{idx}: {j_m}] "
-                spec = f"(次幹管: {sub_p['l']}/{sub_p['g']} | 配管: {p['l']}/{p['g']})"
-
-            label = f"{pref}{tag}[VRV] {m} {spec}"
-            rows.append({"結構": label, "數量": item.get("qty", 1), "is_main": False, "node_type": "vrv"})
+            is_in_vrv = is_vrv or m.upper().startswith("FX")
+            is_in_sa = any(k in m.upper() for k in ['FBA', 'FAA', 'FCA', 'FFA', 'FHQ'])
+            n_type = 'vrv' if is_in_vrv else ('sa' if is_in_sa else 'ra')
+            p = cls.get_indoor_branch_pipe(n_type, c)
+            tag = "[VRV]" if is_in_vrv else ("[商用]" if is_in_sa else "[家用]")
+            label = f"{pref}{tag} {m} (配管: {p['l']}/{p['g']})"
+            rows.append({"結構": label, "數量": item.get("qty", 1), "is_main": False, "node_type": n_type})
 
         return rows
 
@@ -514,13 +491,16 @@ class DaikinFlowchartDiagramDrawer:
     - 各級第一分歧頭、次分歧頭節點圓圈與標籤
     - 垂直次幹管與管徑標籤
     - 水平配管與室內機方框 (含空間名稱、能力)
-    - BP 箱結構
+    - 直式 (Vertical) 與 橫式 (Horizontal) 兩種架構視圖
     """
     FONT_FAMILY = "C:/Windows/Fonts/msjh.ttc" # 微軟正黑體
+    FONT_FAMILY_BD = "C:/Windows/Fonts/msjhbd.ttc"
 
     @classmethod
     def _get_font(cls, size: int, bold: bool = False):
         try:
+            if bold and os.path.exists(cls.FONT_FAMILY_BD):
+                return ImageFont.truetype(cls.FONT_FAMILY_BD, size)
             if os.path.exists(cls.FONT_FAMILY):
                 return ImageFont.truetype(cls.FONT_FAMILY, size)
             if os.path.exists("C:/Windows/Fonts/arial.ttf"):
@@ -532,15 +512,15 @@ class DaikinFlowchartDiagramDrawer:
     @classmethod
     def draw_system_diagram(cls, outdoor_model: str, indoor_items: List[Dict[str, Any]], custom_notes: str = "") -> io.BytesIO:
         """
-        繪製流程圖並傳回 PNG 二進位 BytesIO 物件
+        繪製直式流程圖並傳回 PNG 二進位 BytesIO 物件 (已依指示移除底部提示框)
         """
         root_node, all_joints = DaikinVRVPipingEngine.build_cascading_system(outdoor_model, indoor_items)
-        is_vrv = any(k in outdoor_model.upper() for k in ['RSUYQ', 'RXYQ', 'RXQ', 'VRV'])
+        is_vrv = DaikinVRVPipingEngine.check_is_vrv(outdoor_model, indoor_items)
 
-        width = 860
+        width = 780
         row_height = 80
         header_height = 140
-        footer_height = 90 if custom_notes else 60
+        footer_height = 25
         
         num_branches = max(len(indoor_items), 2)
         height = header_height + (num_branches * row_height) + footer_height
@@ -551,7 +531,6 @@ class DaikinFlowchartDiagramDrawer:
         font_box = cls._get_font(13, bold=True)
         font_pipe = cls._get_font(12, bold=True)
         font_joint = cls._get_font(12, bold=True)
-        font_note = cls._get_font(12)
 
         COLOR_MAIN = (0, 90, 158)        # 大金深藍
         COLOR_LINE = (0, 90, 158)
@@ -563,8 +542,8 @@ class DaikinFlowchartDiagramDrawer:
         COLOR_JOINT_BORDER = (255, 205, 210)
         COLOR_BOX_BG = (248, 250, 252)
 
-        # 1. 繪製室外機卡片 (頂部置中)
-        out_x, out_y = 180, 25
+        # 1. 繪製室外機卡片 (頂部置中偏左)
+        out_x, out_y = 150, 25
         out_w, out_h = 240, 52
         draw.rectangle([out_x, out_y, out_x + out_w, out_y + out_h], fill=COLOR_MAIN, outline=COLOR_MAIN)
         out_title_str = "主機 (室外機)"
@@ -586,15 +565,15 @@ class DaikinFlowchartDiagramDrawer:
 
         # 3. 逐層繪製各分支節點與室內機
         curr_y = trunk_y2
-        horizontal_line_len = 260
-        box_w, box_h = 320, 48
+        horizontal_line_len = 240
+        box_w, box_h = 300, 48
 
         flat_endpoints = []
         for item in indoor_items:
             m = item.get("model", "")
             r = item.get("room_name", "空間")
             c = DaikinVRVPipingEngine.extract_capacity_index(m)
-            p = DaikinVRVPipingEngine.get_indoor_branch_pipe('vrv' if is_vrv else 'ra', c)
+            p = DaikinVRVPipingEngine.get_indoor_branch_pipe('vrv' if (is_vrv or m.upper().startswith("FX")) else 'ra', c)
             flat_endpoints.append({
                 "model": m,
                 "room": r,
@@ -624,16 +603,14 @@ class DaikinFlowchartDiagramDrawer:
             # (B) 分歧頭節點 (圓圈與型號)
             if is_vrv and num_units > 1:
                 if not is_last:
-                    # 節點圓圈 (白底紅邊)
                     draw.ellipse([trunk_x - 6, branch_y - 6, trunk_x + 6, branch_y + 6], fill=(255, 255, 255), outline=COLOR_PIPE_TEXT, width=2)
                     j_info = all_joints[joint_idx] if joint_idx < len(all_joints) else None
                     if j_info:
                         j_label = f"{j_info['model']} [{j_info['role']}]"
-                        draw.rectangle([trunk_x - 195, branch_y - 12, trunk_x - 12, branch_y + 12], fill=COLOR_JOINT_BG, outline=COLOR_JOINT_BORDER, width=1)
-                        draw.text((trunk_x - 103, branch_y), j_label, fill=COLOR_JOINT_TEXT, font=font_joint, anchor="mm")
+                        draw.rectangle([trunk_x - 170, branch_y - 12, trunk_x - 10, branch_y + 12], fill=COLOR_JOINT_BG, outline=COLOR_JOINT_BORDER, width=1)
+                        draw.text((trunk_x - 90, branch_y), j_label, fill=COLOR_JOINT_TEXT, font=font_joint, anchor="mm")
                     joint_idx += 1
                 else:
-                    # 末端最後節點 (實心圓)
                     draw.ellipse([trunk_x - 5, branch_y - 5, trunk_x + 5, branch_y + 5], fill=COLOR_LINE)
             else:
                 draw.ellipse([trunk_x - 5, branch_y - 5, trunk_x + 5, branch_y + 5], fill=COLOR_LINE)
@@ -657,14 +634,134 @@ class DaikinFlowchartDiagramDrawer:
             draw.text((box_x + 12, box_y + 14), room_title, fill=COLOR_MAIN, font=font_box, anchor="lm")
             draw.text((box_x + 12, box_y + 34), cap_sub, fill=(100, 116, 139), font=font_pipe, anchor="lm")
 
-        # 4. 底部工程備註方框
-        note_y = curr_y + (num_units * row_height) + 10
-        draw.rectangle([trunk_x - 190, note_y, trunk_x + horizontal_line_len + box_w, note_y + 45], fill=(248, 250, 252), outline=(186, 230, 253), width=1)
-        draw.text((trunk_x - 175, note_y + 14), "⚠️ 注意：管徑計算依據《VRV冷媒管徑選用工具2026.5.xlsx》與大金隨身技師標準串聯規範。", fill=(15, 23, 42), font=font_note, anchor="lm")
-        if custom_notes:
-            draw.text((trunk_x - 175, note_y + 32), f"✏️ 備註：{custom_notes}", fill=(3, 105, 161), font=font_note, anchor="lm")
-        else:
-            draw.text((trunk_x - 175, note_y + 32), "各段配管若長度超過 90m 等效長度，請遵照原廠手冊主幹管放大一級規格施工。", fill=(100, 116, 139), font=font_note, anchor="lm")
+        buf = io.BytesIO()
+        img.save(buf, format='PNG')
+        buf.seek(0)
+        return buf
+
+    @classmethod
+    def draw_horizontal_system_diagram(cls, outdoor_model: str, indoor_items: List[Dict[str, Any]], custom_notes: str = "") -> io.BytesIO:
+        """
+        繪製專業 CAD 風格之 VRV 冷媒管路【橫式水平配置】示意架構圖 (PNG 格式)
+        呈現：
+        - 左側主機方塊 (型號、馬力、主幹管尺寸)
+        - 水平延伸主幹管與各級分歧頭節點 (圓圈、型號標註、次幹管管徑)
+        - 垂直引下分支配管 (含管徑標註)
+        - 下方整齊排列之室內機卡片 (空間名稱、型號、能力指數)
+        - 依指示完全移除備註提示框
+        """
+        root_node, all_joints = DaikinVRVPipingEngine.build_cascading_system(outdoor_model, indoor_items)
+        is_vrv = DaikinVRVPipingEngine.check_is_vrv(outdoor_model, indoor_items)
+
+        flat_endpoints = []
+        for item in indoor_items:
+            m = item.get("model", "")
+            r = item.get("room_name", "空間")
+            c = DaikinVRVPipingEngine.extract_capacity_index(m)
+            p = DaikinVRVPipingEngine.get_indoor_branch_pipe('vrv' if (is_vrv or m.upper().startswith("FX")) else 'ra', c)
+            flat_endpoints.append({
+                "model": m,
+                "room": r,
+                "cap": c,
+                "pipe_l": p["l"],
+                "pipe_g": p["g"]
+            })
+
+        num_units = max(len(flat_endpoints), 1)
+        unit_w = 175
+        unit_h = 56
+        col_gap = 40
+        left_margin = 250
+        right_margin = 60
+        top_y = 65
+        card_y = 210
+        img_h = 300
+        img_w = max(left_margin + num_units * (unit_w + col_gap) + right_margin - col_gap, 800)
+
+        img = Image.new('RGB', (img_w, img_h), color=(255, 255, 255))
+        draw = ImageDraw.Draw(img)
+
+        font_box = cls._get_font(12, bold=True)
+        font_pipe = cls._get_font(11, bold=True)
+        font_small = cls._get_font(10)
+
+        COLOR_MAIN = (0, 90, 158)        # 大金深藍
+        COLOR_LINE = (0, 90, 158)
+        COLOR_PIPE_BG = (255, 255, 255)
+        COLOR_PIPE_TEXT = (211, 47, 47)  # 紅色標註
+        COLOR_PIPE_BORDER = (227, 242, 253)
+        COLOR_BOX_BG = (248, 250, 252)
+
+        # 1. 室外機 (左側)
+        out_x, out_y = 25, top_y - 28
+        out_w, out_h = 160, 56
+        draw.rectangle([out_x, out_y, out_x + out_w, out_y + out_h], fill=COLOR_MAIN, outline=COLOR_MAIN)
+        draw.text((out_x + out_w // 2, out_y + 16), "主機 (室外機)", fill=(255, 255, 255), font=font_box, anchor="mm")
+        draw.text((out_x + out_w // 2, out_y + 38), outdoor_model, fill=(255, 255, 255), font=font_box, anchor="mm")
+
+        # 2. 室外機出管至第一分歧點
+        first_node_x = left_margin + (unit_w // 2)
+        draw.line([(out_x + out_w, top_y), (first_node_x, top_y)], fill=COLOR_LINE, width=3)
+
+        if is_vrv:
+            pipe_m_str = f"主幹管: {root_node.pipe_liquid}/{root_node.pipe_gas}"
+            mid_m_x = (out_x + out_w + first_node_x) // 2
+            draw.rectangle([mid_m_x - 65, top_y - 25, mid_m_x + 65, top_y - 5], fill=COLOR_PIPE_BG, outline=COLOR_PIPE_TEXT, width=1)
+            draw.text((mid_m_x, top_y - 15), pipe_m_str, fill=COLOR_PIPE_TEXT, font=font_pipe, anchor="mm")
+
+        # 3. 逐一計算節點 X 座標
+        node_positions = [left_margin + idx * (unit_w + col_gap) + (unit_w // 2) for idx in range(num_units)]
+
+        # 繪製各分歧節點間的水平次幹管
+        for idx in range(num_units - 1):
+            x1 = node_positions[idx]
+            x2 = node_positions[idx + 1]
+            draw.line([(x1, top_y), (x2, top_y)], fill=COLOR_LINE, width=3)
+            if is_vrv and idx < len(all_joints) - 1:
+                rem_cap = sum(u["cap"] for u in flat_endpoints[idx+1:])
+                sub_p = DaikinVRVPipingEngine.get_sub_trunk_pipe(rem_cap)
+                sub_p_str = f"次幹: {sub_p['l']}/{sub_p['g']}"
+                mid_x = (x1 + x2) // 2
+                draw.rectangle([mid_x - 55, top_y - 24, mid_x + 55, top_y - 6], fill=COLOR_PIPE_BG, outline=COLOR_PIPE_BORDER, width=1)
+                draw.text((mid_x, top_y - 15), sub_p_str, fill=COLOR_PIPE_TEXT, font=font_small, anchor="mm")
+
+        # 繪製各節點垂直分支與室內機卡片
+        for idx, ep in enumerate(flat_endpoints):
+            nx = node_positions[idx]
+            is_last = (idx == num_units - 1)
+
+            # 分歧頭節點圓圈與標籤
+            if is_vrv and num_units > 1:
+                if not is_last:
+                    draw.ellipse([nx - 6, top_y - 6, nx + 6, top_y + 6], fill=(255, 255, 255), outline=COLOR_PIPE_TEXT, width=2)
+                    j_info = all_joints[idx] if idx < len(all_joints) else None
+                    if j_info:
+                        j_lbl = f"{j_info['model']} [{j_info.get('role', '分歧')}]"
+                        draw.rectangle([nx - 65, top_y + 12, nx + 65, top_y + 30], fill=(255, 255, 255), outline=(255, 205, 210), width=1)
+                        draw.text((nx, top_y + 21), j_lbl, fill=COLOR_PIPE_TEXT, font=font_small, anchor="mm")
+                else:
+                    draw.ellipse([nx - 5, top_y - 5, nx + 5, top_y + 5], fill=COLOR_LINE)
+            else:
+                draw.ellipse([nx - 5, top_y - 5, nx + 5, top_y + 5], fill=COLOR_LINE)
+
+            # 垂直分支配管
+            v_start_y = top_y + (32 if (is_vrv and num_units > 1 and not is_last) else 0)
+            draw.line([(nx, v_start_y), (nx, card_y)], fill=COLOR_LINE, width=2)
+
+            # 垂直管標註
+            p_str = f"配管: {ep['pipe_l']}/{ep['pipe_g']}"
+            mid_vy = (v_start_y + card_y) // 2
+            draw.rectangle([nx - 52, mid_vy - 9, nx + 52, mid_vy + 9], fill=COLOR_PIPE_BG, outline=COLOR_PIPE_BORDER, width=1)
+            draw.text((nx, mid_vy), p_str, fill=COLOR_PIPE_TEXT, font=font_small, anchor="mm")
+
+            # 室內機卡片
+            bx = nx - (unit_w // 2)
+            by = card_y
+            draw.rectangle([bx, by, bx + unit_w, by + unit_h], fill=COLOR_BOX_BG, outline=COLOR_MAIN, width=2)
+            room_title = f"{ep['room']}  ({ep['model']})"
+            cap_sub = f"能力: {ep['cap']} | 分支: {ep['pipe_l']}/{ep['pipe_g']}"
+            draw.text((bx + unit_w // 2, by + 18), room_title, fill=COLOR_MAIN, font=font_box, anchor="mm")
+            draw.text((bx + unit_w // 2, by + 40), cap_sub, fill=(100, 116, 139), font=font_small, anchor="mm")
 
         buf = io.BytesIO()
         img.save(buf, format='PNG')
