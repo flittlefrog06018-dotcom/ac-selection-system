@@ -1592,6 +1592,7 @@ function App() {
   const imgRef = useRef(null);
   const modalImgRef = useRef(null);
   const modalSvgRef = useRef(null);
+  const previewBoxRef = useRef(null);
 
   // 🎯 局部圖片裁切與 OCR 自動辨識房間名稱
   const cropRoomImageBase64 = (polygonPts) => {
@@ -1700,12 +1701,15 @@ function App() {
   const [isSnapshotBaked, setIsSnapshotBaked] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
-  // 🎯 核心連動：底圖縮小或視窗尺寸變化時，強制 SVG 塗層與底圖像素 100% 同步縮放對齊
+  // 🎯 核心連動：底圖縮小、收折展開或視窗尺寸變化時，自動自適應並保持 SVG 塗層與底圖像素 100% 同步縮放對齊
   useEffect(() => {
     const syncSize = () => {
       const img = imgRef.current;
       const container = imgContainerRef.current;
       if (img && container) {
+        // 先釋放 container 的 inline 寬高，讓 img 能夠隨父容器 (previewBox) 自適應展開
+        container.style.width = 'auto';
+        container.style.height = 'auto';
         const w = img.clientWidth || img.offsetWidth;
         const h = img.clientHeight || img.offsetHeight;
         if (w > 0 && h > 0) {
@@ -1718,20 +1722,43 @@ function App() {
     syncSize();
 
     let ro = null;
-    if (typeof ResizeObserver !== 'undefined' && imgRef.current) {
+    if (typeof ResizeObserver !== 'undefined') {
       ro = new ResizeObserver(() => {
         syncSize();
       });
-      ro.observe(imgRef.current);
+      if (imgRef.current) ro.observe(imgRef.current);
+      if (previewBoxRef.current) ro.observe(previewBoxRef.current);
     }
 
-    const timer = setTimeout(syncSize, 100);
+    // 涵蓋側邊欄 CSS 動畫 (0.3s) 各關鍵階段，確保收折開啟後圖面能立即與完全展開
+    const timers = [
+      setTimeout(syncSize, 50),
+      setTimeout(syncSize, 150),
+      setTimeout(syncSize, 320),
+      setTimeout(syncSize, 500)
+    ];
+
     window.addEventListener('resize', syncSize);
 
+    // 🎯 原生非被動 (non-passive) wheel 事件監聽，確保滑鼠滾輪縮放不被瀏覽器或收折阻斷
+    const boxEl = previewBoxRef.current;
+    const handleNativeWheel = (e) => {
+      if (!file && !previewUrl) return;
+      e.preventDefault();
+      const zoom = e.deltaY < 0 ? 0.15 : -0.15;
+      setScale(prev => Math.max(0.5, Math.min(5, parseFloat((prev + zoom).toFixed(2)))));
+    };
+    if (boxEl) {
+      boxEl.addEventListener('wheel', handleNativeWheel, { passive: false });
+    }
+
     return () => {
-      clearTimeout(timer);
+      timers.forEach(t => clearTimeout(t));
       if (ro) ro.disconnect();
       window.removeEventListener('resize', syncSize);
+      if (boxEl) {
+        boxEl.removeEventListener('wheel', handleNativeWheel);
+      }
     };
   }, [previewUrl, currentStep, isSidebarCollapsed]);
 
@@ -4392,6 +4419,77 @@ function App() {
                     >
                       📁 更換圖檔
                     </button>
+
+                    {/* 🎯 縮放控制群組：放大、縮小、1:1 復位 */}
+                    <div style={{ display: 'inline-flex', alignItems: 'center', backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: tbRadius, overflow: 'hidden' }}>
+                      <button
+                        type="button"
+                        onClick={() => setScale(prev => Math.min(5, parseFloat((prev + 0.2).toFixed(2))))}
+                        style={{
+                          backgroundColor: 'transparent',
+                          color: '#38bdf8',
+                          border: 'none',
+                          padding: isCompactWindow ? '3px 6px' : '5px 8px',
+                          cursor: 'pointer',
+                          fontWeight: 'bold',
+                          fontSize: tbFontSize,
+                        }}
+                        title="放大圖面 (或滾動滑鼠滾輪向上)"
+                      >
+                        🔍+
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setScale(prev => Math.max(0.5, parseFloat((prev - 0.2).toFixed(2))))}
+                        style={{
+                          backgroundColor: 'transparent',
+                          color: '#38bdf8',
+                          border: 'none',
+                          borderLeft: '1px solid #334155',
+                          borderRight: '1px solid #334155',
+                          padding: isCompactWindow ? '3px 6px' : '5px 8px',
+                          cursor: 'pointer',
+                          fontWeight: 'bold',
+                          fontSize: tbFontSize,
+                        }}
+                        title="縮小圖面 (或滾動滑鼠滾輪向下)"
+                      >
+                        🔍-
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setScale(1);
+                          setPosition({ x: 0, y: 0 });
+                          const img = imgRef.current;
+                          const container = imgContainerRef.current;
+                          if (img && container) {
+                            container.style.width = 'auto';
+                            container.style.height = 'auto';
+                            setTimeout(() => {
+                              const w = img.clientWidth || img.offsetWidth;
+                              const h = img.clientHeight || img.offsetHeight;
+                              if (w > 0 && h > 0) {
+                                container.style.width = `${w}px`;
+                                container.style.height = `${h}px`;
+                              }
+                            }, 50);
+                          }
+                        }}
+                        style={{
+                          backgroundColor: 'transparent',
+                          color: '#94a3b8',
+                          border: 'none',
+                          padding: isCompactWindow ? '3px 6px' : '5px 8px',
+                          cursor: 'pointer',
+                          fontWeight: 'bold',
+                          fontSize: isCompactWindow ? '10.5px' : '12px',
+                        }}
+                        title="還原縮放比例至 100% 居中"
+                      >
+                        {Math.round(scale * 100)}% 🎯
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -4702,15 +4800,16 @@ function App() {
               </div>
             )}
           <div
+            ref={previewBoxRef}
             style={{
               ...styles.previewBox,
               flex: 1,
               height: '100%',
               minHeight: 0,
-              cursor: isPanning ? 'grabbing' : (file ? (drawToolMode === 'view' ? 'default' : 'crosshair') : 'pointer'),
+              cursor: isPanning ? 'grabbing' : ((file || previewUrl) ? (drawToolMode === 'view' ? 'default' : 'crosshair') : 'pointer'),
               position: 'relative',
-              borderColor: isDragOver ? '#34d399' : (file ? '#475569' : '#3b82f6'),
-              borderStyle: isDragOver || !file ? 'dashed' : 'solid',
+              borderColor: isDragOver ? '#34d399' : ((file || previewUrl) ? '#475569' : '#3b82f6'),
+              borderStyle: isDragOver || (!file && !previewUrl) ? 'dashed' : 'solid',
               borderWidth: isDragOver ? '2px' : '1px',
               backgroundColor: isDragOver ? 'rgba(52, 211, 153, 0.08)' : '#020617',
               transition: 'all 0.2s ease',
@@ -4725,8 +4824,8 @@ function App() {
               e.preventDefault();
             }}
             onClick={(e) => {
-              if (!file || isPanning) {
-                if (!file) triggerFileSelect();
+              if ((!file && !previewUrl) || isPanning) {
+                if (!file && !previewUrl) triggerFileSelect();
                 return;
               }
               const imgEl = imgRef.current || imgContainerRef.current;
@@ -4846,13 +4945,13 @@ function App() {
               }
             }}
             onWheel={(e) => {
-              if (!file) return;
+              if (!file && !previewUrl) return;
               e.preventDefault();
               const zoom = e.deltaY < 0 ? 0.15 : -0.15;
-              setScale(prev => Math.max(0.5, Math.min(5, prev + zoom)));
+              setScale(prev => Math.max(0.5, Math.min(5, parseFloat((prev + zoom).toFixed(2)))));
             }}
             onMouseDown={(e) => {
-              if (!file) return;
+              if (!file && !previewUrl) return;
               // 🎯 滑鼠滾輪 (中鍵 button === 1) 按住時啟動移動圖面 (Move / Pan)
               if (e.button === 1) {
                 e.preventDefault();
@@ -4874,7 +4973,7 @@ function App() {
               setIsRectDrawing(true);
             }}
             onMouseMove={(e) => {
-              if (!file) return;
+              if (!file && !previewUrl) return;
 
               // 🎯 處理滑鼠滾輪按住時的移動圖面 (Move / Pan)
               if (isPanning) {
@@ -4971,6 +5070,8 @@ function App() {
                     onDragStart={(e) => e.preventDefault()}
                     onLoad={() => {
                       if (imgRef.current && imgContainerRef.current) {
+                        imgContainerRef.current.style.width = 'auto';
+                        imgContainerRef.current.style.height = 'auto';
                         const w = imgRef.current.clientWidth || imgRef.current.offsetWidth;
                         const h = imgRef.current.clientHeight || imgRef.current.offsetHeight;
                         if (w > 0 && h > 0) {
