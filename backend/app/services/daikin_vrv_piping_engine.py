@@ -260,19 +260,27 @@ class DaikinVRVPipingEngine:
     @classmethod
     def get_indoor_branch_pipe(cls, node_type: str, capacity: float) -> Dict[str, str]:
         """
-        室內機分支管選用表 (表 5)
+        室內機分支管選用表 (依據《VRV冷媒管徑選用工具2026.5》表 5)
+        - SA 系統室內機全數為 Ø9.5/Ø15.9
+        - VRV 室內機 (FX 系列)：
+            20, 25, 32, 40, 50 -> 液管 Ø6.4 × 0.8 / 氣管 Ø12.7 × 0.8 (TR1)
+            63, 80, 100, 125, 140 -> 液管 Ø9.5 × 0.8 / 氣管 Ø15.9 × 0.99 (TR2)
+            200 -> 液管 Ø9.5 × 0.8 / 氣管 Ø19.1 × 0.8 (TR3)
+            250 -> 液管 Ø9.5 × 0.8 / 氣管 Ø22.2 × 0.8 (TR4)
         """
-        if node_type == 'ra':
-            if capacity <= 30:
+        if node_type == 'sa':
+            # 🎯 SA 系統室內機全數都是 Ø9.5/Ø15.9
+            return {"l": "Ø9.5", "g": "Ø15.9", "code": "SA"}
+        elif node_type == 'ra':
+            if capacity <= 36:
                 return {"l": "Ø6.4", "g": "Ø9.5", "code": "RA1"}
-            elif capacity <= 60:
+            elif capacity <= 71:
                 return {"l": "Ø6.4", "g": "Ø12.7", "code": "RA2"}
             else:
                 return {"l": "Ø6.4", "g": "Ø15.9", "code": "RA3"}
         else:
-            if capacity <= 28:
-                return {"l": "Ø6.4", "g": "Ø9.5", "code": "TR0"}
-            elif capacity <= 50:
+            # 🎯 嚴格遵照《VRV冷媒管徑選用工具2026.5》表 5 室內機分支管選用表
+            if capacity <= 50:
                 return {"l": "Ø6.4", "g": "Ø12.7", "code": "TR1"}
             elif capacity <= 140:
                 return {"l": "Ø9.5", "g": "Ø15.9", "code": "TR2"}
@@ -469,7 +477,7 @@ class DaikinVRVPipingEngine:
             m = item.get("model", "")
             c = cls.extract_capacity_index(m)
             is_in_vrv = is_vrv or m.upper().startswith("FX")
-            is_in_sa = any(k in m.upper() for k in ['FBA', 'FAA', 'FCA', 'FFA', 'FHQ'])
+            is_in_sa = any(k in m.upper() for k in ['FBA', 'FAA', 'FCA', 'FFA', 'FHQ']) or "SA" in str(item.get("system_type", "")).upper()
             n_type = 'vrv' if is_in_vrv else ('sa' if is_in_sa else 'ra')
             p = cls.get_indoor_branch_pipe(n_type, c)
             tag = "[VRV]" if is_in_vrv else ("[商用]" if is_in_sa else "[家用]")
@@ -573,7 +581,10 @@ class DaikinFlowchartDiagramDrawer:
             m = item.get("model", "")
             r = item.get("room_name", "空間")
             c = DaikinVRVPipingEngine.extract_capacity_index(m)
-            p = DaikinVRVPipingEngine.get_indoor_branch_pipe('vrv' if (is_vrv or m.upper().startswith("FX")) else 'ra', c)
+            is_in_vrv = is_vrv or m.upper().startswith("FX")
+            is_in_sa = any(k in m.upper() for k in ['FBA', 'FAA', 'FCA', 'FFA', 'FHQ']) or "SA" in str(item.get("system_type", "")).upper()
+            n_type = 'vrv' if is_in_vrv else ('sa' if is_in_sa else 'ra')
+            p = DaikinVRVPipingEngine.get_indoor_branch_pipe(n_type, c)
             flat_endpoints.append({
                 "model": m,
                 "room": r,
@@ -658,7 +669,10 @@ class DaikinFlowchartDiagramDrawer:
             m = item.get("model", "")
             r = item.get("room_name", "空間")
             c = DaikinVRVPipingEngine.extract_capacity_index(m)
-            p = DaikinVRVPipingEngine.get_indoor_branch_pipe('vrv' if (is_vrv or m.upper().startswith("FX")) else 'ra', c)
+            is_in_vrv = is_vrv or m.upper().startswith("FX")
+            is_in_sa = any(k in m.upper() for k in ['FBA', 'FAA', 'FCA', 'FFA', 'FHQ']) or "SA" in str(item.get("system_type", "")).upper()
+            n_type = 'vrv' if is_in_vrv else ('sa' if is_in_sa else 'ra')
+            p = DaikinVRVPipingEngine.get_indoor_branch_pipe(n_type, c)
             flat_endpoints.append({
                 "model": m,
                 "room": r,

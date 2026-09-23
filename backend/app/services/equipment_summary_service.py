@@ -754,13 +754,14 @@ class EquipmentSummaryService:
                 vrv_sa_count += q_in
 
         if vrv_sa_count > 0:
+            rc_price = db_srv.get_remote_price("BRC1E63R") if db_srv else 4300.0
             accessory_items.append({
                 "item_code": f"B-{item_counter_b}",
                 "cat": "控制配件",
                 "name": "液晶有線遙控器 (BRC1E63 / BRC1H61W)",
                 "qty": vrv_sa_count,
                 "unit": "個",
-                "unit_price": None,
+                "unit_price": rc_price or 4300.0,
                 "notes": "SA / VRV 室內機專用標準配置"
             })
             item_counter_b += 1

@@ -181,7 +181,10 @@ class DaikinHVACCalculator:
         """
         室內機分支管選用表 (表 5) 及家用壁掛專用管徑
         """
-        if node_type == 'ra':
+        if node_type == 'sa':
+            # 🎯 SA 系統室內機全數為 Ø9.5/Ø15.9
+            return {"l": "Ø9.5", "g": "Ø15.9", "code": "SA"}
+        elif node_type == 'ra':
             # 家用壁掛機配管
             if capacity <= 36:
                 return {"l": "Ø6.4", "g": "Ø9.5", "code": "RA1"}

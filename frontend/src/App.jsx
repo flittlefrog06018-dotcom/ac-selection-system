@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { toast, ToastContainer } from 'react-toastify';
 // 🎯 EQUIPMENT_Data controller 分頁黃底集中控制器規格資料庫 (含高階/低階分類與價格)
 const CONTROLLER_CANDIDATES = [
@@ -12,6 +12,23 @@ const CONTROLLER_CANDIDATES = [
   { model: 'DCPA01', name: '伶俐用轉接器', price: 9200, tier: '配件', note: '配件' },
   { model: 'DCPF01', name: '伶俐智控管理器', price: 34700, tier: '高階', note: '高階' }
 ];
+
+// 🎯 EQUIPMENT_Data controller&pipe 分頁原廠配件規格與報價資料庫 (轉接小P版、無線接收APP卡、集控基板、遙控器)
+const ACCESSORY_PRICE_MAP = {
+  // 轉接小P版 (Col 6~7)
+  'BRP067A42': 1300,
+  'BRP980B42': 1300,
+  // 無線接收器 / APP 智慧遠端控制卡 (Col 9~10)
+  'BRP084C45': 1600,
+  'BRP072C42': 1600,
+  'BRP072C42-1': 1600,
+  // 集控轉接基板 (Col 12~13)
+  'KRP928BB2S': 4500,
+  // 有線遙控器 (Col 15~16)
+  'BRC1E63R': 4300,
+  'BRC1E63': 4300,
+  'BRC1H61W': 4300,
+};
 
 
 import 'react-toastify/dist/ReactToastify.css';
@@ -1702,23 +1719,35 @@ function App() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // 🎯 核心連動：底圖縮小、收折展開或視窗尺寸變化時，自動自適應並保持 SVG 塗層與底圖像素 100% 同步縮放對齊
-  useEffect(() => {
-    const syncSize = () => {
-      const img = imgRef.current;
-      const container = imgContainerRef.current;
-      if (img && container) {
-        // 先釋放 container 的 inline 寬高，讓 img 能夠隨父容器 (previewBox) 自適應展開
-        container.style.width = 'auto';
-        container.style.height = 'auto';
-        const w = img.clientWidth || img.offsetWidth;
-        const h = img.clientHeight || img.offsetHeight;
-        if (w > 0 && h > 0) {
-          container.style.width = `${w}px`;
-          container.style.height = `${h}px`;
-        }
-      }
-    };
+  const syncSize = useCallback(() => {
+    const img = imgRef.current;
+    const container = imgContainerRef.current;
+    const box = previewBoxRef.current;
+    if (!img || !container || !box) return;
 
+    const nw = img.naturalWidth || 0;
+    const nh = img.naturalHeight || 0;
+    const boxW = box.clientWidth || 0;
+    const boxH = box.clientHeight || 0;
+
+    if (nw > 0 && nh > 0 && boxW > 0 && boxH > 0) {
+      // 🎯 依據原生長寬比精準適配預覽框 (嚴格等比 contain，杜絕多餘空白被 SVG 誤認)
+      const ratio = Math.min(boxW / nw, boxH / nh);
+      const targetW = Math.max(1, Math.round(nw * ratio));
+      const targetH = Math.max(1, Math.round(nh * ratio));
+      container.style.width = `${targetW}px`;
+      container.style.height = `${targetH}px`;
+    } else {
+      const w = img.clientWidth || img.offsetWidth;
+      const h = img.clientHeight || img.offsetHeight;
+      if (w > 0 && h > 0) {
+        container.style.width = `${w}px`;
+        container.style.height = `${h}px`;
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     syncSize();
 
     let ro = null;
@@ -1760,7 +1789,7 @@ function App() {
         boxEl.removeEventListener('wheel', handleNativeWheel);
       }
     };
-  }, [previewUrl, currentStep, isSidebarCollapsed]);
+  }, [previewUrl, currentStep, isSidebarCollapsed, syncSize]);
 
   // 🎯 新增圖面實體紙張與比例標定 (A3 / A4 / 1:100 / 1:200 自圖面設定)
   const [paperSize, setPaperSize] = useState('A3'); // Options: 'A3', 'A4', 'A2', '自訂'
@@ -2882,7 +2911,7 @@ function App() {
           name: "液晶有線遙控器 (BRC1E63 / BRC1H61W)",
           qty: vrvSaCount,
           unit: "個",
-          unit_price: null,
+          unit_price: ACCESSORY_PRICE_MAP["BRC1E63R"] || 4300,
           notes: "SA / VRV 室內機專用標準配置",
         });
       }
@@ -2904,7 +2933,7 @@ function App() {
         });
       }
 
-      // 🎯 APP 遠端控制配件精準對應 (參照 EQUIPMENT_FULL_DB.indoor_units)
+      // 🎯 APP 遠端控制配件精準對應 (參照 EQUIPMENT_Data controller&pipe)
       const ctrlModeStr = String(fastCtrlMode || "").toUpperCase();
       const hasApp = ctrlModeStr.includes("APP") || flatRowsToRender.some(r => String(r.control_mode || "").toUpperCase().includes("APP"));
       const hasCentral = ctrlModeStr.includes("集控") || ctrlModeStr.includes("CENTRAL") || flatRowsToRender.some(r => String(r.control_mode || "").includes("集控"));
@@ -2937,7 +2966,7 @@ function App() {
             name: `Daikin Mobile Controller APP 智慧遠端控制卡 (${recM})`,
             qty: recQ,
             unit: "個",
-            unit_price: null,
+            unit_price: ACCESSORY_PRICE_MAP[recM] || 1600,
             notes: "智慧手機雲端遠端開關與定時",
           });
         });
@@ -2948,7 +2977,7 @@ function App() {
             name: `原廠室內機轉接小P板 (${pbM})`,
             qty: pbQ,
             unit: "個",
-            unit_price: null,
+            unit_price: ACCESSORY_PRICE_MAP[pbM] || 1300,
             notes: "搭配 APP 遠端控制卡專用介面基板",
           });
         });
@@ -2977,7 +3006,7 @@ function App() {
             name: `集中控制轉接基板 (${cbM})`,
             qty: cbQ,
             unit: "個",
-            unit_price: null,
+            unit_price: ACCESSORY_PRICE_MAP[cbM] || 4500,
             notes: "連接中央集中控制器專用轉接基板",
           });
         });
@@ -2988,7 +3017,7 @@ function App() {
             name: `原廠室內機轉接小P板 (${pbM})`,
             qty: pbQ,
             unit: "個",
-            unit_price: null,
+            unit_price: ACCESSORY_PRICE_MAP[pbM] || 1300,
             notes: "搭配集控介面專用轉接小P板",
           });
         });
@@ -4462,20 +4491,7 @@ function App() {
                         onClick={() => {
                           setScale(1);
                           setPosition({ x: 0, y: 0 });
-                          const img = imgRef.current;
-                          const container = imgContainerRef.current;
-                          if (img && container) {
-                            container.style.width = 'auto';
-                            container.style.height = 'auto';
-                            setTimeout(() => {
-                              const w = img.clientWidth || img.offsetWidth;
-                              const h = img.clientHeight || img.offsetHeight;
-                              if (w > 0 && h > 0) {
-                                container.style.width = `${w}px`;
-                                container.style.height = `${h}px`;
-                              }
-                            }, 50);
-                          }
+                          syncSize();
                         }}
                         style={{
                           backgroundColor: 'transparent',
@@ -4829,11 +4845,18 @@ function App() {
                 if (!file && !previewUrl) triggerFileSelect();
                 return;
               }
-              const imgEl = imgRef.current || imgContainerRef.current;
-              if (!imgEl) return;
-              const rect = imgEl.getBoundingClientRect();
-              const x = Math.max(0, Math.min(1000, Math.round((e.clientX - rect.left) / rect.width * 1000)));
-              const y = Math.max(0, Math.min(1000, Math.round((e.clientY - rect.top) / rect.height * 1000)));
+              const targetEl = imgRef.current || imgContainerRef.current;
+              if (!targetEl) return;
+              const rect = targetEl.getBoundingClientRect();
+              if (rect.width <= 0 || rect.height <= 0) return;
+
+              // 🎯 排除點擊於圖面外黑底區域，確保游標與點擊 100% 精準對齊圖面像素
+              if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
+                return;
+              }
+
+              const x = Math.max(0, Math.min(1000, Math.round(((e.clientX - rect.left) / rect.width) * 1000)));
+              const y = Math.max(0, Math.min(1000, Math.round(((e.clientY - rect.top) / rect.height) * 1000)));
 
               if (drawToolMode === 'scale') {
                 if (scalePoints.length === 0) {
@@ -4965,10 +4988,12 @@ function App() {
               if (e.button !== 0) return;
               if (drawToolMode !== 'rect') return;
 
-              const targetEl = imgRef.current || imgContainerRef.current || e.currentTarget;
+              const targetEl = imgRef.current || imgContainerRef.current;
+              if (!targetEl) return;
               const rect = targetEl.getBoundingClientRect();
-              const x = Math.round((e.clientX - rect.left) / rect.width * 1000);
-              const y = Math.round((e.clientY - rect.top) / rect.height * 1000);
+              if (rect.width <= 0 || rect.height <= 0) return;
+              const x = Math.max(0, Math.min(1000, Math.round(((e.clientX - rect.left) / rect.width) * 1000)));
+              const y = Math.max(0, Math.min(1000, Math.round(((e.clientY - rect.top) / rect.height) * 1000)));
               setRectStart([x, y]);
               setRectCurrent([x, y]);
               setIsRectDrawing(true);
@@ -4986,10 +5011,12 @@ function App() {
                 return;
               }
 
-              const targetEl = imgRef.current || imgContainerRef.current || e.currentTarget;
+              const targetEl = imgRef.current || imgContainerRef.current;
+              if (!targetEl) return;
               const rect = targetEl.getBoundingClientRect();
-              const x = Math.round((e.clientX - rect.left) / rect.width * 1000);
-              const y = Math.round((e.clientY - rect.top) / rect.height * 1000);
+              if (rect.width <= 0 || rect.height <= 0) return;
+              const x = Math.max(0, Math.min(1000, Math.round(((e.clientX - rect.left) / rect.width) * 1000)));
+              const y = Math.max(0, Math.min(1000, Math.round(((e.clientY - rect.top) / rect.height) * 1000)));
               setMousePos([x, y]);
 
               if (isRectDrawing) {
@@ -5070,22 +5097,11 @@ function App() {
                     draggable={false}
                     onDragStart={(e) => e.preventDefault()}
                     onLoad={() => {
-                      if (imgRef.current && imgContainerRef.current) {
-                        imgContainerRef.current.style.width = 'auto';
-                        imgContainerRef.current.style.height = 'auto';
-                        const w = imgRef.current.clientWidth || imgRef.current.offsetWidth;
-                        const h = imgRef.current.clientHeight || imgRef.current.offsetHeight;
-                        if (w > 0 && h > 0) {
-                          imgContainerRef.current.style.width = `${w}px`;
-                          imgContainerRef.current.style.height = `${h}px`;
-                        }
-                      }
+                      syncSize();
                     }}
                     style={{
-                      maxWidth: '100%',
-                      maxHeight: '100%',
-                      width: 'auto',
-                      height: 'auto',
+                      width: '100%',
+                      height: '100%',
                       display: 'block',
                       userSelect: 'none',
                       WebkitUserDrag: 'none',
@@ -5107,6 +5123,16 @@ function App() {
                   viewBox="0 0 1000 1000"
                   preserveAspectRatio="none"
                 >
+                  {/* 🎯 參考尺寸瞄準十字準心 (未點選點 A 前，游標跟隨精確指示基準點位置) */}
+                  {drawToolMode === 'scale' && scalePoints.length === 0 && mousePos && (
+                    <g key="scale_aim_cursor">
+                      <circle cx={mousePos[0]} cy={mousePos[1]} r="3.2" fill="#0284c7" stroke="#ffffff" strokeWidth="1.2" />
+                      <line x1={mousePos[0] - 8} y1={mousePos[1]} x2={mousePos[0] + 8} y2={mousePos[1]} stroke="#0284c7" strokeWidth="1.2" strokeDasharray="2 2" />
+                      <line x1={mousePos[0]} y1={mousePos[1] - 8} x2={mousePos[0]} y2={mousePos[1] + 8} stroke="#0284c7" strokeWidth="1.2" strokeDasharray="2 2" />
+                      <text x={mousePos[0] + 12} y={mousePos[1] + 4} fill="#0284c7" fontSize="13" fontWeight="bold">點選放樣點 A</text>
+                    </g>
+                  )}
+
                   {/* 🎯 即時渲染放樣標定藍點與藍連線 (圓點大小一致，比照原起點縮小60%為r=3.2，顏色為藍色) */}
                   {scalePoints.length > 0 && (
                     <g key="scale_pt_a">
