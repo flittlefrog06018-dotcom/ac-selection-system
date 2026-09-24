@@ -4035,5 +4035,20 @@ export const CONTROLLERS_DB = [
     "model": "DCPF01",
     "name": "伶俐智控管理器",
     "price": 34700.0
+  },
+  {
+    "model": "DCPH01H",
+    "name": "伶俐智控管理器-住宅",
+    "price": 27700.0
   }
+];
+
+// 🎯 VRV 冷媒分歧頭規格與報價資料庫 (來自 controller&pipe)
+export const VRV_PIPE_BRANCHES_DB = [
+  { model: "KHRP26A22T", name: "VRV室內機分歧頭 (22T)", price: 1700.0, type: "室內機分歧頭" },
+  { model: "KHRP26A33T", name: "VRV室內機分歧頭 (33T)", price: 2400.0, type: "室內機分歧頭" },
+  { model: "KHRP26A72T", name: "VRV室內機分歧頭 (72T)", price: 3300.0, type: "室內機分歧頭" },
+  { model: "KHRP26A73T", name: "VRV室內機分歧頭 (73T)", price: 4600.0, type: "室內機分歧頭" },
+  { model: "BHFP22P100", name: "VRV室外機分歧頭 (100)", price: 3700.0, type: "室外機分歧頭" },
+  { model: "BHFP22P151", name: "VRV室外機分歧頭 (151)", price: 7500.0, type: "室外機分歧頭" }
 ];

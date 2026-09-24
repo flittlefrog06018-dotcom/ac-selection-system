@@ -1,16 +1,24 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { toast, ToastContainer } from 'react-toastify';
 // 🎯 EQUIPMENT_Data controller 分頁黃底集中控制器規格資料庫 (含高階/低階分類與價格)
+// 🎯 EQUIPMENT_Data controller&pipe 分頁集中控制器規格資料庫 (純 D3-NET 集中控制盤)
 const CONTROLLER_CANDIDATES = [
-  { model: 'DCS301BA61', name: '集中ON-OFF控制器', price: 11800, tier: '低階', note: '低階' },
+  { model: 'DCS301BA61', name: '集中ON-OFF控制器', price: 11800, tier: '低階', note: '低階 (1台控16台內機)' },
   { model: 'DCS302CA61', name: '中央集中控制器', price: 11700, tier: '高階', note: '高階' },
-  { model: 'DCS303A61', name: '家用集中控制器', price: 22800, tier: '高階', note: '高階' },
+  { model: 'DCS302A52', name: '中央集控外接監控基板', price: 4700, tier: '配件', note: '外接監控基板' },
+  { model: 'DCS303A61', name: '家用集中控制器', price: 22800, tier: '高階', note: '獨立專用 (不可共用)' },
+  { model: 'DST301BA61', name: '預定時程控制器', price: 7350, tier: '配件', note: '時程控制器' },
   { model: 'DTP401A61', name: 'STC集中控制器', price: 25000, tier: '高階', note: '高階' },
   { model: 'DCM601B51', name: 'ITM', price: 108200, tier: '高階', note: '高階' },
-  { model: 'DTA116A51', name: 'Modbus 介面', price: 11500, tier: '高階', note: '高階' },
-  { model: 'DMS502B51', name: 'BACnet 介面', price: 83600, tier: '高階', note: '高階' },
-  { model: 'DCPA01', name: '伶俐用轉接器', price: 9200, tier: '配件', note: '配件' },
-  { model: 'DCPF01', name: '伶俐智控管理器', price: 34700, tier: '高階', note: '高階' }
+  { model: 'DTA116A51', name: 'Modbus 介面', price: 11500, tier: '高階', note: '高階 (特規2組外機/16台內機)' },
+  { model: 'DMS502B51', name: 'BACnet 介面', price: 83600, tier: '高階', note: '高階 (與Modbus擇一)' }
+];
+
+// 🎯 伶俐智能管理專屬產品清單 (自集中控制器獨立)
+const LINGLI_CANDIDATES = [
+  { model: 'DCPA01', name: '伶俐用轉接器', price: 9200, tier: '轉接器', note: '伶俐專用轉接介面' },
+  { model: 'DCPF01', name: '伶俐智控管理器', price: 34700, tier: '管理器', note: '商用智能管理器' },
+  { model: 'DCPH01H', name: '伶俐智控管理器-住宅', price: 27700, tier: '管理器', note: '住宅旗艦型 (含Z-wave)' }
 ];
 
 // 🎯 EQUIPMENT_Data controller&pipe 分頁原廠配件規格與報價資料庫 (轉接小P版、無線接收APP卡、集控基板、遙控器)
@@ -25,9 +33,18 @@ const ACCESSORY_PRICE_MAP = {
   // 集控轉接基板 (Col 12~13)
   'KRP928BB2S': 4500,
   // 有線遙控器 (Col 15~16)
-  'BRC1E63R': 4300,
+  'BRC1E63R': 4500,
   'BRC1E63': 4300,
   'BRC1H61W': 4300,
+  // 伶俐新機種
+  'DCPH01H': 27700,
+  // VRV 分歧頭 (Col 18~20)
+  'KHRP26A22T': 1700,
+  'KHRP26A33T': 2400,
+  'KHRP26A72T': 3300,
+  'KHRP26A73T': 4600,
+  'BHFP22P100': 3700,
+  'BHFP22P151': 7500,
 };
 
 // 🎯 依據《VRV冷媒管徑選用工具2026.5》表 5 與 SA 規範取得室內機分支管徑
@@ -57,6 +74,64 @@ const getIndoorBranchPipeSize = (modelStr, systemType) => {
 };
 
 // 🎯 大金家用多聯 (MULTI) 與 VRV 室外機官方最大允許連接室內機總能力 (kW)
+// 🎯 D3-NET 通訊通道試算核心函式 (依大金原廠標準與 Modbus 特規)
+export const calculateD3NetStats = (spacesList, selectedCtrls = []) => {
+  if (!spacesList || spacesList.length === 0) {
+    return {
+      indoorTotalCount: 0,
+      outdoorGroupCount: 0,
+      isModbus: false,
+      maxInPerPort: 64,
+      maxOutPerPort: 10,
+      suggestedPorts: 1,
+      hasITM: false,
+      itmExpansionCards: 0
+    };
+  }
+
+  // 1. 室內/全熱機總台數 (包含 VRV, RA, SA 及全熱)
+  const indoorTotalCount = spacesList.reduce((acc, r) => acc + (parseInt(r.unit_count) || 1), 0);
+
+  // 2. 室外機總組數：群組每組計 1 組，非群組每台計 1 組
+  const groupsSeen = new Set();
+  let outdoorGroupCount = 0;
+  spacesList.forEach(r => {
+    if (r.outdoorGroupId) {
+      if (!groupsSeen.has(r.outdoorGroupId)) {
+        groupsSeen.add(r.outdoorGroupId);
+        outdoorGroupCount += 1;
+      }
+    } else {
+      outdoorGroupCount += (parseInt(r.unit_count) || 1);
+    }
+  });
+  if (outdoorGroupCount === 0) outdoorGroupCount = 1;
+
+  // 3. Modbus 介面特規判斷 (DTA116A51: 2組室外機 / 16台室內機)
+  const isModbus = (selectedCtrls || []).includes('DTA116A51');
+  const maxInPerPort = isModbus ? 16 : 64;
+  const maxOutPerPort = isModbus ? 2 : 10;
+
+  const inPorts = Math.ceil(indoorTotalCount / maxInPerPort) || 1;
+  const outPorts = Math.ceil(outdoorGroupCount / maxOutPerPort) || 1;
+  const suggestedPorts = Math.max(inPorts, outPorts, 1);
+
+  const hasITM = (selectedCtrls || []).includes('DCM601B51');
+  const itmExpansionCards = (hasITM && suggestedPorts > 1) ? Math.min(suggestedPorts - 1, 7) : 0;
+
+  return {
+    indoorTotalCount,
+    outdoorGroupCount,
+    isModbus,
+    maxInPerPort,
+    maxOutPerPort,
+    suggestedPorts,
+    hasITM,
+    itmExpansionCards
+  };
+};
+
+
 export const getMaxConnectableCapKw = (outdoorModel, outdoorCapKw) => {
   if (!outdoorModel) return (parseFloat(outdoorCapKw) || 0) * 1.15;
   const m = outdoorModel.toUpperCase();
@@ -323,9 +398,11 @@ function App() {
   // 🎯 4 步標準選機流程導引 State (1: 圖面辨識, 2: 室內負荷與室內機選型, 3: 室外機選型, 4: 決定控制需求)
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedControllers, setSelectedControllers] = useState([]);
+  const [dcs301Qty, setDcs301Qty] = useState(1); // 低階 DCS301BA61 台數 (1~4)
+  const [selectedLingli, setSelectedLingli] = useState([]); // 伶俐智能管理選配清單
   const [controllerAlertModal, setControllerAlertModal] = useState({ show: false, message: '' });
 
-  // 🎯 集中控制器複選與規則檢核：低階最多1種，高階最多2種（DCS303A61不可與其他高階共用）
+  // 🎯 集中控制器複選與規則檢核
   const handleToggleController = (ctrl) => {
     const isCurrentlySelected = selectedControllers.includes(ctrl.model);
     if (isCurrentlySelected) {
@@ -333,44 +410,53 @@ function App() {
       return;
     }
 
-    if (ctrl.tier === '低階') {
-      const lowCount = selectedControllers.filter(m => {
-        const item = CONTROLLER_CANDIDATES.find(c => c.model === m);
-        return item && item.tier === '低階';
-      }).length;
-      if (lowCount >= 1) {
-        const msg = '⚠️ 依據原廠規範限制：低階集中控制器最多只能選擇 1 種！';
+    // 🎯 規則 1：DCS303A61 家用集中控制器為獨立專用，無法與任何其他集控共用！
+    if (ctrl.model === 'DCS303A61') {
+      if (selectedControllers.length > 0) {
+        const msg = '⚠️ 原廠規範限制：家用集中控制器 (DCS303A61) 為獨立專用系統，無法與任何其他集中控制器共用！';
+        setControllerAlertModal({ show: true, message: msg });
+        toast.warn(msg);
+        return;
+      }
+    } else {
+      if (selectedControllers.includes('DCS303A61')) {
+        const msg = '⚠️ 原廠規範限制：已選用家用集中控制器 (DCS303A61)，無法與其他集中控制器共用！';
         setControllerAlertModal({ show: true, message: msg });
         toast.warn(msg);
         return;
       }
     }
 
-    if (ctrl.tier === '高階') {
-      // 1. 若欲選用 DCS303A61，且已選用其他高階集中控制器
-      if (ctrl.model === 'DCS303A61') {
-        const hasOtherHigh = selectedControllers.some(m => {
-          const item = CONTROLLER_CANDIDATES.find(c => c.model === m);
-          return item && item.tier === '高階' && m !== 'DCS303A61';
-        });
-        if (hasOtherHigh) {
-          const msg = '⚠️ 依據原廠規範限制：家用集中控制器 (DCS303A61) 為獨立專用系統，不可與其他高階集中控制器共用！';
-          setControllerAlertModal({ show: true, message: msg });
-          toast.warn(msg);
-          return;
-        }
-      }
+    // 🎯 規則 4：DTA116A51 (Modbus) 與 DMS502B51 (BACnet) 介面互斥，請擇一使用！
+    if (ctrl.model === 'DTA116A51' && selectedControllers.includes('DMS502B51')) {
+      const msg = '⚠️ 通訊協定規範：Modbus 介面 (DTA116A51) 與 BACnet 介面 (DMS502B51) 請擇一使用，不可同時勾選！';
+      setControllerAlertModal({ show: true, message: msg });
+      toast.warn(msg);
+      return;
+    }
+    if (ctrl.model === 'DMS502B51' && selectedControllers.includes('DTA116A51')) {
+      const msg = '⚠️ 通訊協定規範：BACnet 介面 (DMS502B51) 與 Modbus 介面 (DTA116A51) 請擇一使用，不可同時勾選！';
+      setControllerAlertModal({ show: true, message: msg });
+      toast.warn(msg);
+      return;
+    }
 
-      // 2. 若已選用 DCS303A61，則不可再選用任何其他高階集中控制器
-      const hasDCS303 = selectedControllers.includes('DCS303A61');
-      if (hasDCS303 && ctrl.model !== 'DCS303A61') {
-        const msg = '⚠️ 依據原廠規範限制：已選用家用集中控制器 (DCS303A61)，不可與其他高階集中控制器共用！';
+    // 🎯 規則 3：低階 DCS301BA61
+    if (ctrl.tier === '低階') {
+      const lowCount = selectedControllers.filter(m => {
+        const item = CONTROLLER_CANDIDATES.find(c => c.model === m);
+        return item && item.tier === '低階';
+      }).length;
+      if (lowCount >= 1) {
+        const msg = '⚠️ 集中控制器規範：低階集中控制器型號最多只能選擇 1 種！(可於數量微調台數)';
         setControllerAlertModal({ show: true, message: msg });
         toast.warn(msg);
         return;
       }
+    }
 
-      // 3. 高階數量限制最多 2 種
+    // 高階最多 2 種
+    if (ctrl.tier === '高階') {
       const highCount = selectedControllers.filter(m => {
         const item = CONTROLLER_CANDIDATES.find(c => c.model === m);
         return item && item.tier === '高階';
@@ -385,7 +471,19 @@ function App() {
 
     setSelectedControllers(prev => [...prev, ctrl.model]);
   };
-  const [fastControlMode, setFastControlMode] = useState('無'); // 預設 '無' (可選 '無', 'APP', '集控')
+
+  // 🎯 伶俐智能管理複選處理
+  const handleToggleLingli = (item) => {
+    setSelectedLingli(prev => {
+      if (prev.includes(item.model)) {
+        return prev.filter(m => m !== item.model);
+      } else {
+        return [...prev, item.model];
+      }
+    });
+  };
+
+  const [fastControlMode, setFastControlMode] = useState('無'); // 預設 '無' (可選 '無', 'APP', '集控', '伶俐')
 
   const WIZARD_STEPS = [
     { id: 1, title: '圖面辨識', icon: '🖼️', desc: '匯入圖面、比例放樣與空間框選' },
@@ -3378,10 +3476,11 @@ function App() {
           selectedControllers.forEach(ctrlModel => {
             const item = CONTROLLER_CANDIDATES.find(c => c.model === ctrlModel);
             if (item) {
+              const qty = (ctrlModel === 'DCS301BA61') ? (dcs301Qty || 1) : 1;
               accessoryItems.push({
                 cat: "控制配件",
                 name: `大金空調${item.name} (${item.model})`,
-                qty: 1,
+                qty: qty,
                 unit: "台",
                 unit_price: item.price || null,
                 notes: `大金原廠集中控制器【${item.note || item.tier}】`,
@@ -3396,6 +3495,23 @@ function App() {
             unit: "台",
             unit_price: 108200,
             notes: "大金原廠集中控制器【高階】",
+          });
+        }
+      } else if (fastControlMode === '伶俐') {
+        // 🎯 匯出已勾選之伶俐智控配件
+        if (selectedLingli && selectedLingli.length > 0) {
+          selectedLingli.forEach(lModel => {
+            const item = LINGLI_CANDIDATES.find(c => c.model === lModel);
+            if (item) {
+              accessoryItems.push({
+                cat: "控制配件",
+                name: `大金空調${item.name} (${item.model})`,
+                qty: 1,
+                unit: "台",
+                unit_price: item.price || null,
+                notes: `大金原廠伶俐智能管理【${item.tier}】`,
+              });
+            }
           });
         }
       }
@@ -3850,12 +3966,17 @@ function App() {
       });
 
       const sIn = Object.values(inCounts).reduce((a, b) => a + b, 0);
+      const isModbus = (selectedControllers || []).includes("DTA116A51");
+      const maxInPerPort = isModbus ? 16 : 64;
+      const maxOutPerPort = isModbus ? 2 : 10;
+      
       const vrvOutItems = Object.entries(outCounts).filter(([m]) => {
         const u = m.toUpperCase();
         return u.includes("VRV") || u.startsWith("RXQ") || u.startsWith("RXY") || u.startsWith("RSUY");
       });
-      const sOut = vrvOutItems.reduce((a, b) => a + b[1], 0);
-      const suggestedPorts = Math.max(sIn > 0 ? Math.ceil(sIn / 64) : 1, sOut > 0 ? Math.ceil(sOut / 10) : 1);
+      // 依規範：室外機組數 (上限 10組/Port 或 Modbus 2組/Port)
+      const sOut = Object.values(outCounts).reduce((a, b) => a + b, 0);
+      const suggestedPorts = Math.max(sIn > 0 ? Math.ceil(sIn / maxInPerPort) : 1, sOut > 0 ? Math.ceil(sOut / maxOutPerPort) : 1);
 
       // D3-NET 通訊通道試算卡 (H4:J4)
       ws3.mergeCells("H4:J4");
@@ -5693,7 +5814,7 @@ function App() {
               <div style={{ ...styles.cardTitle, marginBottom: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span>📈 工程負荷試算與大金配機建議表</span>
                 <span style={{ fontSize: '11.5px', color: '#94a3b8', fontWeight: 'bold', backgroundColor: '#1e293b', padding: '2px 8px', borderRadius: '4px', border: '1px solid #334155' }}>
-                  v2.19.4 (2026.09.24 23:20)
+                  v2.20.0 (2026.09.25 00:10)
                 </span>
               </div>
               
@@ -6114,7 +6235,8 @@ function App() {
                 {[
                   { mode: '無', title: '無控制需求', desc: '標準配置：各空間採用標準紅外線無線遙控器或有線液晶遙控器。', color: '#64748b' },
                   { mode: 'APP', title: 'APP 遠端控制', desc: '智慧升級：選配 Daikin Mobile Controller，手機平板連網隨處遠端遙控開關與定時。', color: '#0284c7' },
-                  { mode: '集控', title: '集中控制器', desc: '商用集控：選配 Daikin 集中控制盤或 Intelligent Touch Manager 集中監控各樓層。', color: '#8b5cf6' }
+                  { mode: '集控', title: '集中控制器', desc: '商用集控：選配 Daikin 集中控制盤或 Intelligent Touch Manager (iTM) 集中監控各樓層。', color: '#8b5cf6' },
+                  { mode: '伶俐', title: '伶俐智能管理', desc: '智慧節能：選配大金伶俐用轉接器 (DCPA01) 與伶俐智控管理器 (DCPF01/DCPH01H)，提供智慧雲端能耗管理與排程。', color: '#10b981' }
                 ].map(opt => (
                   <div
                     key={opt.mode}
@@ -7082,68 +7204,181 @@ function App() {
           </div>
 
           {/* 🎯 第五步集中控制器專屬勾選清單 (依 EQUIPMENT_Data controller 黃底規格呈現) */}
-          {currentStep === 5 && fastControlMode === '集控' && (
+          {/* 🎯 第五步集中控制器專屬勾選清單 (純 D3-NET 集中控制盤) */}
+          {currentStep === 5 && fastControlMode === '集控' && (() => {
+            const d3Info = calculateD3NetStats(rows, selectedControllers);
+            const hasDCM = selectedControllers.includes('DCM601B51');
+            return (
+              <div style={{
+                backgroundColor: '#0f172a',
+                border: '1.5px solid #8b5cf6',
+                borderRadius: '8px',
+                padding: '12px 16px',
+                marginTop: '10px',
+                boxShadow: '0 4px 14px rgba(139, 92, 246, 0.25)',
+                flexShrink: 0
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '14.5px', fontWeight: 'bold', color: '#c084fc' }}>
+                      🎛️ 集中控制器選配清單 (Daikin 集中控制盤)
+                    </span>
+                    <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+                      • 規則：DCS303A61 為獨立專用不可共用；Modbus(DTA116A51)與BACnet(DMS502B51)擇一；iTM 可搭配最多 4 個 DCS301BA61
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12.5px' }}>
+                    <span style={{ color: '#38bdf8' }}>
+                      低階已選：<strong style={{ color: '#ffffff' }}>{selectedControllers.filter(m => CONTROLLER_CANDIDATES.find(c => c.model === m)?.tier === '低階').length} 種 ({selectedControllers.includes('DCS301BA61') ? dcs301Qty : 0} 台)</strong>
+                    </span>
+                    <span style={{ color: '#94a3b8' }}>|</span>
+                    <span style={{ color: '#facc15' }}>
+                      高階已選：<strong style={{ color: '#ffffff' }}>{selectedControllers.filter(m => CONTROLLER_CANDIDATES.find(c => c.model === m)?.tier === '高階').length} / 2</strong>
+                    </span>
+                    <span style={{ color: '#94a3b8' }}>|</span>
+                    <span style={{ color: '#34d399', backgroundColor: 'rgba(52, 211, 153, 0.15)', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(52, 211, 153, 0.4)' }}>
+                      📡 D3-NET 建議：<strong>{d3Info.suggestedPorts} Port</strong> {d3Info.isModbus ? '(Modbus限制: 2組外機/16台內機)' : '(標準: 10組外機/64台內機)'}
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+                  gap: '8px'
+                }}>
+                  {CONTROLLER_CANDIDATES.map(ctrl => {
+                    const isSelected = selectedControllers.includes(ctrl.model);
+                    const isLowTier = ctrl.tier === '低階';
+                    const isDCS301 = ctrl.model === 'DCS301BA61';
+                    return (
+                      <div
+                        key={ctrl.model}
+                        onClick={() => handleToggleController(ctrl)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '9px 14px',
+                          borderRadius: '6px',
+                          backgroundColor: isSelected ? 'rgba(139, 92, 246, 0.28)' : '#1e293b',
+                          border: isSelected ? '2px solid #a855f7' : '1px solid #334155',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          boxShadow: isSelected ? '0 0 12px rgba(168, 85, 247, 0.45)' : 'none',
+                          userSelect: 'none'
+                        }}
+                      >
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                          <div style={{ fontSize: '14px', fontWeight: 'bold', color: isSelected ? '#ffffff' : '#f1f5f9' }}>
+                            {ctrl.model}
+                          </div>
+                          <div style={{ fontSize: '13.5px', fontWeight: 'bold', color: isSelected ? '#d8b4fe' : '#94a3b8' }}>
+                            {ctrl.name}
+                          </div>
+                          {isDCS301 && isSelected && (
+                            <div
+                              onClick={(e) => e.stopPropagation()}
+                              style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}
+                            >
+                              <span style={{ fontSize: '11.5px', color: '#38bdf8' }}>數量：</span>
+                              <button
+                                type="button"
+                                onClick={() => setDcs301Qty(q => Math.max(1, q - 1))}
+                                style={{ width: '22px', height: '22px', borderRadius: '4px', border: '1px solid #38bdf8', backgroundColor: '#0f172a', color: '#ffffff', cursor: 'pointer', fontWeight: 'bold' }}
+                              >-</button>
+                              <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#ffffff', minWidth: '16px', textAlign: 'center' }}>{dcs301Qty}</span>
+                              <button
+                                type="button"
+                                onClick={() => setDcs301Qty(q => Math.min(hasDCM ? 4 : 4, q + 1))}
+                                style={{ width: '22px', height: '22px', borderRadius: '4px', border: '1px solid #38bdf8', backgroundColor: '#0f172a', color: '#ffffff', cursor: 'pointer', fontWeight: 'bold' }}
+                              >+</button>
+                              <span style={{ fontSize: '11px', color: '#94a3b8' }}>台 (最多4台)</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div style={{ textAlign: 'right' }}>
+                          <span style={{
+                            fontSize: '12px',
+                            fontWeight: 'bold',
+                            padding: '3px 8px',
+                            borderRadius: '4px',
+                            display: 'inline-block',
+                            backgroundColor: isLowTier ? 'rgba(56, 189, 248, 0.2)' : (ctrl.tier === '高階' ? 'rgba(234, 179, 8, 0.2)' : 'rgba(148, 163, 184, 0.2)'),
+                            color: isLowTier ? '#38bdf8' : (ctrl.tier === '高階' ? '#facc15' : '#94a3b8'),
+                            border: isLowTier ? '1px solid #38bdf8' : (ctrl.tier === '高階' ? '1px solid #facc15' : '1px solid #475569')
+                          }}>
+                            {ctrl.note || ctrl.tier}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* 🎯 第五步伶俐智能管理專屬勾選清單 */}
+          {currentStep === 5 && fastControlMode === '伶俐' && (
             <div style={{
               backgroundColor: '#0f172a',
-              border: '1.5px solid #8b5cf6',
+              border: '1.5px solid #10b981',
               borderRadius: '8px',
               padding: '12px 16px',
               marginTop: '10px',
-              boxShadow: '0 4px 14px rgba(139, 92, 246, 0.25)',
+              boxShadow: '0 4px 14px rgba(16, 185, 129, 0.25)',
               flexShrink: 0
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '14.5px', fontWeight: 'bold', color: '#c084fc' }}>
-                    🎛️ 集中控制器選配清單 (Daikin 集中控制盤)
+                  <span style={{ fontSize: '14.5px', fontWeight: 'bold', color: '#34d399' }}>
+                    🌐 伶俐智能管理選配清單 (Daikin 伶俐智控雲端方案)
                   </span>
                   <span style={{ fontSize: '12px', color: '#94a3b8' }}>
-                    • 複選規則：低階最多 1 種，高階最多 2 種（DCS303A61 為獨立專用，不可與其他高階共用）
+                    • 支援獨立選配轉接器 (DCPA01) 與管理器 (DCPF01 / DCPH01H 住宅型)
                   </span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12.5px' }}>
-                  <span style={{ color: '#38bdf8' }}>
-                    低階已選：<strong style={{ color: '#ffffff' }}>{selectedControllers.filter(m => CONTROLLER_CANDIDATES.find(c => c.model === m)?.tier === '低階').length} / 1</strong>
-                  </span>
-                  <span style={{ color: '#94a3b8' }}>|</span>
-                  <span style={{ color: '#facc15' }}>
-                    高階已選：<strong style={{ color: '#ffffff' }}>{selectedControllers.filter(m => CONTROLLER_CANDIDATES.find(c => c.model === m)?.tier === '高階').length} / 2</strong>
-                  </span>
+                <div style={{ fontSize: '12.5px', color: '#34d399' }}>
+                  已選項目：<strong style={{ color: '#ffffff' }}>{selectedLingli.length} 項</strong>
                 </div>
               </div>
 
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
                 gap: '8px'
               }}>
-                {CONTROLLER_CANDIDATES.map(ctrl => {
-                  const isSelected = selectedControllers.includes(ctrl.model);
-                  const isLowTier = ctrl.tier === '低階';
+                {LINGLI_CANDIDATES.map(item => {
+                  const isSelected = selectedLingli.includes(item.model);
                   return (
                     <div
-                      key={ctrl.model}
-                      onClick={() => handleToggleController(ctrl)}
+                      key={item.model}
+                      onClick={() => handleToggleLingli(item)}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        padding: '9px 14px',
+                        padding: '10px 14px',
                         borderRadius: '6px',
-                        backgroundColor: isSelected ? 'rgba(139, 92, 246, 0.28)' : '#1e293b',
-                        border: isSelected ? '2px solid #a855f7' : '1px solid #334155',
+                        backgroundColor: isSelected ? 'rgba(16, 185, 129, 0.25)' : '#1e293b',
+                        border: isSelected ? '2px solid #10b981' : '1px solid #334155',
                         cursor: 'pointer',
                         transition: 'all 0.2s ease',
-                        boxShadow: isSelected ? '0 0 12px rgba(168, 85, 247, 0.45)' : 'none',
+                        boxShadow: isSelected ? '0 0 12px rgba(16, 185, 129, 0.4)' : 'none',
                         userSelect: 'none'
                       }}
                     >
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                         <div style={{ fontSize: '14px', fontWeight: 'bold', color: isSelected ? '#ffffff' : '#f1f5f9' }}>
-                          {ctrl.model}
+                          {item.model}
                         </div>
-                        <div style={{ fontSize: '14px', fontWeight: 'bold', color: isSelected ? '#d8b4fe' : '#94a3b8' }}>
-                          {ctrl.name}
+                        <div style={{ fontSize: '13.5px', fontWeight: 'bold', color: isSelected ? '#6ee7b7' : '#94a3b8' }}>
+                          {item.name}
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#64748b' }}>
+                          {item.note}
                         </div>
                       </div>
 
@@ -7154,12 +7389,17 @@ function App() {
                           padding: '3px 8px',
                           borderRadius: '4px',
                           display: 'inline-block',
-                          backgroundColor: isLowTier ? 'rgba(56, 189, 248, 0.2)' : (ctrl.tier === '高階' ? 'rgba(234, 179, 8, 0.2)' : 'rgba(148, 163, 184, 0.2)'),
-                          color: isLowTier ? '#38bdf8' : (ctrl.tier === '高階' ? '#facc15' : '#94a3b8'),
-                          border: isLowTier ? '1px solid #38bdf8' : (ctrl.tier === '高階' ? '1px solid #facc15' : '1px solid #475569')
+                          backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                          color: '#34d399',
+                          border: '1px solid #10b981'
                         }}>
-                          {ctrl.note || ctrl.tier}
+                          {item.tier}
                         </span>
+                        {item.price && (
+                          <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
+                            NT$ {item.price.toLocaleString()}
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -7167,6 +7407,7 @@ function App() {
               </div>
             </div>
           )}
+
 
           {/* 🎯 建議表下方專屬列印與匯出操作列 */}
           {currentStep === 5 && (
@@ -7189,7 +7430,22 @@ function App() {
               <span>•</span>
               <span>室內總能力需求：<strong style={{ color: '#a855f7' }}>{rows.reduce((acc, r) => acc + (parseFloat(r.cap_kw) || 0) * (parseInt(r.unit_count) || 1), 0).toFixed(1)}</strong> kW</span>
               <span>•</span>
-              <span>智慧控制方案：<strong style={{ color: '#f59e0b' }}>{fastControlMode === '無' ? '一般遙控器' : (fastControlMode === 'APP' ? 'APP 遠端控制' : '集中控制器')}</strong></span>
+              <span>智慧控制方案：<strong style={{ color: '#f59e0b' }}>{fastControlMode === '無' ? '一般遙控器' : (fastControlMode === 'APP' ? 'APP 遠端控制' : (fastControlMode === '伶俐' ? '伶俐智能管理' : '集中控制器'))}</strong></span>
+              {fastControlMode === '集控' && (() => {
+                const d3 = calculateD3NetStats(rows, selectedControllers);
+                return (
+                  <>
+                    <span>•</span>
+                    <span>D3-NET 通訊通道：<strong style={{ color: '#38bdf8' }}>{d3.suggestedPorts} Port</strong> (室外機 <strong style={{ color: '#34d399' }}>{d3.outdoorGroupCount}</strong> 組、室內機 <strong style={{ color: '#38bdf8' }}>{d3.indoorTotalCount}</strong> 台{d3.isModbus ? ' [Modbus 2組/16台限制]' : ''})</span>
+                  </>
+                );
+              })()}
+              {fastControlMode === '伶俐' && (
+                <>
+                  <span>•</span>
+                  <span>伶俐智能管理：<strong style={{ color: '#10b981' }}>已選配 {selectedLingli.length} 項設備</strong></span>
+                </>
+              )}
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

@@ -499,9 +499,8 @@ class EquipmentSummaryService:
         comb_in = indoor_items + hrv_items
         d3_in_table = cls.process_units_table(comb_in, is_out=False)
         
-        # 僅取 VRV 室外機
-        vrv_out_items = [o for o in outdoor_items if "VRV" in str(o.get("sys", "")).upper()]
-        d3_out_table = cls.process_units_table(vrv_out_items, is_out=True)
+        # 依大金規範：所有室外機組數 (包含 VRV, 家用多聯, SA等)
+        d3_out_table = cls.process_units_table(outdoor_items, is_out=True)
 
         s_in = sum(x["qty"] for x in d3_in_table)
         s_out = sum(x["qty"] for x in d3_out_table)
@@ -513,7 +512,7 @@ class EquipmentSummaryService:
         # 抬頭
         d3_headers = [
             (2, "室內/全熱機型號"), (3, "室內/全熱機台數"),
-            (5, "VRV室外機型號"), (6, "VRV室外機台數")
+            (5, "室外機型號"), (6, "室外機台數")
         ]
         for col_idx, h_text in d3_headers:
             c = ws3.cell(row=4, column=col_idx, value=h_text)
@@ -526,7 +525,7 @@ class EquipmentSummaryService:
         card_header.alignment = align_center
 
         stat_labels = [
-            ("VRV 室外機總台數 (上限 10台/Port)", s_out),
+            ("室外機總組數 (上限 10組/Port)", s_out),
             ("總室內/全熱機數 (上限 64台/Port)", s_in),
             ("建議集中控制器 Port 數", f"{suggested_ports} Port")
         ]
