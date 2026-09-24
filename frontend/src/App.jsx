@@ -56,6 +56,29 @@ const getIndoorBranchPipeSize = (modelStr, systemType) => {
   return 'Ø6.4 / Ø12.7';
 };
 
+// 🎯 大金家用多聯 (MULTI) 與 VRV 室外機官方最大允許連接室內機總能力 (kW)
+export const getMaxConnectableCapKw = (outdoorModel, outdoorCapKw) => {
+  if (!outdoorModel) return (parseFloat(outdoorCapKw) || 0) * 1.15;
+  const m = outdoorModel.toUpperCase();
+  // 大金家用 Multi 官方型錄最大連接室內機總能力：
+  // 4MXM110: 10.5 kW 額定，室內機最大合計可接 15.6 kW (156 級，如 36+22+22+50=130 級)
+  if (m.includes('4MXM110') || m.startsWith('4MX')) return 15.6;
+  // 3MXM90: 9.0 kW 額定，室內機最大合計可接 14.5 kW
+  if (m.includes('3MXM90') || m.startsWith('3MX')) return 14.5;
+  // 2MXM75: 7.5 kW 額定，室內機最大合計可接 11.5 kW
+  if (m.includes('2MXM75')) return 11.5;
+  // 2MXM56: 5.6 kW 額定 / 2MXP50: 5.0 kW 額定，室內機最大合計可接 8.5 kW
+  if (m.includes('2MXM56') || m.includes('2MXP50') || m.startsWith('2MX')) return 8.5;
+  // 其他多聯室外機通則：允許 150% 連接率
+  if (m.includes('MX')) return (parseFloat(outdoorCapKw) || 0) * 1.5;
+  // VRV 系統：官方規範允許 50% ~ 130% 連接率
+  if (m.startsWith('RXQ') || m.startsWith('RXYQ') || m.startsWith('RZQ') || m.startsWith('RWEYQ')) {
+    return (parseFloat(outdoorCapKw) || 0) * 1.30;
+  }
+  return (parseFloat(outdoorCapKw) || 0) * 1.15;
+};
+
+
 
 import 'react-toastify/dist/ReactToastify.css';
 import * as XLSX from 'xlsx';
@@ -810,7 +833,7 @@ function App() {
           chunkIndoorKwSum += ((finalRows[idx].cap_kw || 0) * (finalRows[idx].unit_count || 1));
         });
 
-        const capableCandidates = sortedCandidates.filter(m => (m.cap_kw * 1.15) >= chunkIndoorKwSum);
+        const capableCandidates = sortedCandidates.filter(m => getMaxConnectableCapKw(m.model, m.cap_kw) >= chunkIndoorKwSum);
         const matchedOutdoor = (capableCandidates.length > 0)
           ? capableCandidates[0]
           : (sortedCandidates[sortedCandidates.length - 1] || { model: '4MXM110YVLT', cap_kw: 10.5 });
@@ -1151,18 +1174,18 @@ function App() {
     if (sysType === 'VRV') {
       const sorted = [...candidates].sort((a, b) => (a.cap_index || a.cap_kw * 10) - (b.cap_index || b.cap_kw * 10));
       const defaultFallback = sorted[sorted.length - 1];
-      const matched = sorted.find(m => ((sumIdx / (m.cap_index || m.cap_kw * 10)) * 100.0) <= 115.0) || defaultFallback;
+      const matched = sorted.find(m => ((sumIdx / (m.cap_index || m.cap_kw * 10)) * 100.0) <= 130.0) || defaultFallback;
       return matched;
     } else if (sysType === 'RA') {
       const isMultiSeries = seriesVal && (seriesVal.includes('MULTI') || seriesVal.includes('多聯'));
       const sorted = [...candidates].sort((a, b) => a.cap_kw - b.cap_kw);
       if (isMultiSeries || sorted.some(m => m.model.includes('MX'))) {
-        // 多聯室外機：優先挑選支援台數 >= totalUnits 且容量 (cap_kw * 1.15) >= sumKw 之室外機
-        const capableCandidates = sorted.filter(m => (m.cap_kw * 1.15) >= sumKw && getMaxUnitsForMultiModel(m.model) >= totalUnits);
+        // 多聯室外機：優先挑選支援台數 >= totalUnits 且容量 (getMaxConnectableCapKw) >= sumKw 之室外機
+        const capableCandidates = sorted.filter(m => getMaxConnectableCapKw(m.model, m.cap_kw) >= sumKw && getMaxUnitsForMultiModel(m.model) >= totalUnits);
         if (capableCandidates.length > 0) {
           return capableCandidates[0];
         }
-        const capOnly = sorted.filter(m => (m.cap_kw * 1.15) >= sumKw);
+        const capOnly = sorted.filter(m => getMaxConnectableCapKw(m.model, m.cap_kw) >= sumKw);
         if (capOnly.length > 0) {
           return capOnly[0];
         }
@@ -5587,7 +5610,7 @@ function App() {
               <div style={{ ...styles.cardTitle, marginBottom: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span>📈 工程負荷試算與大金配機建議表</span>
                 <span style={{ fontSize: '11.5px', color: '#94a3b8', fontWeight: 'bold', backgroundColor: '#1e293b', padding: '2px 8px', borderRadius: '4px', border: '1px solid #334155' }}>
-                  v2.19.1 (2026.09.24 22:35)
+                  v2.19.2 (2026.09.24 23:00)
                 </span>
               </div>
               
@@ -6630,8 +6653,9 @@ function App() {
                             const outdoorCapKw = (!isNoModel && isPowerValid && matchedOutdoorObj) ? matchedOutdoorObj.cap_kw : 0;
                             const outdoorCapIndex = (!isNoModel && isPowerValid && matchedOutdoorObj) ? (matchedOutdoorObj.cap_index || 223.0) : 0;
 
-                            // 🎯 3. 超過 15% (即 115%) 檢查與連機台數下限/上限驗證
-                            const isExceed15Percent = (!isNoModel && isPowerValid && outdoorCapKw > 0) ? (sumIndoorKw > outdoorCapKw * 1.15) : false;
+                            // 🎯 3. 超過能力上限檢查與連機台數下限/上限驗證
+                            const maxConnectableKw = getMaxConnectableCapKw(gCard.outdoor_model, outdoorCapKw);
+                            const isExceedCapacity = (!isNoModel && isPowerValid && outdoorCapKw > 0) ? (sumIndoorKw > maxConnectableKw) : false;
 
                             const getModelMinUnits = (mName) => {
                               if (!mName) return 1;
@@ -6658,7 +6682,7 @@ function App() {
                               return cap >= 7.8 || modelName.includes('80') || modelName.includes('90');
                             });
                             const isModelDisallowed = hasOver80Indoor && gCard?.outdoor_model && (gCard.outdoor_model.startsWith('2MXM') || gCard.outdoor_model.startsWith('2MXP') || gCard.outdoor_model.startsWith('3MXM'));
-                            const isSelectionError = (!hasActiveSys || !isIndoorSelectionComplete) ? false : (isNoModel || !isPowerValid || isMinUnitsViolated || isMaxUnitsExceeded || isModelDisallowed || isExceed15Percent);
+                            const isSelectionError = (!hasActiveSys || !isIndoorSelectionComplete) ? false : (isNoModel || !isPowerValid || isMinUnitsViolated || isMaxUnitsExceeded || isModelDisallowed || isExceedCapacity);
 
                             // 🎯 3. 連結率 (%) 樣式與警示規範：
                             const rawRatio = (!isNoModel && isPowerValid && outdoorCapIndex > 0) ? (sumIndoorIndex / outdoorCapIndex) * 100.0 : 0;
@@ -6720,7 +6744,7 @@ function App() {
                                           borderRadius: '4px',
                                           border: '1px solid #ef4444'
                                         }}
-                                        title={isNoModel ? "無此機型" : (!isPowerValid ? "電源不符" : (isMinUnitsViolated ? `少於 ${minAllowedUnits} 台連線下限` : (isMaxUnitsExceeded ? `超過 ${maxAllowedUnits} 台連線上限` : (isModelDisallowed ? "包含大級數機型" : (isExceed15Percent ? "超過能力 115%" : "型號錯誤")))))}
+                                        title={isNoModel ? "無此機型" : (!isPowerValid ? "電源不符" : (isMinUnitsViolated ? `少於 ${minAllowedUnits} 台連線下限` : (isMaxUnitsExceeded ? `超過 ${maxAllowedUnits} 台連線上限` : (isModelDisallowed ? "包含大級數機型" : (isExceedCapacity ? "超過室外機連接能力上限" : "型號錯誤")))))}
                                       >
                                         ⚠️ 型號錯誤
                                       </div>
@@ -6755,12 +6779,12 @@ function App() {
                                    }}
                                  >
                                    {!isNoModel && isPowerValid && outdoorCapKw ? `${parseFloat(outdoorCapKw).toFixed(1)} kW` : '-'}
-                                   {isExceed15Percent && (
+                                   {isExceedCapacity && (
                                      <div
                                        style={{ color: '#ef4444', fontSize: '12px', fontWeight: 'bold', marginTop: '4px', lineHeight: '1.2' }}
-                                       title="提醒是否要放大室外機容量"
+                                       title="室內機總冷房能力合計已超過室外機官方最大允許連接能力"
                                      >
-                                       ⚠️ 超過或低於外機能力15%
+                                       ⚠️ 超過外機連接能力上限
                                      </div>
                                    )}
                                  </td>
@@ -6915,7 +6939,7 @@ function App() {
                                        borderRadius: '4px',
                                        border: '1px solid #ef4444'
                                      }}
-                                     title={isNoModel ? "無此機型" : (!isPowerValid ? "電源不符" : (isSingleMinViolated ? "少於 2 台連線下限" : (isExceed15Percent ? "超過能力 115%" : "型號錯誤")))}
+                                     title={isNoModel ? "無此機型" : (!isPowerValid ? "電源不符" : (isSingleMinViolated ? "少於 2 台連線下限" : (isExceedOrBelow15Percent ? "超過或低於外機能力 15%" : "型號錯誤")))}
                                    >
                                      ⚠️ 型號錯誤
                                    </div>
