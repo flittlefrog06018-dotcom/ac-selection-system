@@ -988,25 +988,27 @@ function App() {
       // 若使用者已經手動拆分群組且群組數量 > 1，則僅針對各個別群組動態更新配對的室外機型號，不重置合併為全場單一系統
       if (userHasCustomGroups && outdoorGroups.length > 1) {
         const activeSys = fastSystem;
-        const activeSeries = fastSeries || '中靜壓';
-        const activeOutType = fastOutdoorType || '上吹';
-        const activeOutPower = fastOutdoorPower || '3φ, 4P, 380V, 60Hz';
-        const candidates = getOutdoorModelsForSystem(activeSys, activeSeries, activeOutType, activeOutPower);
-        const sortedCandidates = [...candidates].sort((a, b) => (a.cap_index || a.cap_kw * 10) - (b.cap_index || b.cap_kw * 10));
+        const activeSeries = fastSeries || '';
+        const activeOutType = fastOutdoorType || (activeSys === 'VRV' ? '冷暖上吹型' : '側吹單風扇');
+        const activeOutPower = fastOutdoorPower || (activeSys === 'RA' ? '1φ, 220V, 60Hz' : '3φ, 4P, 380V, 60Hz');
 
         let hasGroupChange = false;
+        let nextRows = [...rows];
         const updatedGroups = outdoorGroups.map(g => {
-          const gSpaces = rows.filter(r => r.outdoorGroupId === g.id);
+          const gSpaces = nextRows.filter(r => r.outdoorGroupId === g.id);
           if (gSpaces.length === 0) return g;
-          const sumIdx = gSpaces.reduce((acc, sp) => acc + (lookupIndoorCapIndex(sp.best_match_model) * (sp.unit_count || 1)), 0);
-          const matched = sortedCandidates.find(m => ((sumIdx / (m.cap_index || m.cap_kw * 10)) * 100.0) <= 115.0) || sortedCandidates[sortedCandidates.length - 1];
+          const matched = autoMatchOutdoorForSpaces(gSpaces, g.system_type || activeSys, activeSeries, activeOutType, activeOutPower);
           if (matched && (matched.model !== g.outdoor_model || activeOutPower !== g.power_supply)) {
             hasGroupChange = true;
+            const outPrice = lookupOutdoorPrice(matched.model);
+            nextRows = nextRows.map(r => r.outdoorGroupId === g.id ? { ...r, outdoor_model: matched.model, outdoor_price: outPrice } : r);
             return {
               ...g,
+              name: `${g.system_type || activeSys} 系統 (${matched.model})`,
               outdoor_model: matched.model,
               outdoor_cap_kw: matched.cap_kw,
               outdoor_cap_index: matched.cap_index,
+              outdoor_price: outPrice,
               power_supply: activeOutPower
             };
           }
@@ -1015,6 +1017,7 @@ function App() {
 
         if (hasGroupChange) {
           setOutdoorGroups(updatedGroups);
+          setRows(nextRows);
         }
         return;
       }
@@ -1091,12 +1094,14 @@ function App() {
       setRows(updatedRows);
       setOutdoorGroups(groups);
     } else if (outdoorGroups.length > 0) {
-      const updatedGroups = outdoorGroups.map(g => {
-        const newIndices = newRows.map((r, idx) => r.outdoorGroupId === g.id ? idx : null).filter(i => i !== null);
-        return { ...g, space_indices: newIndices };
-      }).filter(g => g.space_indices.length > 0);
-      setRows(newRows);
-      setOutdoorGroups(updatedGroups);
+      const affectedOldGroupIds = new Set();
+      indicesToRemove.forEach(idx => {
+        const oldGId = currentRows[idx]?.outdoorGroupId;
+        if (oldGId) affectedOldGroupIds.add(oldGId);
+      });
+      const { nextRows, nextGroups } = recalculateAffectedGroups(newRows, outdoorGroups, affectedOldGroupIds);
+      setRows(nextRows);
+      setOutdoorGroups(nextGroups);
     } else {
       setRows(newRows);
     }
@@ -1105,6 +1110,147 @@ function App() {
       ? `「${removedNames[0]}」` 
       : `${removedNames.length} 間空間 (${removedNames.slice(0, 3).join('、')}${removedNames.length > 3 ? '…' : ''})`;
     toast.success(`🗑️ 已成功移除空間：${labelText}`);
+  };
+
+  // 🎯 輔助函式：取得 MULTI 室外機支援的最大室內機連接台數
+  const getMaxUnitsForMultiModel = (modelStr) => {
+    const m = (modelStr || '').toUpperCase();
+    if (m.startsWith('2MX')) return 2;
+    if (m.startsWith('3MX')) return 3;
+    if (m.startsWith('4MX')) return 4;
+    if (m.startsWith('5MX')) return 5;
+    return 4;
+  };
+
+  // 🎯 輔助函式：針對空間集合自動智慧匹配最適室外機型號
+  const autoMatchOutdoorForSpaces = (spacesList, sysType, seriesVal, outdoorTypeVal, powerSupplyVal) => {
+    if (!spacesList || spacesList.length === 0) return null;
+
+    const totalUnits = spacesList.reduce((acc, sp) => acc + (parseInt(sp.unit_count) || 1), 0);
+    const sumKw = spacesList.reduce((acc, sp) => {
+      const kw = parseFloat(sp.cap_kw || lookupModelCapKw(sp.best_match_model)) || 0;
+      return acc + (kw * (parseInt(sp.unit_count) || 1));
+    }, 0);
+    const sumIdx = spacesList.reduce((acc, sp) => {
+      const singleIdx = lookupIndoorCapIndex(sp.best_match_model);
+      return acc + (singleIdx * (parseInt(sp.unit_count) || 1));
+    }, 0);
+
+    let candidates = getOutdoorModelsForSystem(sysType, seriesVal, outdoorTypeVal, powerSupplyVal);
+    if (!candidates || candidates.length === 0) {
+      candidates = getOutdoorModelsForSystem(sysType, '', outdoorTypeVal, powerSupplyVal);
+    }
+    if (!candidates || candidates.length === 0) {
+      candidates = OUTDOOR_UNITS_DB.filter(m => m.system === sysType);
+    }
+
+    if (!candidates || candidates.length === 0) {
+      return { model: '無此機型', cap_kw: sumKw, cap_index: sumIdx };
+    }
+
+    if (sysType === 'VRV') {
+      const sorted = [...candidates].sort((a, b) => (a.cap_index || a.cap_kw * 10) - (b.cap_index || b.cap_kw * 10));
+      const defaultFallback = sorted[sorted.length - 1];
+      const matched = sorted.find(m => ((sumIdx / (m.cap_index || m.cap_kw * 10)) * 100.0) <= 115.0) || defaultFallback;
+      return matched;
+    } else if (sysType === 'RA') {
+      const isMultiSeries = seriesVal && (seriesVal.includes('MULTI') || seriesVal.includes('多聯'));
+      const sorted = [...candidates].sort((a, b) => a.cap_kw - b.cap_kw);
+      if (isMultiSeries || sorted.some(m => m.model.includes('MX'))) {
+        // 多聯室外機：優先挑選支援台數 >= totalUnits 且容量 (cap_kw * 1.15) >= sumKw 之室外機
+        const capableCandidates = sorted.filter(m => (m.cap_kw * 1.15) >= sumKw && getMaxUnitsForMultiModel(m.model) >= totalUnits);
+        if (capableCandidates.length > 0) {
+          return capableCandidates[0];
+        }
+        const capOnly = sorted.filter(m => (m.cap_kw * 1.15) >= sumKw);
+        if (capOnly.length > 0) {
+          return capOnly[0];
+        }
+        return sorted[sorted.length - 1];
+      } else {
+        const matched = sorted.find(m => m.cap_kw >= sumKw) || sorted[sorted.length - 1];
+        return matched;
+      }
+    } else {
+      const sorted = [...candidates].sort((a, b) => a.cap_kw - b.cap_kw);
+      const matched = sorted.find(m => m.cap_kw >= sumKw) || sorted[sorted.length - 1];
+      return matched;
+    }
+  };
+
+  // 🎯 輔助函式：當拆分系統後，自動重新計算並更新所有受影響的舊群組（剩餘空間）
+  const recalculateAffectedGroups = (targetRows, targetGroups, affectedGroupIds) => {
+    let nextRows = [...targetRows];
+    let nextGroups = [...targetGroups];
+
+    affectedGroupIds.forEach(oldGId => {
+      if (!oldGId) return;
+      const remainingSpaces = nextRows.filter(r => r.outdoorGroupId === oldGId);
+
+      if (remainingSpaces.length === 0) {
+        // 舊群組內空間已全數被移走，清除空群組
+        nextGroups = nextGroups.filter(g => g.id !== oldGId);
+      } else if (remainingSpaces.length === 1 && (remainingSpaces[0].system_type === 'RA' || fastSystem === 'RA')) {
+        // RA 家用系統若被拆到只剩 1 台室內機，多聯無法單獨接 1 台，自動退回 1對1 配對
+        const singleRow = remainingSpaces[0];
+        const singleKw = parseFloat(singleRow.cap_kw || lookupModelCapKw(singleRow.best_match_model)) || 0;
+        const autoOutdoor = autoMatchOutdoorModelForRow(singleRow.system_type || 'RA', singleRow.series, singleKw, singleRow.outdoor_type, singleRow.power_supply, 1, singleRow.best_match_model);
+        const outPrice = lookupOutdoorPrice(autoOutdoor);
+
+        nextRows = nextRows.map(r => {
+          if (r.outdoorGroupId === oldGId) {
+            return {
+              ...r,
+              outdoorGroupId: null,
+              outdoor_model: autoOutdoor,
+              outdoor_price: outPrice
+            };
+          }
+          return r;
+        });
+        nextGroups = nextGroups.filter(g => g.id !== oldGId);
+      } else {
+        // 舊群組仍有空間，重新智慧匹配最適容量之室外機
+        const sampleRow = remainingSpaces[0];
+        const sysType = sampleRow.system_type || fastSystem || 'VRV';
+        const seriesVal = sampleRow.series || fastSeries || '';
+        const outdoorTypeVal = sampleRow.outdoor_type || fastOutdoorType || (sysType === 'VRV' ? '冷暖上吹型' : '側吹單風扇');
+        const powerSupplyVal = sampleRow.power_supply || fastOutdoorPower || (sysType === 'RA' ? '1φ, 220V, 60Hz' : '3φ, 4P, 380V, 60Hz');
+
+        const matchedOutdoor = autoMatchOutdoorForSpaces(remainingSpaces, sysType, seriesVal, outdoorTypeVal, powerSupplyVal);
+        if (matchedOutdoor) {
+          const outPrice = lookupOutdoorPrice(matchedOutdoor.model);
+          nextGroups = nextGroups.map(g => {
+            if (g.id === oldGId) {
+              return {
+                ...g,
+                name: `${sysType} 系統 (${matchedOutdoor.model})`,
+                outdoor_model: matchedOutdoor.model,
+                outdoor_cap_kw: matchedOutdoor.cap_kw,
+                outdoor_cap_index: matchedOutdoor.cap_index,
+                outdoor_price: outPrice,
+                power_supply: powerSupplyVal,
+                space_indices: nextRows.map((r, i) => r.outdoorGroupId === oldGId ? i : null).filter(i => i !== null)
+              };
+            }
+            return g;
+          });
+
+          nextRows = nextRows.map(r => {
+            if (r.outdoorGroupId === oldGId) {
+              return {
+                ...r,
+                outdoor_model: matchedOutdoor.model,
+                outdoor_price: outPrice
+              };
+            }
+            return r;
+          });
+        }
+      }
+    });
+
+    return { nextRows, nextGroups };
   };
 
   const handleCreateGroupFromSelection = (explicitIndices = null) => {
@@ -1123,7 +1269,16 @@ function App() {
       return;
     }
 
-    // 🎯 若當前步驟小於 3，自動進入第三步（室外機選型），讓表格右側的室外機型號欄位立刻展開
+    // 🎯 記錄這批勾選空間在拆分前原本所屬的舊群組 ID
+    const affectedOldGroupIds = new Set();
+    selectedIndices.forEach(idx => {
+      const oldGId = currentRows[idx]?.outdoorGroupId;
+      if (oldGId) {
+        affectedOldGroupIds.add(oldGId);
+      }
+    });
+
+    // 🎯 若當前步驟小於 4，自動進入第四步（室外機選型），讓表格右側的室外機型號欄位立刻展開
     if (currentStep < 4) {
       setCurrentStep(4);
     }
@@ -1134,43 +1289,14 @@ function App() {
     const activeOutType = firstSelectedRow.outdoor_type || fastOutdoorType || (activeSys === 'VRV' ? '冷暖上吹型' : '側吹單風扇');
     const activeOutPower = firstSelectedRow.power_supply || fastOutdoorPower || (activeSys === 'RA' ? '1φ, 220V, 60Hz' : '3φ, 4P, 380V, 60Hz');
 
-    let candidates = getOutdoorModelsForSystem(activeSys, activeSeries, activeOutType, activeOutPower);
-    if (!candidates || candidates.length === 0) {
-      candidates = getOutdoorModelsForSystem(activeSys, '', activeOutType, activeOutPower);
-    }
-    if (!candidates || candidates.length === 0) {
-      candidates = OUTDOOR_UNITS_DB.filter(m => m.system === activeSys);
-    }
-
-    const sortedCandidates = [...candidates].sort((a, b) => (a.cap_index || a.cap_kw * 10) - (b.cap_index || b.cap_kw * 10));
-
-    // 🎯 計算此次勾選空間之能力指數與冷房需求總和
-    const sumIdx = selectedIndices.reduce((acc, i) => {
-      const sp = currentRows[i] || {};
-      const singleIdx = lookupIndoorCapIndex(sp.best_match_model);
-      return acc + (singleIdx * (sp.unit_count || 1));
-    }, 0);
-    const sumKw = selectedIndices.reduce((acc, i) => {
-      const sp = currentRows[i] || {};
-      const kw = parseFloat(sp.cap_kw || lookupModelCapKw(sp.best_match_model)) || 0;
-      return acc + (kw * (sp.unit_count || 1));
-    }, 0);
-
-    const defaultFallback = sortedCandidates.length > 0
-      ? sortedCandidates[sortedCandidates.length - 1]
-      : (OUTDOOR_UNITS_DB.find(m => m.system === activeSys) || { model: 'RXYQ8ANYLT', cap_kw: 22.4, cap_index: 80.0 });
-
-    let matchedOutdoor = null;
-    if (activeSys === 'VRV') {
-      matchedOutdoor = sortedCandidates.find(m => ((sumIdx / (m.cap_index || m.cap_kw * 10)) * 100.0) <= 115.0) || defaultFallback;
-    } else {
-      matchedOutdoor = sortedCandidates.find(m => m.cap_kw >= sumKw) || defaultFallback;
-    }
+    const selectedSpaces = selectedIndices.map(i => currentRows[i]);
+    const matchedOutdoor = autoMatchOutdoorForSpaces(selectedSpaces, activeSys, activeSeries, activeOutType, activeOutPower) || { model: 'RXYQ8ANYLT', cap_kw: 22.4, cap_index: 80.0 };
 
     const nextGroupNum = outdoorGroups.length + 1;
     const newGroupId = `group-${Date.now()}-${nextGroupNum}`;
     const groupName = `${activeSys} 系統 #${nextGroupNum} (${matchedOutdoor.model})`;
     const colorObj = GROUP_COLOR_PALETTE[outdoorGroups.length % GROUP_COLOR_PALETTE.length];
+    const outPrice = lookupOutdoorPrice(matchedOutdoor.model);
 
     const newGroup = {
       id: newGroupId,
@@ -1179,37 +1305,45 @@ function App() {
       outdoor_model: matchedOutdoor.model,
       outdoor_cap_kw: matchedOutdoor.cap_kw,
       outdoor_cap_index: matchedOutdoor.cap_index,
+      outdoor_price: outPrice,
       power_supply: activeOutPower,
       color: colorObj,
       space_indices: selectedIndices
     };
 
     // 僅把當前勾選的空間標記為該新群組 ID，未勾選者保留其原有群組狀態
-    const finalRows = currentRows.map((r, idx) => {
+    let intermediateRows = currentRows.map((r, idx) => {
       if (selectedIndices.includes(idx)) {
         return {
           ...r,
           system_type: r.system_type || activeSys,
           outdoorGroupId: newGroupId,
           selected: false,
-          outdoor_model: matchedOutdoor.model
+          outdoor_model: matchedOutdoor.model,
+          outdoor_price: outPrice
         };
       }
       return r;
     });
 
+    let intermediateGroups = [...outdoorGroups, newGroup];
+
+    // 🎯 核心連動：自動重新判斷並匹配剩餘空間的室外機容量與型號！
+    const { nextRows, nextGroups } = recalculateAffectedGroups(intermediateRows, intermediateGroups, affectedOldGroupIds);
+
     setUserHasCustomGroups(true);
-    setOutdoorGroups(prev => [...prev, newGroup]);
-    setRows(finalRows);
-    toast.success(`✨ 已成功將勾選空間併入同一台室外機！您可於右側【室外機型號】欄位自行切換型號。`);
+    setOutdoorGroups(nextGroups);
+    setRows(nextRows);
+    toast.success(`✨ 已成功將勾選空間併入新系統 (${matchedOutdoor.model})！剩餘空間已自動重新匹配適合之室外機。`);
   };
 
   const handleCreateGroupWithSpecificModel = (chosenModelStr, explicitIndices = null) => {
     setContextMenu({ show: false, x: 0, y: 0, targetRowIndex: null });
     setOutdoorModal(prev => ({ ...prev, show: false }));
+    const currentRows = rowsRef.current || rows;
     let selectedIndices = (explicitIndices && explicitIndices.length > 0)
       ? explicitIndices
-      : rows.map((r, idx) => r.selected ? idx : null).filter(idx => idx !== null);
+      : currentRows.map((r, idx) => r.selected ? idx : null).filter(idx => idx !== null);
 
     if (selectedIndices.length === 0 && contextMenu.targetRowIndex !== null) {
       selectedIndices = [contextMenu.targetRowIndex];
@@ -1220,10 +1354,20 @@ function App() {
       return;
     }
 
-    const firstSelectedRow = rows[selectedIndices[0]];
-    const activeSys = (firstSelectedRow && firstSelectedRow.system_type) || fastSystem || 'VRV';
-    const activeOutPower = (firstSelectedRow && firstSelectedRow.power_supply) || fastOutdoorPower || (activeSys === 'RA' ? '1φ, 220V, 60Hz' : '3φ, 4P, 380V, 60Hz');
+    // 🎯 記錄這批勾選空間在拆分前原本所屬的舊群組 ID
+    const affectedOldGroupIds = new Set();
+    selectedIndices.forEach(idx => {
+      const oldGId = currentRows[idx]?.outdoorGroupId;
+      if (oldGId) {
+        affectedOldGroupIds.add(oldGId);
+      }
+    });
+
+    const firstSelectedRow = currentRows[selectedIndices[0]] || {};
+    const activeSys = firstSelectedRow.system_type || fastSystem || 'VRV';
+    const activeOutPower = firstSelectedRow.power_supply || fastOutdoorPower || (activeSys === 'RA' ? '1φ, 220V, 60Hz' : '3φ, 4P, 380V, 60Hz');
     const matchedOutdoor = OUTDOOR_UNITS_DB.find(m => m.model === chosenModelStr) || { model: chosenModelStr, cap_kw: 28.0, cap_index: 250.0 };
+    const outPrice = lookupOutdoorPrice(matchedOutdoor.model);
 
     const nextGroupNum = outdoorGroups.length + 1;
     const newGroupId = `group-${Date.now()}-${nextGroupNum}`;
@@ -1237,28 +1381,35 @@ function App() {
       outdoor_model: matchedOutdoor.model,
       outdoor_cap_kw: matchedOutdoor.cap_kw,
       outdoor_cap_index: matchedOutdoor.cap_index,
+      outdoor_price: outPrice,
       power_supply: activeOutPower,
       color: colorObj,
       space_indices: selectedIndices
     };
 
-    const finalRows = rows.map((r, idx) => {
+    let intermediateRows = currentRows.map((r, idx) => {
       if (selectedIndices.includes(idx)) {
         return {
           ...r,
           system_type: r.system_type || activeSys,
           outdoorGroupId: newGroupId,
           selected: false,
-          outdoor_model: matchedOutdoor.model
+          outdoor_model: matchedOutdoor.model,
+          outdoor_price: outPrice
         };
       }
       return r;
     });
 
+    let intermediateGroups = [...outdoorGroups, newGroup];
+
+    // 🎯 核心連動：自動重新判斷並匹配剩餘空間的室外機容量與型號！
+    const { nextRows, nextGroups } = recalculateAffectedGroups(intermediateRows, intermediateGroups, affectedOldGroupIds);
+
     setUserHasCustomGroups(true);
-    setOutdoorGroups(prev => [...prev, newGroup]);
-    setRows(finalRows);
-    toast.success(`✨ 已成功指定室外機型號 [${matchedOutdoor.model}] 並建立 [${groupName}]！`);
+    setOutdoorGroups(nextGroups);
+    setRows(nextRows);
+    toast.success(`✨ 已成功指定室外機型號 [${matchedOutdoor.model}]！剩餘空間已自動重新匹配適合之室外機。`);
   };
 
   const handleResetAutoGrouping = () => {
@@ -1270,20 +1421,33 @@ function App() {
 
   const handleRemoveRowFromGroup = (rowIdx) => {
     setContextMenu({ show: false, x: 0, y: 0, targetRowIndex: null });
-    const row = rows[rowIdx];
+    const currentRows = rowsRef.current || rows;
+    const row = currentRows[rowIdx];
     if (!row || !row.outdoorGroupId) return;
 
-    const gId = row.outdoorGroupId;
-    setRows(prev => prev.map((r, idx) => idx === rowIdx ? { ...r, outdoorGroupId: null } : r));
+    const oldGId = row.outdoorGroupId;
+    const singleKw = parseFloat(row.cap_kw || lookupModelCapKw(row.best_match_model)) || 0;
+    const autoOutdoor = autoMatchOutdoorModelForRow(row.system_type || 'RA', row.series, singleKw, row.outdoor_type, row.power_supply, 1, row.best_match_model);
+    const outPrice = lookupOutdoorPrice(autoOutdoor);
 
-    setOutdoorGroups(prev => prev.map(g => {
-      if (g.id === gId) {
-        return { ...g, space_indices: g.space_indices.filter(i => i !== rowIdx) };
+    let intermediateRows = currentRows.map((r, idx) => {
+      if (idx === rowIdx) {
+        return {
+          ...r,
+          outdoorGroupId: null,
+          outdoor_model: autoOutdoor,
+          outdoor_price: outPrice
+        };
       }
-      return g;
-    }).filter(g => g.space_indices.length > 0));
+      return r;
+    });
 
-    toast.info("已解除該空間之室外機系統群組！");
+    const affectedOldGroupIds = new Set([oldGId]);
+    const { nextRows, nextGroups } = recalculateAffectedGroups(intermediateRows, outdoorGroups, affectedOldGroupIds);
+
+    setOutdoorGroups(nextGroups);
+    setRows(nextRows);
+    toast.info("已解除該空間之室外機系統群組，剩餘空間已自動重新匹配室外機！");
   };
 
   const handleDiversityChange = (groupId, dfVal) => {
@@ -5423,7 +5587,7 @@ function App() {
               <div style={{ ...styles.cardTitle, marginBottom: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span>📈 工程負荷試算與大金配機建議表</span>
                 <span style={{ fontSize: '11.5px', color: '#94a3b8', fontWeight: 'bold', backgroundColor: '#1e293b', padding: '2px 8px', borderRadius: '4px', border: '1px solid #334155' }}>
-                  v2.19.0 (2026.09.24 00:15)
+                  v2.19.1 (2026.09.24 22:35)
                 </span>
               </div>
               

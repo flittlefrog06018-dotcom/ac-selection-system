@@ -1,8 +1,9 @@
 {
   "name": "ac-selection-system",
-  "version": "2.19.0",
+  "version": "2.19.1",
   "private": true,
   "scripts": {
+    "dev": "cd frontend && npm run dev",
     "build": "cd frontend && npm install && npm run build && node -e \"const fs=require('fs'); fs.mkdirSync('../dist', {recursive: true}); fs.cpSync('dist', '../dist', {recursive: true}); fs.cpSync('dist/assets', '../assets', {recursive: true}); fs.copyFileSync('dist/index.html', '../index.html');\""
   }
 }
