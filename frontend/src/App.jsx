@@ -5610,7 +5610,7 @@ function App() {
               <div style={{ ...styles.cardTitle, marginBottom: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span>📈 工程負荷試算與大金配機建議表</span>
                 <span style={{ fontSize: '11.5px', color: '#94a3b8', fontWeight: 'bold', backgroundColor: '#1e293b', padding: '2px 8px', borderRadius: '4px', border: '1px solid #334155' }}>
-                  v2.19.2 (2026.09.24 23:00)
+                  v2.19.3 (2026.09.24 23:15)
                 </span>
               </div>
               
@@ -6882,9 +6882,12 @@ function App() {
                           const singleIndoorKw = singleCapKw * singleUnitCount;
                           const totalOutdoorKw = outdoorCapKw * singleUnitCount;
                           const indoorDemandKw = row.cooling_load_kw || ((row.total_cooling_demand || (row.area_ping * (row.calc_basis || 500))) / 860.0) || 0;
-                          const isExceedOrBelow15Percent = (!hasActiveSys || isNoModel || !isPowerValid || totalOutdoorKw === 0 || isSAPendingSpecs)
+                          const isExceed15Percent = (!hasActiveSys || isNoModel || !isPowerValid || totalOutdoorKw === 0 || isSAPendingSpecs)
                             ? false
-                            : (indoorDemandKw > totalOutdoorKw * 1.15 || indoorDemandKw < totalOutdoorKw * 0.85);
+                            : (indoorDemandKw > totalOutdoorKw * 1.15);
+                          const isBelow15Percent = (!hasActiveSys || isNoModel || !isPowerValid || totalOutdoorKw === 0 || isSAPendingSpecs)
+                            ? false
+                            : (indoorDemandKw < totalOutdoorKw * 0.85);
                           const isSingleMinViolated = (!hasActiveSys || isSAPendingSpecs) ? false : (!isNoModel && singleUnitCount < getModelMinUnitsSingle(selectedModelStr));
                           const isSingleSelectionError = (!hasActiveSys || !isIndoorSelectionComplete || isSAPendingSpecs) ? false : (isNoModel || !isPowerValid || isSingleMinViolated);
 
@@ -6939,7 +6942,7 @@ function App() {
                                        borderRadius: '4px',
                                        border: '1px solid #ef4444'
                                      }}
-                                     title={isNoModel ? "無此機型" : (!isPowerValid ? "電源不符" : (isSingleMinViolated ? "少於 2 台連線下限" : (isExceedOrBelow15Percent ? "超過或低於外機能力 15%" : "型號錯誤")))}
+                                     title={isNoModel ? "無此機型" : (!isPowerValid ? "電源不符" : (isSingleMinViolated ? "少於 2 台連線下限" : (isExceed15Percent ? "超過外機能力 15%" : (isBelow15Percent ? "低於外機能力 15%" : "型號錯誤"))))}
                                    >
                                      ⚠️ 型號錯誤
                                    </div>
@@ -6952,24 +6955,42 @@ function App() {
 
                               <td style={{ ...styles.td, textAlign: 'center', color: isSingleSelectionError ? '#ef4444' : (isPowerValid ? '#a855f7' : '#64748b'), fontWeight: 'bold', fontSize: '15px', backgroundColor: isSingleSelectionError ? '#450a0a' : undefined }}>
                                 {isPowerValid && outdoorCapKw ? `${(parseFloat(outdoorCapKw) * singleUnitCount).toFixed(1)} kW` : '-'}
-                                {isExceedOrBelow15Percent && (
-                                  <div
-                                    style={{
-                                      color: '#f59e0b',
-                                      fontSize: '12px',
-                                      fontWeight: 'bold',
-                                      marginTop: '4px',
-                                      lineHeight: '1.2',
-                                      backgroundColor: 'rgba(245, 158, 11, 0.15)',
-                                      padding: '2px 4px',
-                                      borderRadius: '3px',
-                                      border: '1px solid rgba(245, 158, 11, 0.4)'
-                                    }}
-                                    title="室內負荷值大於或小於室外機提供能力正負 15%"
-                                  >
-                                    ⚠️ 超過或低於外機能力15%
-                                  </div>
-                                )}
+                                 {isExceed15Percent && (
+                                   <div
+                                     style={{
+                                       color: '#ef4444',
+                                       fontSize: '12px',
+                                       fontWeight: 'bold',
+                                       marginTop: '4px',
+                                       lineHeight: '1.2',
+                                       backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                                       padding: '2px 4px',
+                                       borderRadius: '3px',
+                                       border: '1px solid rgba(239, 68, 68, 0.4)'
+                                     }}
+                                     title="室內冷房總需求大於室外機能力 15% (建議放大外機容量)"
+                                   >
+                                     ⚠️ 超過外機能力15%
+                                   </div>
+                                 )}
+                                 {isBelow15Percent && (
+                                   <div
+                                     style={{
+                                       color: '#f59e0b',
+                                       fontSize: '12px',
+                                       fontWeight: 'bold',
+                                       marginTop: '4px',
+                                       lineHeight: '1.2',
+                                       backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                                       padding: '2px 4px',
+                                       borderRadius: '3px',
+                                       border: '1px solid rgba(245, 158, 11, 0.4)'
+                                     }}
+                                     title="室內冷房總需求低於室外機能力 15% (外機容量較寬裕)"
+                                   >
+                                     ⚠️ 低於外機能力15%
+                                   </div>
+                                 )}
                               </td>
                             </>
                           );
