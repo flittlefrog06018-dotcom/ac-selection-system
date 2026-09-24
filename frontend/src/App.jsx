@@ -78,6 +78,75 @@ export const getMaxConnectableCapKw = (outdoorModel, outdoorCapKw) => {
   return (parseFloat(outdoorCapKw) || 0) * 1.15;
 };
 
+// 🎯 解析室內機等級代碼 (例如 FTXM50YVLT -> 50, FDXV22RVLT -> 22, 5.0kW -> 50)
+export const getIndoorModelClass = (modelStr, capKw) => {
+  const m = (modelStr || '').toUpperCase();
+  const match = m.match(/(?:FT[A-Z]*|FD[A-Z]*|FC[A-Z]*|FX[A-Z]*|FH[A-Z]*|FB[A-Z]*)(\d{2,3})/);
+  if (match) {
+    return parseInt(match[1]);
+  }
+  const kw = parseFloat(capKw) || 0;
+  if (kw <= 2.5) return 22;
+  if (kw <= 3.2) return 28;
+  if (kw <= 3.8) return 36;
+  if (kw <= 4.5) return 41;
+  if (kw <= 5.5) return 50;
+  if (kw <= 6.5) return 60;
+  if (kw <= 7.5) return 71;
+  if (kw <= 8.5) return 80;
+  if (kw <= 9.5) return 90;
+  return Math.round(kw * 10);
+};
+
+// 🎯 大金家用多聯 (MULTI) 官方型錄室內外機相容性與組合級數檢驗
+export const isOutdoorModelCompatibleWithIndoors = (outdoorModel, spacesList) => {
+  if (!outdoorModel || !spacesList || spacesList.length === 0) return true;
+  const m = outdoorModel.toUpperCase();
+  
+  const indoorItems = spacesList.map(sp => {
+    const cap = parseFloat(sp.cap_kw || lookupModelCapKw(sp.best_match_model)) || 0;
+    const model = (sp.best_match_model || '').toUpperCase();
+    const classNum = getIndoorModelClass(model, cap);
+    const count = parseInt(sp.unit_count) || 1;
+    return { cap, model, classNum, count };
+  });
+
+  const maxClass = Math.max(...indoorItems.map(item => item.classNum));
+  const sumKw = indoorItems.reduce((acc, item) => acc + (item.cap * item.count), 0);
+  const sumDemandKw = spacesList.reduce((acc, sp) => {
+    const dem = sp.cooling_load_kw || ((sp.total_cooling_demand || (sp.area_ping * (sp.calc_basis || 500))) / 860.0) || 0;
+    return acc + dem;
+  }, 0);
+
+  // 1. 2MXM56YVLT (1對2, 5.6 kW) / 2MXP50ZVLT:
+  // 官方明訂單台最大僅支援 36 級 (22, 28, 36)；嚴禁連接 41, 50, 60, 71 等級數！
+  // 雙機最大組合僅到 28+36 (6.4 kW)；冷房需求總和 > 5.6 kW 應升級
+  if (m.includes('2MXM56') || m.includes('2MXP50')) {
+    if (maxClass > 36) return false;
+    if (sumKw > 6.5) return false;
+    if (sumDemandKw > 5.6) return false;
+  }
+
+  // 2. 2MXM75YVLT (1對2, 7.5 kW):
+  // 官方支援單台 50 級 (22+50, 28+50, 36+50, 41+41)；嚴禁連接 > 50 級 (60, 71, 80, 90)
+  if (m.includes('2MXM75')) {
+    if (maxClass > 50) return false;
+    if (sumKw > 9.0) return false;
+    if (sumDemandKw > 7.5) return false;
+  }
+
+  // 3. 3MXM90YVLT (1對3, 9.0 kW):
+  // 壁掛上限 71 級，吊隱上限 60 級；嚴禁連接 80, 90 級
+  if (m.includes('3MXM90')) {
+    if (maxClass > 71) return false;
+    const hasDuctOver60 = indoorItems.some(item => (item.model.includes('FDX') || item.model.includes('CDX')) && item.classNum > 60);
+    if (hasDuctOver60) return false;
+  }
+
+  return true;
+};
+
+
 
 
 import 'react-toastify/dist/ReactToastify.css';
@@ -833,7 +902,8 @@ function App() {
           chunkIndoorKwSum += ((finalRows[idx].cap_kw || 0) * (finalRows[idx].unit_count || 1));
         });
 
-        const capableCandidates = sortedCandidates.filter(m => getMaxConnectableCapKw(m.model, m.cap_kw) >= chunkIndoorKwSum);
+        const chunkSpaces = chunkIndices.map(idx => finalRows[idx]);
+        const capableCandidates = sortedCandidates.filter(m => getMaxConnectableCapKw(m.model, m.cap_kw) >= chunkIndoorKwSum && isOutdoorModelCompatibleWithIndoors(m.model, chunkSpaces));
         const matchedOutdoor = (capableCandidates.length > 0)
           ? capableCandidates[0]
           : (sortedCandidates[sortedCandidates.length - 1] || { model: '4MXM110YVLT', cap_kw: 10.5 });
@@ -1181,9 +1251,22 @@ function App() {
       const sorted = [...candidates].sort((a, b) => a.cap_kw - b.cap_kw);
       if (isMultiSeries || sorted.some(m => m.model.includes('MX'))) {
         // 多聯室外機：優先挑選支援台數 >= totalUnits 且容量 (getMaxConnectableCapKw) >= sumKw 之室外機
-        const capableCandidates = sorted.filter(m => getMaxConnectableCapKw(m.model, m.cap_kw) >= sumKw && getMaxUnitsForMultiModel(m.model) >= totalUnits);
+        // 多聯室外機：優先挑選支援台數 >= totalUnits、機型級數與雙機上限相容、且容量 (getMaxConnectableCapKw) >= sumKw 之室外機
+        const capableCandidates = sorted.filter(m => 
+          getMaxConnectableCapKw(m.model, m.cap_kw) >= sumKw && 
+          getMaxUnitsForMultiModel(m.model) >= totalUnits &&
+          isOutdoorModelCompatibleWithIndoors(m.model, spacesList)
+        );
         if (capableCandidates.length > 0) {
           return capableCandidates[0];
+        }
+        // 次選：台數與機型相容者
+        const compatCandidates = sorted.filter(m => 
+          getMaxUnitsForMultiModel(m.model) >= totalUnits &&
+          isOutdoorModelCompatibleWithIndoors(m.model, spacesList)
+        );
+        if (compatCandidates.length > 0) {
+          return compatCandidates[0];
         }
         const capOnly = sorted.filter(m => getMaxConnectableCapKw(m.model, m.cap_kw) >= sumKw);
         if (capOnly.length > 0) {
@@ -5610,7 +5693,7 @@ function App() {
               <div style={{ ...styles.cardTitle, marginBottom: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span>📈 工程負荷試算與大金配機建議表</span>
                 <span style={{ fontSize: '11.5px', color: '#94a3b8', fontWeight: 'bold', backgroundColor: '#1e293b', padding: '2px 8px', borderRadius: '4px', border: '1px solid #334155' }}>
-                  v2.19.3 (2026.09.24 23:15)
+                  v2.19.4 (2026.09.24 23:20)
                 </span>
               </div>
               
@@ -6676,12 +6759,7 @@ function App() {
                             const isMinUnitsViolated = (!isNoModel && gSpan < minAllowedUnits);
                             const isMaxUnitsExceeded = (!isNoModel && gSpan > maxAllowedUnits);
 
-                            const hasOver80Indoor = gSpaces.some(sp => {
-                              const cap = parseFloat(sp.cap_kw || lookupModelCapKw(sp.best_match_model)) || 0;
-                              const modelName = sp.best_match_model || '';
-                              return cap >= 7.8 || modelName.includes('80') || modelName.includes('90');
-                            });
-                            const isModelDisallowed = hasOver80Indoor && gCard?.outdoor_model && (gCard.outdoor_model.startsWith('2MXM') || gCard.outdoor_model.startsWith('2MXP') || gCard.outdoor_model.startsWith('3MXM'));
+                            const isModelDisallowed = !isOutdoorModelCompatibleWithIndoors(gCard?.outdoor_model, gSpaces);
                             const isSelectionError = (!hasActiveSys || !isIndoorSelectionComplete) ? false : (isNoModel || !isPowerValid || isMinUnitsViolated || isMaxUnitsExceeded || isModelDisallowed || isExceedCapacity);
 
                             // 🎯 3. 連結率 (%) 樣式與警示規範：
