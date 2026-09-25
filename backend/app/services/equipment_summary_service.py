@@ -753,14 +753,14 @@ class EquipmentSummaryService:
                 vrv_sa_count += q_in
 
         if vrv_sa_count > 0:
-            rc_price = db_srv.get_remote_price("BRC1E63R") if db_srv else 4300.0
+            rc_price = db_srv.get_remote_price("BRC1E63R") if db_srv else 4500.0
             accessory_items.append({
                 "item_code": f"B-{item_counter_b}",
                 "cat": "控制配件",
-                "name": "液晶有線遙控器 (BRC1E63 / BRC1H61W)",
+                "name": "液晶有線遙控器 (BRC1E63R)",
                 "qty": vrv_sa_count,
                 "unit": "個",
-                "unit_price": rc_price or 4300.0,
+                "unit_price": rc_price or 4500.0,
                 "notes": "SA / VRV 室內機專用標準配置"
             })
             item_counter_b += 1
@@ -771,14 +771,28 @@ class EquipmentSummaryService:
             jm = j["model"]
             joint_counts[jm] = joint_counts.get(jm, 0) + j.get("qty", 1)
 
+        JOINT_PRICE_MAP = {
+            "KHRP26A22T": 1700.0,
+            "KHRP26A33T": 2400.0,
+            "KHRP26A72T": 3300.0,
+            "KHRP26A73T": 4600.0,
+            "KHRP26M22T": 1700.0,
+            "KHRP26M33T": 2400.0,
+            "KHRP26M72T": 3300.0,
+            "KHRP26M73T": 4600.0,
+            "BHFP22P100": 3700.0,
+            "BHFP22P151": 7500.0,
+        }
+
         for jm, jq in joint_counts.items():
+            j_price = JOINT_PRICE_MAP.get(jm, 2400.0)
             accessory_items.append({
                 "item_code": f"B-{item_counter_b}",
                 "cat": "冷媒配件",
                 "name": f"VRV 冷媒分歧管 ({jm})",
                 "qty": jq,
                 "unit": "套",
-                "unit_price": None,
+                "unit_price": j_price,
                 "notes": "含原廠專用保溫材"
             })
             item_counter_b += 1
@@ -786,11 +800,15 @@ class EquipmentSummaryService:
         # 查詢各室內機對應之轉接小P版、無線接收器/APP卡、集控轉接基板規則 (參照 EQUIPMENT_Data)
         acc_rules = cls.get_indoor_accessory_rules()
 
-        # APP / 集中控制需求
+        # APP / 集中控制 / 伶俐智能需求 (支援同時選用)
         has_app = any("APP" in str(r.get("control_mode") or r.get("ctrl_mode") or "").upper() for r in rooms_data)
         has_central = (
             any("集控" in str(r.get("control_mode") or r.get("ctrl_mode") or "") or "CENTRAL" in str(r.get("control_mode") or r.get("ctrl_mode") or "").upper() for r in rooms_data)
-            or bool(selected_controllers and len(selected_controllers) > 0)
+            or bool(selected_controllers and any(m in ['DCS301BA61', 'DCS302CA61', 'DCS303A61', 'DTP401A61', 'DCM601B51', 'DTA116A51', 'DMS502B51'] for m in selected_controllers))
+        )
+        has_lingli = (
+            any("伶俐" in str(r.get("control_mode") or r.get("ctrl_mode") or "") for r in rooms_data)
+            or bool(selected_controllers and any(m in ['DCPA01', 'DCPF01', 'DCPH01H'] for m in selected_controllers))
         )
 
         # 🎯 APP 遠端控制配件精準對應 (參照 EQUIPMENT_Data 分頁之 轉接小P版 與 無線接收器)
@@ -836,7 +854,7 @@ class EquipmentSummaryService:
                     "notes": "搭配 APP 遠端控制卡專用介面基板"
                 })
 
-        # 🎯 集中控制需求配件精準對應 (參照 EQUIPMENT_Data 分頁之 集控轉接基板 與 轉接小P板)
+        # 🎯 集中控制需求配件精準對應 (參照 EQUIPMENT_Data 分頁之 集控轉接基板 與 轉接小P版)
         if has_central:
             c_board_counts = {}
             p_board_counts = {}
@@ -873,41 +891,46 @@ class EquipmentSummaryService:
                     "notes": "搭配集控介面專用轉接小P板"
                 })
 
-            CONTROLLER_INFO_MAP = {
-                'DCS301BA61': {'name': '集中ON-OFF控制器', 'price': 11800, 'note': '低階'},
-                'DCS302CA61': {'name': '中央集中控制器', 'price': 11700, 'note': '高階'},
-                'DCS303A61': {'name': '家用集中控制器', 'price': 22800, 'note': '高階'},
-                'DTP401A61': {'name': 'STC集中控制器', 'price': 25000, 'note': '高階'},
-                'DCM601B51': {'name': 'ITM', 'price': 108200, 'note': '高階'},
-                'DTA116A51': {'name': 'Modbus 介面', 'price': 11500, 'note': '高階'},
-                'DMS502B51': {'name': 'BACnet 介面', 'price': 83600, 'note': '高階'},
-                'DCPA01': {'name': '伶俐用轉接器', 'price': 9200, 'note': '配件'},
-                'DCPF01': {'name': '伶俐智控管理器', 'price': 34700, 'note': '高階'}
-            }
-            if selected_controllers and len(selected_controllers) > 0:
-                for ctrl_m in selected_controllers:
-                    c_info = db_srv.get_controller_info(ctrl_m)
-                    if not c_info:
-                        c_info = CONTROLLER_INFO_MAP.get(ctrl_m, {'name': '集中控制器', 'price': 0, 'note': '高階'})
-                    accessory_items.append({
-                        "cat": "控制配件",
-                        "name": f"大金空調{c_info['name']} ({ctrl_m})",
-                        "qty": 1,
-                        "unit": "台",
-                        "unit_price": c_info['price'],
-                        "notes": f"大金原廠集中控制器【{c_info['note']}】"
-                    })
-            else:
-                c_info = db_srv.get_controller_info("DCM601B51")
-                price_default = c_info['price'] if c_info else 108200
+        CONTROLLER_INFO_MAP = {
+            'DCS301BA61': {'name': '集中ON-OFF控制器', 'price': 11800, 'note': '低階'},
+            'DCS302CA61': {'name': '中央集中控制器', 'price': 11700, 'note': '高階'},
+            'DCS303A61': {'name': '家用集中控制器', 'price': 22800, 'note': '高階'},
+            'DTP401A61': {'name': 'STC集中控制器', 'price': 25000, 'note': '高階'},
+            'DCM601B51': {'name': 'ITM', 'price': 108200, 'note': '高階'},
+            'DTA116A51': {'name': 'Modbus 介面', 'price': 11500, 'note': '高階'},
+            'DMS502B51': {'name': 'BACnet 介面', 'price': 83600, 'note': '高階'},
+            'DCPA01': {'name': '伶俐用轉接器', 'price': 9200, 'note': '配件'},
+            'DCPF01': {'name': '伶俐智控管理器', 'price': 34700, 'note': '高階'},
+            'DCPH01H': {'name': '伶俐智控管理器-住宅', 'price': 27700, 'note': '高階'}
+        }
+
+        # 🎯 輸出選用之集中控制器與伶俐智能管理配件 (可同時並存選用)
+        if selected_controllers and len(selected_controllers) > 0:
+            for ctrl_m in selected_controllers:
+                c_info = db_srv.get_controller_info(ctrl_m)
+                if not c_info:
+                    c_info = CONTROLLER_INFO_MAP.get(ctrl_m, {'name': '控制器', 'price': 0, 'note': '選配'})
+                is_lingli_dev = ctrl_m in ['DCPA01', 'DCPF01', 'DCPH01H']
+                dev_prefix = "伶俐智能管理" if is_lingli_dev else "集中控制器"
                 accessory_items.append({
                     "cat": "控制配件",
-                    "name": "大金空調ITM集中控制器 (DCM601B51)",
+                    "name": f"大金空調{c_info['name']} ({ctrl_m})",
                     "qty": 1,
                     "unit": "台",
-                    "unit_price": price_default,
-                    "notes": "大金原廠集中控制器【高階】"
+                    "unit_price": c_info['price'],
+                    "notes": f"大金原廠{dev_prefix}【{c_info['note']}】"
                 })
+        elif has_central:
+            c_info = db_srv.get_controller_info("DCM601B51")
+            price_default = c_info['price'] if c_info else 108200
+            accessory_items.append({
+                "cat": "控制配件",
+                "name": "大金空調ITM集中控制器 (DCM601B51)",
+                "qty": 1,
+                "unit": "台",
+                "unit_price": price_default,
+                "notes": "大金原廠集中控制器【高階】"
+            })
 
         # --- 3. 渲染報價單到工作表 ---
         ws_quote.cell(row=2, column=2, value="大金空調設備與配件報價清冊").font = font_title

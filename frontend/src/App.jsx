@@ -483,7 +483,28 @@ function App() {
     });
   };
 
-  const [fastControlMode, setFastControlMode] = useState('無'); // 預設 '無' (可選 '無', 'APP', '集控', '伶俐')
+  const [fastControlMode, setFastControlMode] = useState('無'); // 預設 '無' (保留向後相容)
+  const [selectedControlModes, setSelectedControlModes] = useState(['無']); // 支援複選 (例如同時選 '集控' 與 '伶俐')
+
+  // 🎯 控制需求多選/互斥切換邏輯 (支援集中控制器與伶俐智能管理同時選用)
+  const handleToggleControlMode = (mode) => {
+    setSelectedControlModes(prev => {
+      let updated;
+      if (mode === '無') {
+        updated = ['無'];
+      } else {
+        const withoutNone = prev.filter(m => m !== '無');
+        if (withoutNone.includes(mode)) {
+          updated = withoutNone.filter(m => m !== mode);
+          if (updated.length === 0) updated = ['無'];
+        } else {
+          updated = [...withoutNone, mode];
+        }
+      }
+      setFastControlMode(updated.join('+'));
+      return updated;
+    });
+  };
 
   const WIZARD_STEPS = [
     { id: 1, title: '圖面辨識', icon: '🖼️', desc: '匯入圖面、比例放樣與空間框選' },
@@ -3357,10 +3378,10 @@ function App() {
       if (vrvSaCount > 0) {
         accessoryItems.push({
           cat: "控制配件",
-          name: "液晶有線遙控器 (BRC1E63 / BRC1H61W)",
+          name: "液晶有線遙控器 (BRC1E63R)",
           qty: vrvSaCount,
           unit: "個",
-          unit_price: ACCESSORY_PRICE_MAP["BRC1E63R"] || 4300,
+          unit_price: ACCESSORY_PRICE_MAP["BRC1E63R"] || 4500,
           notes: "SA / VRV 室內機專用標準配置",
         });
       }
@@ -3374,18 +3395,18 @@ function App() {
       if (vrvIndoorTotal >= 2) {
         accessoryItems.push({
           cat: "冷媒配件",
-          name: "VRV 冷媒分歧管組 (KHRP26A/M)",
+          name: "VRV 冷媒分歧管 (KHRP26A22T)",
           qty: vrvIndoorTotal - 1,
           unit: "套",
-          unit_price: null,
+          unit_price: ACCESSORY_PRICE_MAP["KHRP26A22T"] || 1700,
           notes: "含原廠專用保溫材",
         });
       }
 
       // 🎯 APP 遠端控制配件精準對應 (參照 EQUIPMENT_Data controller&pipe)
       const ctrlModeStr = String(fastCtrlMode || "").toUpperCase();
-      const hasApp = ctrlModeStr.includes("APP") || flatRowsToRender.some(r => String(r.control_mode || "").toUpperCase().includes("APP"));
-      const hasCentral = ctrlModeStr.includes("集控") || ctrlModeStr.includes("CENTRAL") || flatRowsToRender.some(r => String(r.control_mode || "").includes("集控"));
+      const hasApp = ctrlModeStr.includes("APP") || (selectedControlModes && selectedControlModes.includes("APP")) || flatRowsToRender.some(r => String(r.control_mode || "").toUpperCase().includes("APP"));
+      const hasCentral = ctrlModeStr.includes("集控") || ctrlModeStr.includes("CENTRAL") || (selectedControlModes && selectedControlModes.includes("集控")) || (selectedControllers && selectedControllers.length > 0) || flatRowsToRender.some(r => String(r.control_mode || "").includes("集控"));
 
       if (hasApp) {
         const appReceiverCounts = {};
@@ -3497,7 +3518,15 @@ function App() {
             notes: "大金原廠集中控制器【高階】",
           });
         }
-      } else if (fastControlMode === '伶俐') {
+      }
+
+      // 🎯 伶俐智能管理選配清單 (支援與集中控制器同時選用)
+      const hasLingli = ctrlModeStr.includes("伶俐") ||
+        (selectedControlModes && selectedControlModes.includes("伶俐")) ||
+        (selectedLingli && selectedLingli.length > 0) ||
+        flatRowsToRender.some(r => String(r.control_mode || "").includes("伶俐"));
+
+      if (hasLingli) {
         // 🎯 匯出已勾選之伶俐智控配件
         if (selectedLingli && selectedLingli.length > 0) {
           selectedLingli.forEach(lModel => {
@@ -4475,11 +4504,12 @@ function App() {
             outdoor_model: outdoorModelStr,
             power_supply: row.power_supply || (activeSys === 'RA' ? '1φ, 220V, 60Hz' : '3φ, 4P, 380V, 60Hz'),
             outdoorGroupId: row.outdoorGroupId,
-            control_mode: fastControlMode || '無'
+            control_mode: (selectedControlModes && selectedControlModes.length > 0) ? selectedControlModes.join('+') : (fastControlMode || '無')
           };
         }),
-        control_mode: fastControlMode || '無',
-        selected_controllers: selectedControllers,
+        control_mode: (selectedControlModes && selectedControlModes.length > 0) ? selectedControlModes.join('+') : (fastControlMode || '無'),
+        selected_controllers: Array.from(new Set([...(selectedControllers || []), ...(selectedLingli || [])])),
+        selected_lingli: selectedLingli,
         outdoor_groups: outdoorGroups.map(g => ({
           id: g.id,
           group_id: g.id,
@@ -5807,14 +5837,15 @@ function App() {
           display: 'flex',
           flexDirection: 'column',
           padding: '10px 14px',
-          overflow: 'hidden'
+          overflowY: 'auto',
+          overflowX: 'hidden'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '10px', flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <div style={{ ...styles.cardTitle, marginBottom: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span>📈 工程負荷試算與大金配機建議表</span>
                 <span style={{ fontSize: '11.5px', color: '#94a3b8', fontWeight: 'bold', backgroundColor: '#1e293b', padding: '2px 8px', borderRadius: '4px', border: '1px solid #334155' }}>
-                  v2.20.0 (2026.09.25 00:10)
+                  v2.21.0 (2026.09.26 00:10)
                 </span>
               </div>
               
@@ -6223,54 +6254,63 @@ function App() {
               backgroundColor: '#0b1329',
               border: '1.5px solid #38bdf8',
               borderRadius: '8px',
-              padding: '16px',
-              marginBottom: '14px',
-              boxShadow: '0 4px 14px rgba(0,0,0,0.5)'
+              padding: '8px 12px',
+              marginBottom: '8px',
+              boxShadow: '0 2px 10px rgba(0,0,0,0.4)',
+              flexShrink: 0
             }}>
-              <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#38bdf8', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#38bdf8', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span>📱 第五步：控制需求</span>
-                <span style={{ fontSize: '12px', color: '#94a3b8' }}>(請選擇本工程全域或個別空調系統之控制方式)</span>
+                <span style={{ fontSize: '12px', color: '#94a3b8' }}>(支援複選：集中控制器與伶俐智能管理可同時選用，共同納入選機報價清冊)</span>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', marginBottom: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
                 {[
                   { mode: '無', title: '無控制需求', desc: '標準配置：各空間採用標準紅外線無線遙控器或有線液晶遙控器。', color: '#64748b' },
-                  { mode: 'APP', title: 'APP 遠端控制', desc: '智慧升級：選配 Daikin Mobile Controller，手機平板連網隨處遠端遙控開關與定時。', color: '#0284c7' },
+                  { mode: 'APP', title: 'APP 遠端控制', desc: '智慧升級：選配 Daikin Mobile Controller，手機平板遠端遙控與定時。', color: '#0284c7' },
                   { mode: '集控', title: '集中控制器', desc: '商用集控：選配 Daikin 集中控制盤或 Intelligent Touch Manager (iTM) 集中監控各樓層。', color: '#8b5cf6' },
                   { mode: '伶俐', title: '伶俐智能管理', desc: '智慧節能：選配大金伶俐用轉接器 (DCPA01) 與伶俐智控管理器 (DCPF01/DCPH01H)，提供智慧雲端能耗管理與排程。', color: '#10b981' }
-                ].map(opt => (
-                  <div
-                    key={opt.mode}
-                    onClick={() => {
-                      setFastControlMode(opt.mode);
-                      toast.success(`✨ 已將全系統控制需求設定為：【${opt.title}】！`);
-                    }}
-                    style={{
-                      padding: '14px',
-                      borderRadius: '8px',
-                      border: fastControlMode === opt.mode ? `2px solid ${opt.color}` : '1px solid #334155',
-                      backgroundColor: fastControlMode === opt.mode ? 'rgba(2, 132, 199, 0.15)' : '#1e293b',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      boxShadow: fastControlMode === opt.mode ? `0 0 12px ${opt.color}66` : 'none'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                      <span style={{ fontSize: '14px', fontWeight: 'bold', color: fastControlMode === opt.mode ? '#38bdf8' : '#f8fafc' }}>
-                        {opt.title}
-                      </span>
-                      <input
-                        type="radio"
-                        name="controlModeRadio"
-                        checked={fastControlMode === opt.mode}
-                        onChange={() => setFastControlMode(opt.mode)}
-                        style={{ cursor: 'pointer' }}
-                      />
+                ].map(opt => {
+                  const isChecked = selectedControlModes.includes(opt.mode);
+                  return (
+                    <div
+                      key={opt.mode}
+                      onClick={() => handleToggleControlMode(opt.mode)}
+                      style={{
+                        padding: '6px 10px',
+                        borderRadius: '6px',
+                        border: isChecked ? `2px solid ${opt.color}` : '1px solid #334155',
+                        backgroundColor: isChecked ? 'rgba(2, 132, 199, 0.15)' : '#1e293b',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                        boxShadow: isChecked ? `0 0 10px ${opt.color}55` : 'none',
+                        position: 'relative'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '3px' }}>
+                        <span style={{ fontSize: '14px', fontWeight: 'bold', color: isChecked ? '#38bdf8' : '#f8fafc', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          {opt.title}
+                          {isChecked && opt.mode !== '無' && (
+                            <span style={{ fontSize: '10.5px', padding: '1px 5px', borderRadius: '3px', backgroundColor: `${opt.color}33`, color: opt.color, border: `1px solid ${opt.color}` }}>
+                              已啟用
+                            </span>
+                          )}
+                        </span>
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            handleToggleControlMode(opt.mode);
+                          }}
+                          style={{ cursor: 'pointer', width: '15px', height: '15px', accentColor: opt.color }}
+                        />
+                      </div>
+                      <div style={{ fontSize: '11.5px', color: '#94a3b8', lineHeight: '1.3' }}>
+                        {opt.desc}
+                      </div>
                     </div>
-                    <div style={{ fontSize: '11.5px', color: '#94a3b8', lineHeight: '1.4' }}>
-                      {opt.desc}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -6280,7 +6320,18 @@ function App() {
           <div
             className="table-scroll-container"
             onContextMenu={(e) => handleTableContextMenu(e, null)}
-            style={{ flex: 1, minHeight: 0, overflowX: 'auto', overflowY: 'auto', borderRadius: '8px', border: '1px solid #334155', backgroundColor: '#0b1329', position: 'relative' }}
+            style={{
+              flex: currentStep === 5 ? 'none' : 1,
+              maxHeight: currentStep === 5 ? '115px' : 'none',
+              minHeight: 0,
+              overflowX: 'auto',
+              overflowY: 'auto',
+              borderRadius: '8px',
+              border: '1px solid #334155',
+              backgroundColor: '#0b1329',
+              position: 'relative',
+              marginBottom: currentStep === 5 ? '6px' : 0
+            }}
           >
             <table style={styles.table}>
               <thead>
@@ -7203,49 +7254,57 @@ function App() {
             </table>
           </div>
 
-          {/* 🎯 第五步集中控制器專屬勾選清單 (依 EQUIPMENT_Data controller 黃底規格呈現) */}
-          {/* 🎯 第五步集中控制器專屬勾選清單 (純 D3-NET 集中控制盤) */}
-          {currentStep === 5 && fastControlMode === '集控' && (() => {
-            const d3Info = calculateD3NetStats(rows, selectedControllers);
+          {/* 🎯 第五步：集中控制器與伶俐智能管理選配清單 (支援同時勾選時左右雙欄並列展示於同一畫面) */}
+          {currentStep === 5 && (() => {
+            const showCentral = selectedControlModes.includes('集控') || fastControlMode.includes('集控');
+            const showLingli = selectedControlModes.includes('伶俐') || fastControlMode.includes('伶俐');
+            if (!showCentral && !showLingli) return null;
+
+            const isBoth = showCentral && showLingli;
+            const d3Info = showCentral ? calculateD3NetStats(rows, selectedControllers) : null;
             const hasDCM = selectedControllers.includes('DCM601B51');
-            return (
+
+            const centralPanel = (
               <div style={{
                 backgroundColor: '#0f172a',
                 border: '1.5px solid #8b5cf6',
                 borderRadius: '8px',
-                padding: '12px 16px',
-                marginTop: '10px',
-                boxShadow: '0 4px 14px rgba(139, 92, 246, 0.25)',
-                flexShrink: 0
+                padding: '8px 12px',
+                boxShadow: '0 3px 12px rgba(139, 92, 246, 0.25)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '14.5px', fontWeight: 'bold', color: '#c084fc' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#c084fc' }}>
                       🎛️ 集中控制器選配清單 (Daikin 集中控制盤)
                     </span>
-                    <span style={{ fontSize: '12px', color: '#94a3b8' }}>
-                      • 規則：DCS303A61 為獨立專用不可共用；Modbus(DTA116A51)與BACnet(DMS502B51)擇一；iTM 可搭配最多 4 個 DCS301BA61
-                    </span>
+                    {!isBoth && (
+                      <span style={{ fontSize: '11.5px', color: '#94a3b8' }}>
+                        • 規則：DCS303A61 為獨立專用不可共用；Modbus與BACnet擇一；iTM 可搭配最多 4 個 DCS301BA61
+                      </span>
+                    )}
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12.5px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
                     <span style={{ color: '#38bdf8' }}>
-                      低階已選：<strong style={{ color: '#ffffff' }}>{selectedControllers.filter(m => CONTROLLER_CANDIDATES.find(c => c.model === m)?.tier === '低階').length} 種 ({selectedControllers.includes('DCS301BA61') ? dcs301Qty : 0} 台)</strong>
+                      低階：<strong style={{ color: '#ffffff' }}>{selectedControllers.filter(m => CONTROLLER_CANDIDATES.find(c => c.model === m)?.tier === '低階').length} 種 ({selectedControllers.includes('DCS301BA61') ? dcs301Qty : 0} 台)</strong>
                     </span>
                     <span style={{ color: '#94a3b8' }}>|</span>
                     <span style={{ color: '#facc15' }}>
-                      高階已選：<strong style={{ color: '#ffffff' }}>{selectedControllers.filter(m => CONTROLLER_CANDIDATES.find(c => c.model === m)?.tier === '高階').length} / 2</strong>
+                      高階：<strong style={{ color: '#ffffff' }}>{selectedControllers.filter(m => CONTROLLER_CANDIDATES.find(c => c.model === m)?.tier === '高階').length} / 2</strong>
                     </span>
                     <span style={{ color: '#94a3b8' }}>|</span>
-                    <span style={{ color: '#34d399', backgroundColor: 'rgba(52, 211, 153, 0.15)', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(52, 211, 153, 0.4)' }}>
-                      📡 D3-NET 建議：<strong>{d3Info.suggestedPorts} Port</strong> {d3Info.isModbus ? '(Modbus限制: 2組外機/16台內機)' : '(標準: 10組外機/64台內機)'}
+                    <span style={{ color: '#34d399', backgroundColor: 'rgba(52, 211, 153, 0.15)', padding: '1px 6px', borderRadius: '4px', border: '1px solid rgba(52, 211, 153, 0.4)' }}>
+                      📡 D3-NET：<strong>{d3Info?.suggestedPorts || 1} Port</strong>
                     </span>
                   </div>
                 </div>
 
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-                  gap: '8px'
+                  gridTemplateColumns: isBoth ? 'repeat(auto-fill, minmax(170px, 1fr))' : 'repeat(auto-fill, minmax(230px, 1fr))',
+                  gap: '6px'
                 }}>
                   {CONTROLLER_CANDIDATES.map(ctrl => {
                     const isSelected = selectedControllers.includes(ctrl.model);
@@ -7259,51 +7318,50 @@ function App() {
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
-                          padding: '9px 14px',
+                          padding: '6px 10px',
                           borderRadius: '6px',
                           backgroundColor: isSelected ? 'rgba(139, 92, 246, 0.28)' : '#1e293b',
                           border: isSelected ? '2px solid #a855f7' : '1px solid #334155',
                           cursor: 'pointer',
-                          transition: 'all 0.2s ease',
-                          boxShadow: isSelected ? '0 0 12px rgba(168, 85, 247, 0.45)' : 'none',
+                          transition: 'all 0.15s ease',
+                          boxShadow: isSelected ? '0 0 10px rgba(168, 85, 247, 0.4)' : 'none',
                           userSelect: 'none'
                         }}
                       >
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                          <div style={{ fontSize: '14px', fontWeight: 'bold', color: isSelected ? '#ffffff' : '#f1f5f9' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', minWidth: 0 }}>
+                          <div style={{ fontSize: '13px', fontWeight: 'bold', color: isSelected ? '#ffffff' : '#f1f5f9', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {ctrl.model}
                           </div>
-                          <div style={{ fontSize: '13.5px', fontWeight: 'bold', color: isSelected ? '#d8b4fe' : '#94a3b8' }}>
+                          <div style={{ fontSize: '12px', fontWeight: 'bold', color: isSelected ? '#d8b4fe' : '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {ctrl.name}
                           </div>
                           {isDCS301 && isSelected && (
                             <div
                               onClick={(e) => e.stopPropagation()}
-                              style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}
+                              style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}
                             >
-                              <span style={{ fontSize: '11.5px', color: '#38bdf8' }}>數量：</span>
+                              <span style={{ fontSize: '11px', color: '#38bdf8' }}>數量：</span>
                               <button
                                 type="button"
                                 onClick={() => setDcs301Qty(q => Math.max(1, q - 1))}
-                                style={{ width: '22px', height: '22px', borderRadius: '4px', border: '1px solid #38bdf8', backgroundColor: '#0f172a', color: '#ffffff', cursor: 'pointer', fontWeight: 'bold' }}
+                                style={{ width: '19px', height: '19px', borderRadius: '3px', border: '1px solid #38bdf8', backgroundColor: '#0f172a', color: '#ffffff', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px', padding: 0 }}
                               >-</button>
-                              <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#ffffff', minWidth: '16px', textAlign: 'center' }}>{dcs301Qty}</span>
+                              <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#ffffff', minWidth: '14px', textAlign: 'center' }}>{dcs301Qty}</span>
                               <button
                                 type="button"
                                 onClick={() => setDcs301Qty(q => Math.min(hasDCM ? 4 : 4, q + 1))}
-                                style={{ width: '22px', height: '22px', borderRadius: '4px', border: '1px solid #38bdf8', backgroundColor: '#0f172a', color: '#ffffff', cursor: 'pointer', fontWeight: 'bold' }}
+                                style={{ width: '19px', height: '19px', borderRadius: '3px', border: '1px solid #38bdf8', backgroundColor: '#0f172a', color: '#ffffff', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px', padding: 0 }}
                               >+</button>
-                              <span style={{ fontSize: '11px', color: '#94a3b8' }}>台 (最多4台)</span>
                             </div>
                           )}
                         </div>
 
-                        <div style={{ textAlign: 'right' }}>
+                        <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '6px' }}>
                           <span style={{
-                            fontSize: '12px',
+                            fontSize: '11px',
                             fontWeight: 'bold',
-                            padding: '3px 8px',
-                            borderRadius: '4px',
+                            padding: '2px 6px',
+                            borderRadius: '3px',
                             display: 'inline-block',
                             backgroundColor: isLowTier ? 'rgba(56, 189, 248, 0.2)' : (ctrl.tier === '高階' ? 'rgba(234, 179, 8, 0.2)' : 'rgba(148, 163, 184, 0.2)'),
                             color: isLowTier ? '#38bdf8' : (ctrl.tier === '高階' ? '#facc15' : '#94a3b8'),
@@ -7318,95 +7376,114 @@ function App() {
                 </div>
               </div>
             );
-          })()}
 
-          {/* 🎯 第五步伶俐智能管理專屬勾選清單 */}
-          {currentStep === 5 && fastControlMode === '伶俐' && (
-            <div style={{
-              backgroundColor: '#0f172a',
-              border: '1.5px solid #10b981',
-              borderRadius: '8px',
-              padding: '12px 16px',
-              marginTop: '10px',
-              boxShadow: '0 4px 14px rgba(16, 185, 129, 0.25)',
-              flexShrink: 0
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '14.5px', fontWeight: 'bold', color: '#34d399' }}>
-                    🌐 伶俐智能管理選配清單 (Daikin 伶俐智控雲端方案)
-                  </span>
-                  <span style={{ fontSize: '12px', color: '#94a3b8' }}>
-                    • 支援獨立選配轉接器 (DCPA01) 與管理器 (DCPF01 / DCPH01H 住宅型)
-                  </span>
-                </div>
-                <div style={{ fontSize: '12.5px', color: '#34d399' }}>
-                  已選項目：<strong style={{ color: '#ffffff' }}>{selectedLingli.length} 項</strong>
-                </div>
-              </div>
-
+            const lingliPanel = (
               <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-                gap: '8px'
+                backgroundColor: '#0f172a',
+                border: '1.5px solid #10b981',
+                borderRadius: '8px',
+                padding: '8px 12px',
+                boxShadow: '0 3px 12px rgba(16, 185, 129, 0.25)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px'
               }}>
-                {LINGLI_CANDIDATES.map(item => {
-                  const isSelected = selectedLingli.includes(item.model);
-                  return (
-                    <div
-                      key={item.model}
-                      onClick={() => handleToggleLingli(item)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '10px 14px',
-                        borderRadius: '6px',
-                        backgroundColor: isSelected ? 'rgba(16, 185, 129, 0.25)' : '#1e293b',
-                        border: isSelected ? '2px solid #10b981' : '1px solid #334155',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                        boxShadow: isSelected ? '0 0 12px rgba(16, 185, 129, 0.4)' : 'none',
-                        userSelect: 'none'
-                      }}
-                    >
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                        <div style={{ fontSize: '14px', fontWeight: 'bold', color: isSelected ? '#ffffff' : '#f1f5f9' }}>
-                          {item.model}
-                        </div>
-                        <div style={{ fontSize: '13.5px', fontWeight: 'bold', color: isSelected ? '#6ee7b7' : '#94a3b8' }}>
-                          {item.name}
-                        </div>
-                        <div style={{ fontSize: '11px', color: '#64748b' }}>
-                          {item.note}
-                        </div>
-                      </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#34d399' }}>
+                      🌐 伶俐智能管理選配清單 (Daikin 伶俐智控雲端方案)
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#34d399' }}>
+                    已選項目：<strong style={{ color: '#ffffff' }}>{selectedLingli.length} 項</strong>
+                  </div>
+                </div>
 
-                      <div style={{ textAlign: 'right' }}>
-                        <span style={{
-                          fontSize: '12px',
-                          fontWeight: 'bold',
-                          padding: '3px 8px',
-                          borderRadius: '4px',
-                          display: 'inline-block',
-                          backgroundColor: 'rgba(16, 185, 129, 0.2)',
-                          color: '#34d399',
-                          border: '1px solid #10b981'
-                        }}>
-                          {item.tier}
-                        </span>
-                        {item.price && (
-                          <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
-                            NT$ {item.price.toLocaleString()}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: isBoth ? '1fr' : 'repeat(auto-fill, minmax(240px, 1fr))',
+                  gap: '6px'
+                }}>
+                  {LINGLI_CANDIDATES.map(item => {
+                    const isSelected = selectedLingli.includes(item.model);
+                    return (
+                      <div
+                        key={item.model}
+                        onClick={() => handleToggleLingli(item)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '7px 10px',
+                          borderRadius: '6px',
+                          backgroundColor: isSelected ? 'rgba(16, 185, 129, 0.25)' : '#1e293b',
+                          border: isSelected ? '2px solid #10b981' : '1px solid #334155',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                          boxShadow: isSelected ? '0 0 10px rgba(16, 185, 129, 0.4)' : 'none',
+                          userSelect: 'none'
+                        }}
+                      >
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', minWidth: 0 }}>
+                          <div style={{ fontSize: '13.5px', fontWeight: 'bold', color: isSelected ? '#ffffff' : '#f1f5f9' }}>
+                            {item.model}
                           </div>
-                        )}
+                          <div style={{ fontSize: '12.5px', fontWeight: 'bold', color: isSelected ? '#6ee7b7' : '#94a3b8' }}>
+                            {item.name}
+                          </div>
+                          <div style={{ fontSize: '11px', color: '#64748b' }}>
+                            {item.note}
+                          </div>
+                        </div>
+
+                        <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '6px' }}>
+                          <span style={{
+                            fontSize: '11px',
+                            fontWeight: 'bold',
+                            padding: '2px 6px',
+                            borderRadius: '3px',
+                            display: 'inline-block',
+                            backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                            color: '#34d399',
+                            border: '1px solid #10b981'
+                          }}>
+                            {item.tier}
+                          </span>
+                          {item.price && (
+                            <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '1px' }}>
+                              NT$ {item.price.toLocaleString()}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          )}
+            );
+
+            if (isBoth) {
+              return (
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'minmax(0, 1.35fr) minmax(0, 1fr)',
+                  gap: '8px',
+                  marginTop: '6px',
+                  marginBottom: '6px',
+                  flexShrink: 0
+                }}>
+                  {centralPanel}
+                  {lingliPanel}
+                </div>
+              );
+            }
+
+            return (
+              <div style={{ marginTop: '6px', marginBottom: '6px', flexShrink: 0 }}>
+                {showCentral ? centralPanel : lingliPanel}
+              </div>
+            );
+          })()}
 
 
           {/* 🎯 建議表下方專屬列印與匯出操作列 */}
@@ -7430,8 +7507,13 @@ function App() {
               <span>•</span>
               <span>室內總能力需求：<strong style={{ color: '#a855f7' }}>{rows.reduce((acc, r) => acc + (parseFloat(r.cap_kw) || 0) * (parseInt(r.unit_count) || 1), 0).toFixed(1)}</strong> kW</span>
               <span>•</span>
-              <span>智慧控制方案：<strong style={{ color: '#f59e0b' }}>{fastControlMode === '無' ? '一般遙控器' : (fastControlMode === 'APP' ? 'APP 遠端控制' : (fastControlMode === '伶俐' ? '伶俐智能管理' : '集中控制器'))}</strong></span>
-              {fastControlMode === '集控' && (() => {
+              <span>智慧控制方案：<strong style={{ color: '#f59e0b' }}>
+                {selectedControlModes.includes('無') && selectedControlModes.length === 1
+                  ? '一般遙控器'
+                  : selectedControlModes.map(m => m === 'APP' ? 'APP 遠端控制' : (m === '集控' ? '集中控制器' : (m === '伶俐' ? '伶俐智能管理' : m))).join(' ＋ ')
+                }
+              </strong></span>
+              {(selectedControlModes.includes('集控') || fastControlMode.includes('集控')) && (() => {
                 const d3 = calculateD3NetStats(rows, selectedControllers);
                 return (
                   <>
@@ -7440,7 +7522,7 @@ function App() {
                   </>
                 );
               })()}
-              {fastControlMode === '伶俐' && (
+              {(selectedControlModes.includes('伶俐') || fastControlMode.includes('伶俐')) && (
                 <>
                   <span>•</span>
                   <span>伶俐智能管理：<strong style={{ color: '#10b981' }}>已選配 {selectedLingli.length} 項設備</strong></span>
