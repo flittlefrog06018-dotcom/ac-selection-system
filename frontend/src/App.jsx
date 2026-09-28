@@ -173,10 +173,22 @@ export const getIndoorModelClass = (modelStr, capKw) => {
   return Math.round(kw * 10);
 };
 
-// 🎯 大金家用多聯 (MULTI) 官方型錄室內外機相容性與組合級數檢驗
+// 🎯 大金家用多聯 (MULTI) 官方型錄室內外機相容性、空間數量與組合級數檢驗
 export const isOutdoorModelCompatibleWithIndoors = (outdoorModel, spacesList) => {
   if (!outdoorModel || !spacesList || spacesList.length === 0) return true;
   const m = outdoorModel.toUpperCase();
+  
+  // 🎯 核心原則：先優先判別同一套系統的空間數量 (室內機台數限制)
+  const totalUnits = spacesList.reduce((acc, sp) => acc + (parseInt(sp.unit_count) || 1), 0);
+  if (m.startsWith('2MXM') || m.startsWith('2MXP')) {
+    if (totalUnits > 2 || totalUnits < 2) return false;
+  } else if (m.startsWith('3MXM')) {
+    if (totalUnits > 3 || totalUnits < 2) return false;
+  } else if (m.startsWith('4MXM')) {
+    if (totalUnits > 4 || totalUnits < 2) return false;
+  } else if (m.startsWith('5MXM')) {
+    if (totalUnits > 5 || totalUnits < 2) return false;
+  }
   
   const indoorItems = spacesList.map(sp => {
     const cap = parseFloat(sp.cap_kw || lookupModelCapKw(sp.best_match_model)) || 0;
@@ -469,11 +481,33 @@ function App() {
       }
     }
 
+    // 🎯 規則 5：走 APP Wi-Fi 無線架構時不可搭配有線集中控制器
+    if (selectedControlModes.includes('APP')) {
+      const msg = '⚠️ 系統已選用 APP Wi-Fi 無線架構，不適用 D3-NET 有線集中控制器！';
+      setControllerAlertModal({ show: true, message: msg });
+      toast.warn(msg);
+      return;
+    }
+
+    // 🎯 規則 6 (原廠配線規範-單獨RA系統)：全場為 RA 系統搭配伶俐時，集中控制器請選用 DCS301B61 (ON/OFF)，不可搭配 DCS302CA61！
+    const isAllRA = rows.length > 0 && rows.every(r => (r.system_type || '').toUpperCase() === 'RA');
+    const hasLingliMode = selectedControlModes.includes('伶俐');
+    if (isAllRA && hasLingliMode && ctrl.model === 'DCS302CA61') {
+      const msg = '⚠️ 依據大金原廠單獨家用(RA)配線架構：搭配伶俐時請選用 DCS301B61 (ON/OFF 集控)，不可搭配 DCS302CA61 (中央集中控制器)！';
+      setControllerAlertModal({ show: true, message: msg });
+      toast.warn(msg);
+      return;
+    }
+
     setSelectedControllers(prev => [...prev, ctrl.model]);
   };
 
-  // 🎯 伶俐智能管理複選處理
+  // 🎯 伶俐智能管理複選處理 (走 APP Wi-Fi 無線架構時免用 DCPA01 轉接器)
   const handleToggleLingli = (item) => {
+    if (item.model === 'DCPA01' && selectedControlModes.includes('APP')) {
+      toast.warn('💡 走 APP Wi-Fi 無線架構時，設備與伶俐主機透過同區網無線連線，無需外加 DCPA01 轉接器！');
+      return;
+    }
     setSelectedLingli(prev => {
       if (prev.includes(item.model)) {
         return prev.filter(m => m !== item.model);
@@ -486,7 +520,7 @@ function App() {
   const [fastControlMode, setFastControlMode] = useState('無'); // 預設 '無' (保留向後相容)
   const [selectedControlModes, setSelectedControlModes] = useState(['無']); // 支援複選 (例如同時選 '集控' 與 '伶俐')
 
-  // 🎯 控制需求多選/互斥切換邏輯 (支援集中控制器與伶俐智能管理同時選用)
+  // 🎯 控制需求多選/互斥切換邏輯 (支援集中控制器與伶俐智能管理同時選用；走 APP Wi-Fi 架構時免用 DCPA01 與集控)
   const handleToggleControlMode = (mode) => {
     setSelectedControlModes(prev => {
       let updated;
@@ -498,7 +532,21 @@ function App() {
           updated = withoutNone.filter(m => m !== mode);
           if (updated.length === 0) updated = ['無'];
         } else {
-          updated = [...withoutNone, mode];
+          if (mode === 'APP') {
+            // 選用 APP：走 Wi-Fi 無線架構，不可併用有線集控，且 DCPA01 免用
+            updated = [...withoutNone.filter(m => m !== '集控'), mode];
+            setSelectedControllers([]);
+            setSelectedLingli(lPrev => lPrev.filter(item => item !== 'DCPA01'));
+            toast.info('💡 已啟用 APP 遠端控制（走 Wi-Fi 無線架構），不需外加 DCPA01 轉接器與有線集中控制器！');
+          } else if (mode === '集控') {
+            if (withoutNone.includes('APP')) {
+              toast.warn('⚠️ 走 APP Wi-Fi 無線架構時無需/不可搭配 D3-NET 有線集中控制器！如需使用集控，請先取消 APP 模式。');
+              return prev;
+            }
+            updated = [...withoutNone, mode];
+          } else {
+            updated = [...withoutNone, mode];
+          }
         }
       }
       setFastControlMode(updated.join('+'));
@@ -1022,10 +1070,27 @@ function App() {
         });
 
         const chunkSpaces = chunkIndices.map(idx => finalRows[idx]);
-        const capableCandidates = sortedCandidates.filter(m => getMaxConnectableCapKw(m.model, m.cap_kw) >= chunkIndoorKwSum && isOutdoorModelCompatibleWithIndoors(m.model, chunkSpaces));
+        const chunkUnits = chunkSpaces.reduce((acc, sp) => acc + (parseInt(sp.unit_count) || 1), 0);
+
+        // 🎯 核心原則：若遇到家用MULTI系列，先優先判別同一套系統的空間數量，下一步再根據冷房能力選定合適的容量
+        // 1. 空間數量嚴格篩選 (例如 4 台空間絕不可挑選僅支援 2~3 台的 2MXM/3MXM)
+        const unitFilteredCandidates = sortedCandidates.filter(m => {
+          const mUpper = (m.model || '').toUpperCase();
+          const maxU = mUpper.startsWith('2MX') ? 2 : (mUpper.startsWith('3MX') ? 3 : (mUpper.startsWith('4MX') ? 4 : (mUpper.startsWith('5MX') ? 5 : 99)));
+          const minU = (mUpper.startsWith('2MX') || mUpper.startsWith('3MX') || mUpper.startsWith('4MX') || mUpper.startsWith('5MX')) ? 2 : 1;
+          return chunkUnits >= minU && chunkUnits <= maxU;
+        });
+
+        // 2. 下一步：在符合空間數量的候選機中，依照冷房能力與相容性挑選合適的容量
+        const candidatesPool = unitFilteredCandidates.length > 0 ? unitFilteredCandidates : sortedCandidates;
+        const capableCandidates = candidatesPool.filter(m => 
+          getMaxConnectableCapKw(m.model, m.cap_kw) >= chunkIndoorKwSum && 
+          isOutdoorModelCompatibleWithIndoors(m.model, chunkSpaces)
+        );
+
         const matchedOutdoor = (capableCandidates.length > 0)
           ? capableCandidates[0]
-          : (sortedCandidates[sortedCandidates.length - 1] || { model: '4MXM110YVLT', cap_kw: 10.5 });
+          : (candidatesPool.filter(m => isOutdoorModelCompatibleWithIndoors(m.model, chunkSpaces))[0] || candidatesPool[candidatesPool.length - 1] || { model: '4MXM110YVLT', cap_kw: 10.5 });
 
         const colorObj = GROUP_COLOR_PALETTE[(groupNum - 1) % GROUP_COLOR_PALETTE.length];
         const outPrice = lookupOutdoorPrice(matchedOutdoor.model);
@@ -1178,7 +1243,7 @@ function App() {
 
     return { updatedRows: cleanedRows, groups: newGroups };
   };
-  // 🎯 統一選機：當空間資料或設備規格變動時自動執行配對與動態調整
+  // 🎯 統一選機：當空間資料或設備規格變動時自動執行配對與動態調整 (強化 VRV 同一套系統成組保證)
   useEffect(() => {
     if (rows.length > 0) {
       if (!fastSystem) {
@@ -1197,8 +1262,12 @@ function App() {
         }
         return;
       }
+
+      // 檢查是否所有或部分 VRV 空間尚未被納入群組
+      const hasUngroupedVRV = rows.some(r => (r.system_type === 'VRV' || (!r.system_type && fastSystem === 'VRV')) && (!r.outdoorGroupId || !outdoorGroups.some(g => g.id === r.outdoorGroupId)));
+
       // 若使用者已經手動拆分群組且群組數量 > 1，則僅針對各個別群組動態更新配對的室外機型號，不重置合併為全場單一系統
-      if (userHasCustomGroups && outdoorGroups.length > 1) {
+      if (userHasCustomGroups && outdoorGroups.length > 1 && !hasUngroupedVRV) {
         const activeSys = fastSystem;
         const activeSeries = fastSeries || '';
         const activeOutType = fastOutdoorType || (activeSys === 'VRV' ? '冷暖上吹型' : '側吹單風扇');
@@ -1234,10 +1303,10 @@ function App() {
         return;
       }
 
-      // 未進行手動拆分時，執行預設的智慧自動配對
-      const { updatedRows, groups } = autoGroupAllRows(rows, fastSystem, fastSeries, fastOutdoorType, fastOutdoorPower);
+      // 未進行手動拆分或存在未成組 VRV 時，執行預設的智慧自動配對（確保 VRV 室內機自動歸入同一套系統）
+      const { updatedRows, groups } = autoGroupAllRows(rows, fastSystem, fastSeries, fastOutdoorType, fastOutdoorPower, fastUnitType);
       
-      const needUpdate = groups.length !== outdoorGroups.length || 
+      const needUpdate = groups.length !== outdoorGroups.length || hasUngroupedVRV ||
         outdoorGroups.some((g, i) => g.outdoor_model !== groups[i]?.outdoor_model || g.power_supply !== groups[i]?.power_supply) ||
         rows.some((r, i) => r.outdoorGroupId !== updatedRows[i]?.outdoorGroupId || r.best_match_model !== updatedRows[i]?.best_match_model || r.outdoor_model !== updatedRows[i]?.outdoor_model);
 
@@ -1246,7 +1315,7 @@ function App() {
         setRows(updatedRows);
       }
     }
-  }, [fastSystem, fastSeries, fastOutdoorType, fastOutdoorPower, userHasCustomGroups]);
+  }, [fastSystem, fastSeries, fastOutdoorType, fastOutdoorPower, userHasCustomGroups, rows, currentStep]);
 
   const handleTableContextMenu = (e, index = null) => {
     e.preventDefault();
@@ -1369,29 +1438,29 @@ function App() {
       const isMultiSeries = seriesVal && (seriesVal.includes('MULTI') || seriesVal.includes('多聯'));
       const sorted = [...candidates].sort((a, b) => a.cap_kw - b.cap_kw);
       if (isMultiSeries || sorted.some(m => m.model.includes('MX'))) {
-        // 多聯室外機：優先挑選支援台數 >= totalUnits 且容量 (getMaxConnectableCapKw) >= sumKw 之室外機
-        // 多聯室外機：優先挑選支援台數 >= totalUnits、機型級數與雙機上限相容、且容量 (getMaxConnectableCapKw) >= sumKw 之室外機
-        const capableCandidates = sorted.filter(m => 
+        // 🎯 核心原則：若遇到家用MULTI系列，先優先判別同一套系統的空間數量，下一步再根據冷房能力選定合適的容量
+        // 1. 空間數量篩選 (例如 4 台空間絕不可挑選僅支援 2~3 台的 2MXM/3MXM)
+        const unitFiltered = sorted.filter(m => {
+          const maxU = getMaxUnitsForMultiModel(m.model);
+          const minU = (m.model.startsWith('2MX') || m.model.startsWith('3MX') || m.model.startsWith('4MX') || m.model.startsWith('5MX')) ? 2 : 1;
+          return totalUnits >= minU && totalUnits <= maxU;
+        });
+
+        const pool = unitFiltered.length > 0 ? unitFiltered : sorted;
+
+        // 2. 下一步：在符合空間數量的候選機中，依照冷房能力與相容性挑選合適的容量
+        const capableCandidates = pool.filter(m => 
           getMaxConnectableCapKw(m.model, m.cap_kw) >= sumKw && 
-          getMaxUnitsForMultiModel(m.model) >= totalUnits &&
           isOutdoorModelCompatibleWithIndoors(m.model, spacesList)
         );
         if (capableCandidates.length > 0) {
           return capableCandidates[0];
         }
-        // 次選：台數與機型相容者
-        const compatCandidates = sorted.filter(m => 
-          getMaxUnitsForMultiModel(m.model) >= totalUnits &&
-          isOutdoorModelCompatibleWithIndoors(m.model, spacesList)
-        );
+        const compatCandidates = pool.filter(m => isOutdoorModelCompatibleWithIndoors(m.model, spacesList));
         if (compatCandidates.length > 0) {
           return compatCandidates[0];
         }
-        const capOnly = sorted.filter(m => getMaxConnectableCapKw(m.model, m.cap_kw) >= sumKw);
-        if (capOnly.length > 0) {
-          return capOnly[0];
-        }
-        return sorted[sorted.length - 1];
+        return pool[pool.length - 1];
       } else {
         const matched = sorted.find(m => m.cap_kw >= sumKw) || sorted[sorted.length - 1];
         return matched;
@@ -1694,6 +1763,35 @@ function App() {
     // 🎯 核心雙向同步：當表格手動選擇室外機型號時，上方工具列之型式與電源規格即刻對應同步！
     if (modelOutType) setFastOutdoorType(modelOutType);
     if (modelPower) setFastOutdoorPower(modelPower);
+
+    if (groupId === '__fallback_vrv_system__') {
+      const newGId = 'group-vrv-1';
+      const isVrv = r => (r.system_type === 'VRV' || (!r.system_type && fastSystem === 'VRV'));
+      const vIndices = rows.map((r, i) => isVrv(r) && !r.outdoorGroupId ? i : null).filter(i => i !== null);
+      const newGroup = {
+        id: newGId,
+        name: `VRV 系統 (${modelVal})`,
+        system_type: 'VRV',
+        outdoor_model: modelVal,
+        outdoor_cap_kw: capKw,
+        outdoor_cap_index: matched?.cap_index || (capKw * 10),
+        outdoor_count: 1,
+        outdoor_price: price,
+        power_supply: modelPower || fastOutdoorPower || '3φ, 4P, 380V, 60Hz',
+        color: GROUP_COLOR_PALETTE[0],
+        space_indices: vIndices
+      };
+      setOutdoorGroups(prev => [...prev.filter(g => g.id !== newGId), newGroup]);
+      setRows(prev => prev.map(r => (isVrv(r) && !r.outdoorGroupId) ? {
+        ...r,
+        outdoorGroupId: newGId,
+        outdoor_model: modelVal,
+        outdoor_price: price,
+        outdoor_type: modelOutType || r.outdoor_type,
+        power_supply: modelPower || r.power_supply
+      } : r));
+      return;
+    }
 
     setOutdoorGroups(prev => prev.map(g => {
       if (g.id === groupId) {
@@ -2052,14 +2150,13 @@ function App() {
         is_matched: true
       };
 
-      const newIdx = rows.length;
-      setRows(prev => [...prev, newRow]);
+      const combinedRows = [...rows, newRow];
+      const { updatedRows: autoRows, groups: autoGroups } = autoGroupAllRows(
+        combinedRows, fastSystem, fastSeries, fastOutdoorType, fastOutdoorPower, fastUnitType
+      );
+      setRows(autoRows);
+      setOutdoorGroups(autoGroups);
       toast.success(`🪣 漆桶發散成功！已自動框選【${resolvedSpaceName}】(${realAreaM2}㎡ / ${realAreaPing}坪)！`);
-
-      // 🎯 即時啟動圖片局部 OCR 視覺辨識文字標籤 (如「主臥室」、「客廳」、「臥室」)
-      setTimeout(() => {
-        triggerOCRForSpace(newIdx, polygonPts);
-      }, 100);
     } catch (err) {
       console.warn("Bucket fill error:", err);
       toast.error("漆桶發散計算時發生異常！");
@@ -2082,6 +2179,7 @@ function App() {
   const previewBoxRef = useRef(null);
 
   // 🎯 局部圖片裁切與 OCR 自動辨識房間名稱
+  // 🎯 局部圖片裁切與 OCR 自動辨識房間名稱 (解析度強化與防切邊邊距)
   const cropRoomImageBase64 = (polygonPts) => {
     try {
       const imgEl = modalImgRef.current || imgRef.current;
@@ -2097,8 +2195,9 @@ function App() {
         if (pt[1] > maxY) maxY = pt[1];
       });
 
-      const padX = 25;
-      const padY = 25;
+      // 🎯 外擴 35px 邊距，確保不會切斷「集合住宅」、「主臥室」等邊緣文字標籤
+      const padX = 35;
+      const padY = 35;
       minX = Math.max(0, minX - padX);
       maxX = Math.min(1000, maxX + padX);
       minY = Math.max(0, minY - padY);
@@ -2106,15 +2205,21 @@ function App() {
 
       const cropX = Math.round((minX / 1000.0) * w);
       const cropY = Math.round((minY / 1000.0) * h);
-      const cropW = Math.max(10, Math.round(((maxX - minX) / 1000.0) * w));
-      const cropH = Math.max(10, Math.round(((maxY - minY) / 1000.0) * h));
+      const cropW = Math.max(20, Math.round(((maxX - minX) / 1000.0) * w));
+      const cropH = Math.max(20, Math.round(((maxY - minY) / 1000.0) * h));
+
+      // 🎯 若裁切區域較小，插值放大至至少 350x350 像素，大幅提高 OCR 辨識準確率
+      const targetW = Math.max(cropW, 350);
+      const targetH = Math.max(cropH, 350);
 
       const canvas = document.createElement('canvas');
-      canvas.width = cropW;
-      canvas.height = cropH;
+      canvas.width = targetW;
+      canvas.height = targetH;
       const ctx = canvas.getContext('2d');
-      ctx.drawImage(imgEl, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
-      return canvas.toDataURL('image/jpeg', 0.85);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(imgEl, cropX, cropY, cropW, cropH, 0, 0, targetW, targetH);
+      return canvas.toDataURL('image/jpeg', 0.90);
     } catch (e) {
       return null;
     }
@@ -2150,7 +2255,7 @@ function App() {
           const targetRow = prevRows[spaceIndex];
           const baseKcal = getFuzzyBaseLoadByName(finalName);
           const initialDemand = Math.round(targetRow.area_ping * baseKcal);
-          const activeSys = targetRow.system_type || fastSystem;
+          const activeSys = targetRow.system_type || fastSystem || "VRV";
           const autoMatch = activeSys ? clientSideSelectEquipment(initialDemand, activeSys, targetRow.series || fastSeries, targetRow.unit_type || fastUnitType) : { model: '', qty: 1, cap: 0 };
 
           const newRows = [...prevRows];
@@ -2165,7 +2270,7 @@ function App() {
           };
           return newRows;
         });
-        toast.success(`✨ OCR 自動辨識圖面標籤：【${recognizedName}】！`);
+        toast.success(`✨ 自動辨識空間標籤：【${recognizedName}】！`);
       }
     } catch (e) {
       console.log("OCR failed:", e);
@@ -2654,20 +2759,6 @@ function App() {
     // 🎯 核心防護：若使用者已手動/漆桶標定空間 (rows.length > 0 且包含多邊形)，100% 嚴格保留使用者劃定之真實面積與多邊形！
     const userCustomRows = rows.filter(r => r.polygon && Array.isArray(r.polygon) && r.polygon.length >= 3);
     if (userCustomRows.length > 0) {
-      setLoading(true);
-      toast.info(`🎯 偵測到您在圖面上標定的 ${userCustomRows.length} 個空間！正在保留精確面積並動態辨識空間名稱...`);
-      try {
-        // 對尚未辨識或為預設名稱的空間觸發局部 OCR 辨識
-        userCustomRows.forEach((r, idx) => {
-          if (!r.space_name || r.space_name.startsWith("空間 ")) {
-            triggerOCRForSpace(idx, r.polygon);
-          }
-        });
-      } catch (err) {
-        console.warn("OCR room recognition warning:", err);
-      } finally {
-        setLoading(false);
-      }
       setCurrentStep(2);
       toast.success(`✅ 已精確保留圖面標定的 ${userCustomRows.length} 個空間面積與多邊形！已推進至「第二步：室內負荷與室內機選型」。`);
       return;
@@ -2755,9 +2846,11 @@ function App() {
                 is_matched: true
               };
             });
-            setRows(normalizedData);
+            const { updatedRows: groupedRows, groups: initialGroups } = autoGroupAllRows(normalizedData, activeSys, activeSeries, fastOutdoorType, fastOutdoorPower, activeType);
+            setRows(groupedRows);
+            setOutdoorGroups(initialGroups);
             isBackendSuccess = true;
-            toast.success(`✨ 已連線 Python 雲端 AI 引擎！精準解析出 ${normalizedData.length} 個動態空間。`);
+            toast.success(`✨ 已連線 Python 雲端 AI 引擎！精準解析出 ${groupedRows.length} 個動態空間。`);
           }
         }
       } catch (err) {
@@ -2815,8 +2908,10 @@ function App() {
               is_matched: true
             };
           });
-          setRows(normalizedData);
-          toast.success(`✨ 圖面自動解析成功！已自動帶入 ${normalizedData.length} 個空間名稱、真實面積與大金選機數據！`);
+          const { updatedRows: groupedRows, groups: initialGroups } = autoGroupAllRows(normalizedData, activeSys, activeSeries, fastOutdoorType, fastOutdoorPower, activeType);
+          setRows(groupedRows);
+          setOutdoorGroups(initialGroups);
+          toast.success(`✨ 圖面自動解析成功！已自動帶入 ${groupedRows.length} 個空間名稱、真實面積與大金選機數據！`);
         } else {
           toast.info("💡 圖面自動解析完成！請使用 [🪣 漆桶發散] 或 [🟩 矩形拉框] 點擊標定空間！");
         }
@@ -3319,9 +3414,13 @@ function App() {
           // 1對多 (VRV 或 家用多聯)
           const dispSys = sysT.includes("VRV") ? "VRV 系統" : "RA 家用多聯";
           if (outM && outM !== "-") {
+            const outCap = outObj?.cap_kw || (OUTDOOR_UNITS_DB.find(m => m.model === outM)?.cap_kw) || 0;
             equipItems.push({
               sys_cat: dispSys,
               name: `${dispSys}室外機 (${outM})`,
+              model: outM,
+              is_outdoor: true,
+              cap_kw: outCap,
               qty: outQ,
               unit: "台",
               unit_price: outPrice,
@@ -3337,9 +3436,13 @@ function App() {
           Object.entries(inCounts).forEach(([inModel, inQty]) => {
             const inObj = EQUIPMENT_FULL_DB.indoor_units ? EQUIPMENT_FULL_DB.indoor_units[inModel.toUpperCase()] : null;
             const inPrice = inObj && inObj.price ? parseFloat(inObj.price) : null;
+            const inCap = inObj?.cap_kw || lookupModelCapKw(inModel) || 0;
             equipItems.push({
               sys_cat: dispSys,
               name: `${dispSys}室內機 (${inModel})`,
+              model: inModel,
+              is_outdoor: false,
+              cap_kw: inCap,
               qty: inQty,
               unit: "台",
               unit_price: inPrice,
@@ -3360,6 +3463,38 @@ function App() {
         }
       });
       const finalEquipItems = Array.from(aggregatedEquipMap.values());
+
+      // 🎯 核心排序規範：家用多聯/VRV 等多聯系統，室外機優先依容量從小到大放置於上方，接著再依序排列室內機 (同樣由容量小到大排列)
+      finalEquipItems.sort((a, b) => {
+        const aIsOut = Boolean(a.is_outdoor || a.name.includes("室外機"));
+        const bIsOut = Boolean(b.is_outdoor || b.name.includes("室外機"));
+        if (aIsOut !== bIsOut) {
+          return aIsOut ? -1 : 1; // 室外機優先排在上方
+        }
+
+        const getCap = (it) => {
+          if (it.cap_kw && !isNaN(it.cap_kw) && it.cap_kw > 0) return parseFloat(it.cap_kw);
+          const m = (it.model || it.name || "").toUpperCase();
+          const outMatch = OUTDOOR_UNITS_DB.find(o => o.model === it.model || m.includes(o.model));
+          if (outMatch && outMatch.cap_kw) return parseFloat(outMatch.cap_kw);
+          const kw = lookupModelCapKw(it.model || it.name);
+          if (kw && kw > 0) return kw;
+          // 自型號提取級數數字 (例如 2MXP50ZVLT -> 50, FTHF20ZVLT -> 20)
+          const nums = m.match(/\d+/g);
+          if (nums && nums.length > 0) {
+            return parseFloat(nums[nums.length - 1]);
+          }
+          return 0;
+        };
+
+        const capA = getCap(a);
+        const capB = getCap(b);
+        if (capA !== capB) {
+          return capA - capB; // 容量從小到大
+        }
+
+        return a.name.localeCompare(b.name, "zh-Hant");
+      });
 
       // 2. 整理其他配件清單 (參照 EQUIPMENT_Data)
       const accessoryItems = [];
@@ -3386,27 +3521,11 @@ function App() {
         });
       }
 
-      // VRV 冷媒分歧管 (統計 VRV 室外機下連接之分歧需求)
-      let vrvIndoorTotal = 0;
-      flatRowsToRender.forEach((r) => {
-        const sysT = (r.system_type || fastSys || "").toUpperCase();
-        if (sysT.includes("VRV")) vrvIndoorTotal += parseInt(r.unit_count) || 1;
-      });
-      if (vrvIndoorTotal >= 2) {
-        accessoryItems.push({
-          cat: "冷媒配件",
-          name: "VRV 冷媒分歧管 (KHRP26A22T)",
-          qty: vrvIndoorTotal - 1,
-          unit: "套",
-          unit_price: ACCESSORY_PRICE_MAP["KHRP26A22T"] || 1700,
-          notes: "含原廠專用保溫材",
-        });
-      }
-
       // 🎯 APP 遠端控制配件精準對應 (參照 EQUIPMENT_Data controller&pipe)
       const ctrlModeStr = String(fastCtrlMode || "").toUpperCase();
       const hasApp = ctrlModeStr.includes("APP") || (selectedControlModes && selectedControlModes.includes("APP")) || flatRowsToRender.some(r => String(r.control_mode || "").toUpperCase().includes("APP"));
-      const hasCentral = ctrlModeStr.includes("集控") || ctrlModeStr.includes("CENTRAL") || (selectedControlModes && selectedControlModes.includes("集控")) || (selectedControllers && selectedControllers.length > 0) || flatRowsToRender.some(r => String(r.control_mode || "").includes("集控"));
+      // 走 APP Wi-Fi 無線架構時，不輸出集中控制器與集控轉接基板
+      const hasCentral = !hasApp && (ctrlModeStr.includes("集控") || ctrlModeStr.includes("CENTRAL") || (selectedControlModes && selectedControlModes.includes("集控")) || (selectedControllers && selectedControllers.length > 0) || flatRowsToRender.some(r => String(r.control_mode || "").includes("集控")));
 
       if (hasApp) {
         const appReceiverCounts = {};
@@ -3530,6 +3649,8 @@ function App() {
         // 🎯 匯出已勾選之伶俐智控配件
         if (selectedLingli && selectedLingli.length > 0) {
           selectedLingli.forEach(lModel => {
+            // 🎯 走 APP Wi-Fi 無線架構時，設備與伶俐主機透過同區網無線連線，無需外加 DCPA01 轉接器
+            if (hasApp && lModel === 'DCPA01') return;
             const item = LINGLI_CANDIDATES.find(c => c.model === lModel);
             if (item) {
               accessoryItems.push({
@@ -3543,6 +3664,23 @@ function App() {
             }
           });
         }
+      }
+
+      // 🎯 VRV 冷媒分歧管 (置於所有控制配件下方，參照 EQUIPMENT_Data controller&pipe)
+      let vrvIndoorTotal = 0;
+      flatRowsToRender.forEach((r) => {
+        const sysT = (r.system_type || fastSys || "").toUpperCase();
+        if (sysT.includes("VRV")) vrvIndoorTotal += parseInt(r.unit_count) || 1;
+      });
+      if (vrvIndoorTotal >= 2) {
+        accessoryItems.push({
+          cat: "冷媒配件",
+          name: "VRV 冷媒分歧管 (KHRP26A22T)",
+          qty: vrvIndoorTotal - 1,
+          unit: "套",
+          unit_price: ACCESSORY_PRICE_MAP["KHRP26A22T"] || 1700,
+          notes: "含原廠專用保溫材",
+        });
       }
 
       // 3. 渲染報價單工作表 (取消項次B欄位，首欄為系統類別)
@@ -3773,6 +3911,7 @@ function App() {
       // 1. 【設備統計總表】
       // ========================================================
       const ws1 = wb.addWorksheet("設備統計總表");
+      ws1.state = "hidden"; // 🎯 預設隱藏分頁
       ws1.views = [{ showGridLines: true }];
 
       // 設定欄寬
@@ -3975,6 +4114,7 @@ function App() {
       // 3. 【D3-NET分析】
       // ========================================================
       const ws3 = wb.addWorksheet("D3-NET分析");
+      ws3.state = "hidden"; // 🎯 預設隱藏分頁
       ws3.views = [{ showGridLines: true }];
       [4, 26, 14, 4, 26, 14, 4, 30, 16, 16].forEach((w, idx) => {
         ws3.getColumn(idx + 1).width = w;
@@ -4231,6 +4371,7 @@ function App() {
         excelRow.getCell(10).value = { formula: `H${rowIdx}/0.86*0.3025`, result: parseFloat(((basis / 0.86) * 0.3025).toFixed(2)) }; // Col J: 每坪建議負荷值 (W/㎡)
         excelRow.getCell(11).value = kwPerPing;                               // Col K: (kW/坪)
         excelRow.getCell(12).value = demandKw;                                // Col L: 總熱負荷 (kW)
+        excelRow.getCell(12).numFmt = '0.0';
         excelRow.getCell(13).value = demandKcal;                              // Col M: 總熱負荷 (kcal/hr)
         excelRow.getCell(14).value = modelStr;                                // Col N: 室內機型號
         excelRow.getCell(15).value = qty;                                     // Col O: 室內機台數
@@ -4394,6 +4535,16 @@ function App() {
         }
       }
 
+      // 🎯 依指示：僅保留「選機」、「設備報價單」和「系統套數」三個分頁顯示，其餘分頁一律隱藏
+      const ALLOWED_VISIBLE_SHEETS = new Set(["選機", "選機表", "設備報價單", "系統套數"]);
+      wb.worksheets.forEach((sheet) => {
+        if (ALLOWED_VISIBLE_SHEETS.has(sheet.name)) {
+          sheet.state = "visible";
+        } else {
+          sheet.state = "hidden";
+        }
+      });
+
       const outBuffer = await wb.xlsx.writeBuffer();
       const blob = new Blob([outBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
       const downloadFileName = `選機表-${baseCaseName}.xlsx`;
@@ -4492,7 +4643,7 @@ function App() {
             special_heat_kcal: 0,
             total_cooling_load_kcal: demandKcal,
             total_load_kcal: demandKcal,
-            total_load_kw: parseFloat((demandKcal / 860.0).toFixed(2)),
+            total_load_kw: parseFloat((demandKcal / 860.0).toFixed(1)),
             recommended_model: indoorModelStr,
             indoor_model: indoorModelStr,
             best_match_model: indoorModelStr,
@@ -4710,10 +4861,11 @@ function App() {
       };
 
       const newRows = [...validPolygonRows, newSpaceRow];
-      setTimeout(() => {
-        triggerOCRForSpace(validPolygonRows.length, pts);
-      }, 100);
-      return newRows;
+      const { updatedRows: autoRows, groups: autoGroups } = autoGroupAllRows(
+        newRows, fastSystem, fastSeries, fastOutdoorType, fastOutdoorPower, fastUnitType
+      );
+      setOutdoorGroups(autoGroups);
+      return autoRows;
     });
     setPlinePoints([]);
     toast.success(`✅ 已成功劃定【空間】 (${realAreaM2}㎡ / ${realAreaPing}坪)！`);
@@ -4758,7 +4910,14 @@ function App() {
               <button
                 key={step.id}
                 type="button"
-                onClick={() => setCurrentStep(step.id)}
+                onClick={() => {
+                  if (step.id === 4 && !userHasCustomGroups && rows.length > 0) {
+                    const { updatedRows, groups } = autoGroupAllRows(rows, fastSystem, fastSeries, fastOutdoorType, fastOutdoorPower, fastUnitType);
+                    setRows(updatedRows);
+                    setOutdoorGroups(groups);
+                  }
+                  setCurrentStep(step.id);
+                }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -5420,23 +5579,28 @@ function App() {
                     }));
 
                     // 🎯 即刻連動並全場更新現有所有空間的精確面積與大金選機 (參考 V2.10.1 原則)
-                    setRows(prevRows => prevRows.map(row => {
-                      if (!row.polygon || row.polygon.length < 3) return row;
-                      const realAreaM2 = calculateRealAreaFromPolygon(row.polygon, ratio, imgW, imgH);
-                      const realAreaPing = parseFloat((realAreaM2 * 0.3025).toFixed(2));
-                      const baseKcal = row.calc_basis || 520;
-                      const initialDemand = Math.round(realAreaPing * baseKcal);
-                      const autoMatch = clientSideSelectEquipment(initialDemand, row.system_type || "VRV", row.series, row.unit_type);
-                      return {
-                        ...row,
-                        area_m2: realAreaM2,
-                        area_ping: realAreaPing,
-                        total_cooling_demand: initialDemand,
-                        best_match_model: autoMatch.model,
-                        unit_count: autoMatch.qty,
-                        cap_kw: autoMatch.cap
-                      };
-                    }));
+                    setRows(prevRows => {
+                      const updated = prevRows.map(row => {
+                        if (!row.polygon || row.polygon.length < 3) return row;
+                        const realAreaM2 = calculateRealAreaFromPolygon(row.polygon, ratio, imgW, imgH);
+                        const realAreaPing = parseFloat((realAreaM2 * 0.3025).toFixed(2));
+                        const baseKcal = row.calc_basis || 520;
+                        const initialDemand = Math.round(realAreaPing * baseKcal);
+                        const autoMatch = clientSideSelectEquipment(initialDemand, row.system_type || "VRV", row.series, row.unit_type);
+                        return {
+                          ...row,
+                          area_m2: realAreaM2,
+                          area_ping: realAreaPing,
+                          total_cooling_demand: initialDemand,
+                          best_match_model: autoMatch.model,
+                          unit_count: autoMatch.qty,
+                          cap_kw: autoMatch.cap
+                        };
+                      });
+                      const { updatedRows: reGroupedRows, groups: reGroupedGroups } = autoGroupAllRows(updated, fastSystem, fastSeries, fastOutdoorType, fastOutdoorPower, fastUnitType);
+                      setOutdoorGroups(reGroupedGroups);
+                      return reGroupedRows;
+                    });
 
                     toast.success(`📏 比例尺放樣成功！基準: ${doorCm}cm (${Math.round(distPxRaw)}px)，已連動更新現有空間面積！`);
                   }
@@ -5475,23 +5639,28 @@ function App() {
                     }));
 
                     // 🎯 即刻連動並全場更新現有所有空間的精確面積與大金選機
-                    setRows(prevRows => prevRows.map(row => {
-                      if (!row.polygon || row.polygon.length < 3) return row;
-                      const realAreaM2 = calculateRealAreaFromPolygon(row.polygon, ratio, imgW, imgH);
-                      const realAreaPing = parseFloat((realAreaM2 * 0.3025).toFixed(2));
-                      const baseKcal = row.calc_basis || 520;
-                      const initialDemand = Math.round(realAreaPing * baseKcal);
-                      const autoMatch = clientSideSelectEquipment(initialDemand, row.system_type || "VRV", row.series, row.unit_type);
-                      return {
-                        ...row,
-                        area_m2: realAreaM2,
-                        area_ping: realAreaPing,
-                        total_cooling_demand: initialDemand,
-                        best_match_model: autoMatch.model,
-                        unit_count: autoMatch.qty,
-                        cap_kw: autoMatch.cap
-                      };
-                    }));
+                    setRows(prevRows => {
+                      const updated = prevRows.map(row => {
+                        if (!row.polygon || row.polygon.length < 3) return row;
+                        const realAreaM2 = calculateRealAreaFromPolygon(row.polygon, ratio, imgW, imgH);
+                        const realAreaPing = parseFloat((realAreaM2 * 0.3025).toFixed(2));
+                        const baseKcal = row.calc_basis || 520;
+                        const initialDemand = Math.round(realAreaPing * baseKcal);
+                        const autoMatch = clientSideSelectEquipment(initialDemand, row.system_type || "VRV", row.series, row.unit_type);
+                        return {
+                          ...row,
+                          area_m2: realAreaM2,
+                          area_ping: realAreaPing,
+                          total_cooling_demand: initialDemand,
+                          best_match_model: autoMatch.model,
+                          unit_count: autoMatch.qty,
+                          cap_kw: autoMatch.cap
+                        };
+                      });
+                      const { updatedRows: reGroupedRows, groups: reGroupedGroups } = autoGroupAllRows(updated, fastSystem, fastSeries, fastOutdoorType, fastOutdoorPower, fastUnitType);
+                      setOutdoorGroups(reGroupedGroups);
+                      return reGroupedRows;
+                    });
 
                     toast.success(`📏 已成功點選門框兩點！測得長度: ${Math.round(distPxRaw)}px，已完成 ${doorCm}cm 精確放樣連動校正！`);
                   } else {
@@ -5840,18 +6009,74 @@ function App() {
           overflowY: 'auto',
           overflowX: 'hidden'
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '10px', flexShrink: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ ...styles.cardTitle, marginBottom: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span>📈 工程負荷試算與大金配機建議表</span>
-                <span style={{ fontSize: '11.5px', color: '#94a3b8', fontWeight: 'bold', backgroundColor: '#1e293b', padding: '2px 8px', borderRadius: '4px', border: '1px solid #334155' }}>
-                  v2.21.0 (2026.09.26 00:10)
-                </span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '8px', flexShrink: 0 }}>
+            <div style={{ ...styles.cardTitle, marginBottom: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span>📈 工程負荷試算與大金配機建議表</span>
+            </div>
+
+            {/* 🎯 右手邊：空間/負荷/方案即時統計與匯出報價單按鈕 (整合自原底欄) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '12px', color: '#94a3b8', backgroundColor: '#0f172a', padding: '5px 12px', borderRadius: '6px', border: '1px solid #1e293b' }}>
+                <span>規劃空間：<strong style={{ color: '#38bdf8' }}>{rows.length}</strong> 間</span>
+                <span>•</span>
+                <span>總需求：<strong style={{ color: '#a855f7' }}>{rows.reduce((acc, r) => acc + (parseFloat(r.cap_kw) || 0) * (parseInt(r.unit_count) || 1), 0).toFixed(1)}</strong> kW</span>
+                {currentStep === 5 && (
+                  <>
+                    <span>•</span>
+                    <span>控制方案：<strong style={{ color: '#f59e0b' }}>
+                      {selectedControlModes.includes('無') && selectedControlModes.length === 1
+                        ? '一般遙控器'
+                        : selectedControlModes.map(m => m === 'APP' ? 'APP' : (m === '集控' ? '集中控制器' : (m === '伶俐' ? '伶俐' : m))).join(' ＋ ')
+                      }
+                    </strong></span>
+                    {(selectedControlModes.includes('集控') || fastControlMode.includes('集控')) && (() => {
+                      const d3 = calculateD3NetStats(rows, selectedControllers);
+                      return (
+                        <>
+                          <span>•</span>
+                          <span>D3-NET：<strong style={{ color: '#38bdf8' }}>{d3.suggestedPorts} Port</strong></span>
+                        </>
+                      );
+                    })()}
+                    {(selectedControlModes.includes('伶俐') || fastControlMode.includes('伶俐')) && (
+                      <>
+                        <span>•</span>
+                        <span>伶俐：<strong style={{ color: '#10b981' }}>{selectedLingli.length} 項</strong></span>
+                      </>
+                    )}
+                  </>
+                )}
               </div>
-              
-              <span style={{ fontSize: '12.5px', color: '#38bdf8', fontWeight: 'bold' }}>
-                💡 統一智慧選機：上方可設定設備規格並批次套用，下方表格亦可針對個別空間自由微調系列或拆分系統！
-              </span>
+
+              {/* 🎯 匯出選機與報價表按鈕 */}
+              <button
+                type="button"
+                onClick={handleExportExcel}
+                disabled={exportLoading || rows.length === 0}
+                style={{
+                  backgroundColor: rows.length === 0 ? '#334155' : '#059669',
+                  color: '#ffffff',
+                  border: 'none',
+                  padding: '6px 16px',
+                  borderRadius: '6px',
+                  fontSize: '12.5px',
+                  fontWeight: 'bold',
+                  cursor: rows.length === 0 ? 'not-allowed' : 'pointer',
+                  boxShadow: rows.length === 0 ? 'none' : '0 2px 10px rgba(5, 150, 105, 0.4)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.2s ease',
+                  whiteSpace: 'nowrap'
+                }}
+                title={rows.length === 0 ? "尚無空間可匯出" : "匯出完整選機表與設備報價單試算表"}
+              >
+                {exportLoading ? (
+                  <span>⏳ 正在產生檔案...</span>
+                ) : (
+                  <span>📊 匯出完整選機與報價表 (.xlsx)</span>
+                )}
+              </button>
             </div>
           </div>
 
@@ -6196,6 +6421,11 @@ function App() {
                   <button
                     type="button"
                     onClick={() => {
+                      if (!userHasCustomGroups || rows.some(r => (r.system_type === 'VRV' || fastSystem === 'VRV') && !r.outdoorGroupId)) {
+                        const { updatedRows, groups } = autoGroupAllRows(rows, fastSystem, fastSeries, fastOutdoorType, fastOutdoorPower, fastUnitType);
+                        setRows(updatedRows);
+                        setOutdoorGroups(groups);
+                      }
                       setCurrentStep(4);
                       toast.success('✨ 室內機已確定！進入第四步：室外機選用');
                     }}
@@ -6265,31 +6495,48 @@ function App() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
                 {[
-                  { mode: '無', title: '無控制需求', desc: '標準配置：各空間採用標準紅外線無線遙控器或有線液晶遙控器。', color: '#64748b' },
-                  { mode: 'APP', title: 'APP 遠端控制', desc: '智慧升級：選配 Daikin Mobile Controller，手機平板遠端遙控與定時。', color: '#0284c7' },
+                  { mode: '無', title: '無需求', desc: '標準配置：各空間採用標準紅外線無線遙控器或有線液晶遙控器。', color: '#64748b' },
+                  { mode: 'APP', title: 'APP 遠端控制', desc: '智慧升級：選配 Daikin Mobile Controller，走 Wi-Fi 無線架構，手機平板遠端遙控與定時。', color: '#0284c7' },
                   { mode: '集控', title: '集中控制器', desc: '商用集控：選配 Daikin 集中控制盤或 Intelligent Touch Manager (iTM) 集中監控各樓層。', color: '#8b5cf6' },
-                  { mode: '伶俐', title: '伶俐智能管理', desc: '智慧節能：選配大金伶俐用轉接器 (DCPA01) 與伶俐智控管理器 (DCPF01/DCPH01H)，提供智慧雲端能耗管理與排程。', color: '#10b981' }
+                  { mode: '伶俐', title: '伶俐智能管理', desc: '智慧節能：選配大金伶俐智控管理器 (DCPF01/DCPH01H)，提供智慧雲端能耗管理與排程。', color: '#10b981' }
                 ].map(opt => {
                   const isChecked = selectedControlModes.includes(opt.mode);
+                  const isAppActive = selectedControlModes.includes('APP');
+                  const isDisabled = (opt.mode === '集控' && isAppActive);
+
                   return (
                     <div
                       key={opt.mode}
-                      onClick={() => handleToggleControlMode(opt.mode)}
+                      onClick={() => {
+                        if (isDisabled) {
+                          toast.warn('⚠️ 走 APP Wi-Fi 無線架構時不需/不可搭配集中控制器！');
+                          return;
+                        }
+                        handleToggleControlMode(opt.mode);
+                      }}
                       style={{
                         padding: '6px 10px',
                         borderRadius: '6px',
-                        border: isChecked ? `2px solid ${opt.color}` : '1px solid #334155',
-                        backgroundColor: isChecked ? 'rgba(2, 132, 199, 0.15)' : '#1e293b',
-                        cursor: 'pointer',
+                        border: isDisabled ? '1px dashed #64748b' : (isChecked ? `2px solid ${opt.color}` : '1px solid #334155'),
+                        backgroundColor: isDisabled ? '#1e293b' : (isChecked ? 'rgba(2, 132, 199, 0.15)' : '#1e293b'),
+                        cursor: isDisabled ? 'not-allowed' : 'pointer',
+                        opacity: isDisabled ? 0.45 : 1,
                         transition: 'all 0.15s ease',
-                        boxShadow: isChecked ? `0 0 10px ${opt.color}55` : 'none',
+                        boxShadow: (isChecked && !isDisabled) ? `0 0 10px ${opt.color}55` : 'none',
                         position: 'relative'
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '3px' }}>
-                        <span style={{ fontSize: '14px', fontWeight: 'bold', color: isChecked ? '#38bdf8' : '#f8fafc', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          {opt.title}
-                          {isChecked && opt.mode !== '無' && (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '21px', fontWeight: 'bold', color: isDisabled ? '#94a3b8' : (isChecked ? '#38bdf8' : '#f8fafc'), lineHeight: 1.2 }}>
+                            {opt.title}
+                          </span>
+                          {isDisabled && (
+                            <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '3px', backgroundColor: '#334155', color: '#f87171', border: '1px solid #64748b' }}>
+                              🚫 無線架構免用
+                            </span>
+                          )}
+                          {!isDisabled && isChecked && opt.mode !== '無' && (
                             <span style={{ fontSize: '10.5px', padding: '1px 5px', borderRadius: '3px', backgroundColor: `${opt.color}33`, color: opt.color, border: `1px solid ${opt.color}` }}>
                               已啟用
                             </span>
@@ -6297,21 +6544,47 @@ function App() {
                         </span>
                         <input
                           type="checkbox"
-                          checked={isChecked}
+                          checked={isChecked && !isDisabled}
+                          disabled={isDisabled}
                           onChange={(e) => {
                             e.stopPropagation();
+                            if (isDisabled) return;
                             handleToggleControlMode(opt.mode);
                           }}
-                          style={{ cursor: 'pointer', width: '15px', height: '15px', accentColor: opt.color }}
+                          style={{ cursor: isDisabled ? 'not-allowed' : 'pointer', width: '15px', height: '15px', accentColor: opt.color }}
                         />
                       </div>
-                      <div style={{ fontSize: '11.5px', color: '#94a3b8', lineHeight: '1.3' }}>
+                      <div style={{ fontSize: '11.5px', color: isDisabled ? '#64748b' : '#94a3b8', lineHeight: '1.3' }}>
                         {opt.desc}
                       </div>
                     </div>
                   );
                 })}
               </div>
+
+              {/* 🎯 APP 遠端控制 Wi-Fi 無線架構提醒詞 Banner */}
+              {selectedControlModes.includes('APP') && (
+                <div style={{
+                  marginTop: '8px',
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  backgroundColor: 'rgba(2, 132, 199, 0.12)',
+                  border: '1.5px solid #0284c7',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  boxShadow: '0 2px 8px rgba(2, 132, 199, 0.2)'
+                }}>
+                  <span style={{ fontSize: '20px', flexShrink: 0 }}>💡</span>
+                  <div style={{ fontSize: '12.5px', color: '#e0f2fe', lineHeight: '1.45' }}>
+                    <strong style={{ color: '#38bdf8' }}>【Wi-Fi 無線架構提醒】：</strong>
+                    目前已選用 <strong>APP 遠端控制</strong>（走 Wi-Fi 無線架構，各室內機選配無線控制模組/APP卡）。
+                    若同步選用「<strong>伶俐智能管理</strong>」，設備將透過同區域網路 Wi-Fi 直接連線，
+                    <strong style={{ color: '#facc15' }}>無需外加 DCPA01 轉接器與 DCS301B61 集中控制器</strong>！
+                    系統已自動將不適用的集中控制器與 DCPA01 轉接器標示為<span style={{ color: '#f87171', fontWeight: 'bold' }}>灰底鎖定</span>，避免重複選購。
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -6433,24 +6706,62 @@ function App() {
                 ) : rows.length === 0 ? (
                   <tr><td colSpan={currentStep === 2 ? 6 : (currentStep === 3 ? 11 : ((fastSystem === "VRV" || rows.some(r => r.system_type === "VRV")) ? 12 : 11))} style={{ textAlign: 'center', padding: '30px', color: '#475569' }}>暫無數據。請上傳圖面並執行解析。</td></tr>
                 ) : (
-                  rows.map((row, index) => {
-                    const gCard = outdoorGroups.find(g => g.id === row.outdoorGroupId);
-                    const SOLID_GROUP_BGS = {
-                      'rgba(59, 130, 246, 0.32)': '#132247',
-                      'rgba(16, 185, 129, 0.32)': '#0c2e24',
-                      'rgba(245, 158, 11, 0.32)': '#33240d',
-                      'rgba(236, 72, 153, 0.32)': '#331326',
-                      'rgba(139, 92, 246, 0.32)': '#22153b',
-                      'rgba(6, 182, 212, 0.32)':  '#092933',
-                      'rgba(249, 115, 22, 0.32)': '#331a0c',
-                      'rgba(168, 85, 247, 0.32)': '#28143b',
-                    };
-                    const solidRowBg = (gCard && gCard.color) ? (SOLID_GROUP_BGS[gCard.color.bg] || '#111e38') : (index % 2 === 1 ? '#0f172a' : '#0b1329');
-                    const rowColorStyle = (gCard && gCard.color) ? {
-                      backgroundColor: gCard.color.bg || 'transparent',
-                      borderLeft: `4px solid ${gCard.color.border || '#3b82f6'}`
-                    } : {};
-                    const isVRV = (row.system_type === 'VRV');
+                  (() => {
+                    // 🎯 預先歸納未分配群組的 VRV 空間（確保 VRV 系統預設必定屬於同一套系統，避免被拆散為多台 1對1）
+                    const defaultVrvIndices = rows.map((r, i) => {
+                      const g = outdoorGroups.find(grp => grp.id === r.outdoorGroupId);
+                      const isV = (r.system_type === 'VRV' || (!r.system_type && fastSystem === 'VRV') || (r.best_match_model && r.best_match_model.startsWith('FX')));
+                      return (isV && !g) ? i : null;
+                    }).filter(i => i !== null);
+
+                    let fallbackVrvCard = null;
+                    if (defaultVrvIndices.length > 0) {
+                      const vrvSpaces = defaultVrvIndices.map(i => rows[i]);
+                      const sumIndoorIndex = vrvSpaces.reduce((acc, sp) => acc + (lookupIndoorCapIndex(sp.best_match_model) * (sp.unit_count || 1)), 0);
+                      const targetPwr = fastOutdoorPower || '3φ, 4P, 380V, 60Hz';
+                      const targetType = fastOutdoorType || '冷暖上吹型';
+                      const candidates = getOutdoorModelsForSystem('VRV', fastSeries || '低靜壓(無排水泵)', targetType, targetPwr);
+                      const sortedCandidates = [...candidates].sort((a, b) => (a.cap_index || a.cap_kw * 10) - (b.cap_index || b.cap_kw * 10));
+                      const matchedOutdoor = sortedCandidates.find(m => {
+                        const outCapIdx = m.cap_index || (m.cap_kw * 10);
+                        return ((sumIndoorIndex / outCapIdx) * 100.0) <= 115.0;
+                      }) || sortedCandidates[sortedCandidates.length - 1] || { model: 'RXYQ8AYLT', cap_kw: 22.4, cap_index: 200.0 };
+
+                      fallbackVrvCard = {
+                        id: '__fallback_vrv_system__',
+                        name: `VRV 系統 (${matchedOutdoor.model})`,
+                        system_type: 'VRV',
+                        outdoor_model: matchedOutdoor.model,
+                        outdoor_cap_kw: matchedOutdoor.cap_kw,
+                        outdoor_cap_index: matchedOutdoor.cap_index || (matchedOutdoor.cap_kw * 10),
+                        outdoor_count: 1,
+                        outdoor_price: lookupOutdoorPrice(matchedOutdoor.model),
+                        power_supply: targetPwr,
+                        color: GROUP_COLOR_PALETTE[0] || { bg: 'rgba(59, 130, 246, 0.32)', border: '#3b82f6' },
+                        space_indices: defaultVrvIndices,
+                        isFallback: true
+                      };
+                    }
+
+                    return rows.map((row, index) => {
+                      const isFallbackVrv = defaultVrvIndices.includes(index);
+                      const gCard = outdoorGroups.find(g => g.id === row.outdoorGroupId) || (isFallbackVrv ? fallbackVrvCard : null);
+                      const SOLID_GROUP_BGS = {
+                        'rgba(59, 130, 246, 0.32)': '#132247',
+                        'rgba(16, 185, 129, 0.32)': '#0c2e24',
+                        'rgba(245, 158, 11, 0.32)': '#33240d',
+                        'rgba(236, 72, 153, 0.32)': '#331326',
+                        'rgba(139, 92, 246, 0.32)': '#22153b',
+                        'rgba(6, 182, 212, 0.32)':  '#092933',
+                        'rgba(249, 115, 22, 0.32)': '#331a0c',
+                        'rgba(168, 85, 247, 0.32)': '#28143b',
+                      };
+                      const solidRowBg = (gCard && gCard.color) ? (SOLID_GROUP_BGS[gCard.color.bg] || '#111e38') : (index % 2 === 1 ? '#0f172a' : '#0b1329');
+                      const rowColorStyle = (gCard && gCard.color) ? {
+                        backgroundColor: gCard.color.bg || 'transparent',
+                        borderLeft: `4px solid ${gCard.color.border || '#3b82f6'}`
+                      } : {};
+                      const isVRV = (row.system_type === 'VRV' || (!row.system_type && fastSystem === 'VRV') || gCard?.system_type === 'VRV' || isFallbackVrv);
 
                     return (
                       <tr
@@ -6856,7 +7167,7 @@ function App() {
                           const targetPower = row.power_supply || (gCard?.power_supply) || fastOutdoorPower;
 
                           if (gCard) {
-                            const gIndices = rows.map((r, i) => r.outdoorGroupId === gCard.id ? i : null).filter(i => i !== null);
+                            const gIndices = isFallbackVrv ? defaultVrvIndices : rows.map((r, i) => r.outdoorGroupId === gCard.id ? i : null).filter(i => i !== null);
                             const isFirstInGroup = (gIndices[0] === index);
                             const gSpan = gIndices.length;
 
@@ -7248,8 +7559,9 @@ function App() {
                         })()}
                       </tr>
                     );
-                  })
-                )}
+                  });
+                })()
+              )}
               </tbody>
             </table>
           </div>
@@ -7303,71 +7615,73 @@ function App() {
 
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: isBoth ? 'repeat(auto-fill, minmax(170px, 1fr))' : 'repeat(auto-fill, minmax(230px, 1fr))',
+                  gridTemplateColumns: isBoth ? 'repeat(auto-fill, minmax(200px, 1fr))' : 'repeat(auto-fill, minmax(240px, 1fr))',
                   gap: '6px'
                 }}>
                   {CONTROLLER_CANDIDATES.map(ctrl => {
                     const isSelected = selectedControllers.includes(ctrl.model);
                     const isLowTier = ctrl.tier === '低階';
-                    const isDCS301 = ctrl.model === 'DCS301BA61';
+                    const isAllRA = rows.length > 0 && rows.every(r => (r.system_type || '').toUpperCase() === 'RA');
+                    const isDCS302Disabled = (isAllRA && selectedControlModes.includes('伶俐') && ctrl.model === 'DCS302CA61');
+
                     return (
                       <div
                         key={ctrl.model}
-                        onClick={() => handleToggleController(ctrl)}
+                        onClick={() => {
+                          if (isDCS302Disabled) {
+                            toast.warn('⚠️ 單獨家用(RA)系統搭配伶俐時，請選用 DCS301B61 (ON/OFF)，不可搭配 DCS302CA61！');
+                            return;
+                          }
+                          handleToggleController(ctrl);
+                        }}
                         style={{
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
-                          padding: '6px 10px',
+                          padding: '7px 10px',
                           borderRadius: '6px',
-                          backgroundColor: isSelected ? 'rgba(139, 92, 246, 0.28)' : '#1e293b',
-                          border: isSelected ? '2px solid #a855f7' : '1px solid #334155',
-                          cursor: 'pointer',
+                          backgroundColor: isDCS302Disabled ? '#1e293b' : (isSelected ? 'rgba(139, 92, 246, 0.28)' : '#1e293b'),
+                          border: isDCS302Disabled ? '1px dashed #64748b' : (isSelected ? '2px solid #a855f7' : '1px solid #334155'),
+                          cursor: isDCS302Disabled ? 'not-allowed' : 'pointer',
+                          opacity: isDCS302Disabled ? 0.45 : 1,
                           transition: 'all 0.15s ease',
-                          boxShadow: isSelected ? '0 0 10px rgba(168, 85, 247, 0.4)' : 'none',
+                          boxShadow: (isSelected && !isDCS302Disabled) ? '0 0 10px rgba(168, 85, 247, 0.4)' : 'none',
                           userSelect: 'none'
                         }}
                       >
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', minWidth: 0 }}>
-                          <div style={{ fontSize: '13px', fontWeight: 'bold', color: isSelected ? '#ffffff' : '#f1f5f9', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {ctrl.model}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
+                          <div style={{ fontSize: '13px', fontWeight: 'bold', color: isDCS302Disabled ? '#94a3b8' : (isSelected ? '#ffffff' : '#f1f5f9'), whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span>{ctrl.model}</span>
+                            {isDCS302Disabled && (
+                              <span style={{ fontSize: '10px', padding: '1px 4px', borderRadius: '3px', backgroundColor: '#334155', color: '#f87171', border: '1px solid #64748b' }}>
+                                🚫 RA不可搭配
+                              </span>
+                            )}
                           </div>
-                          <div style={{ fontSize: '12px', fontWeight: 'bold', color: isSelected ? '#d8b4fe' : '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {/* 🎯 集中控制器中文名稱字體放大 1 倍 (由 12px 放大至 20px) */}
+                          <div style={{
+                            fontSize: '20px',
+                            fontWeight: 'bold',
+                            color: isDCS302Disabled ? '#64748b' : (isSelected ? '#d8b4fe' : '#38bdf8'),
+                            lineHeight: '1.25',
+                            wordBreak: 'break-word'
+                          }}>
                             {ctrl.name}
                           </div>
-                          {isDCS301 && isSelected && (
-                            <div
-                              onClick={(e) => e.stopPropagation()}
-                              style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}
-                            >
-                              <span style={{ fontSize: '11px', color: '#38bdf8' }}>數量：</span>
-                              <button
-                                type="button"
-                                onClick={() => setDcs301Qty(q => Math.max(1, q - 1))}
-                                style={{ width: '19px', height: '19px', borderRadius: '3px', border: '1px solid #38bdf8', backgroundColor: '#0f172a', color: '#ffffff', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px', padding: 0 }}
-                              >-</button>
-                              <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#ffffff', minWidth: '14px', textAlign: 'center' }}>{dcs301Qty}</span>
-                              <button
-                                type="button"
-                                onClick={() => setDcs301Qty(q => Math.min(hasDCM ? 4 : 4, q + 1))}
-                                style={{ width: '19px', height: '19px', borderRadius: '3px', border: '1px solid #38bdf8', backgroundColor: '#0f172a', color: '#ffffff', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px', padding: 0 }}
-                              >+</button>
-                            </div>
-                          )}
                         </div>
 
-                        <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '6px' }}>
+                        <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '8px' }}>
                           <span style={{
                             fontSize: '11px',
                             fontWeight: 'bold',
                             padding: '2px 6px',
                             borderRadius: '3px',
                             display: 'inline-block',
-                            backgroundColor: isLowTier ? 'rgba(56, 189, 248, 0.2)' : (ctrl.tier === '高階' ? 'rgba(234, 179, 8, 0.2)' : 'rgba(148, 163, 184, 0.2)'),
-                            color: isLowTier ? '#38bdf8' : (ctrl.tier === '高階' ? '#facc15' : '#94a3b8'),
-                            border: isLowTier ? '1px solid #38bdf8' : (ctrl.tier === '高階' ? '1px solid #facc15' : '1px solid #475569')
+                            backgroundColor: isDCS302Disabled ? '#334155' : (isLowTier ? 'rgba(56, 189, 248, 0.2)' : (ctrl.tier === '高階' ? 'rgba(234, 179, 8, 0.2)' : 'rgba(148, 163, 184, 0.2)')),
+                            color: isDCS302Disabled ? '#94a3b8' : (isLowTier ? '#38bdf8' : (ctrl.tier === '高階' ? '#facc15' : '#94a3b8')),
+                            border: isDCS302Disabled ? '1px solid #64748b' : (isLowTier ? '1px solid #38bdf8' : (ctrl.tier === '高階' ? '1px solid #facc15' : '1px solid #475569'))
                           }}>
-                            {ctrl.note || ctrl.tier}
+                            {isDCS302Disabled ? '禁選' : (ctrl.note || ctrl.tier)}
                           </span>
                         </div>
                       </div>
@@ -7406,54 +7720,64 @@ function App() {
                 }}>
                   {LINGLI_CANDIDATES.map(item => {
                     const isSelected = selectedLingli.includes(item.model);
+                    const isDcpaDisabled = (item.model === 'DCPA01' && selectedControlModes.includes('APP'));
+
                     return (
                       <div
                         key={item.model}
-                        onClick={() => handleToggleLingli(item)}
+                        onClick={() => {
+                          if (isDcpaDisabled) {
+                            toast.warn('💡 走 APP Wi-Fi 無線架構時，設備與伶俐主機透過同區網無線連線，無需外加 DCPA01 轉接器！');
+                            return;
+                          }
+                          handleToggleLingli(item);
+                        }}
                         style={{
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
-                          padding: '7px 10px',
+                          padding: '8px 12px',
                           borderRadius: '6px',
-                          backgroundColor: isSelected ? 'rgba(16, 185, 129, 0.25)' : '#1e293b',
-                          border: isSelected ? '2px solid #10b981' : '1px solid #334155',
-                          cursor: 'pointer',
+                          backgroundColor: isDcpaDisabled ? '#1e293b' : (isSelected ? 'rgba(16, 185, 129, 0.25)' : '#1e293b'),
+                          border: isDcpaDisabled ? '1.5px dashed #64748b' : (isSelected ? '2px solid #10b981' : '1px solid #334155'),
+                          cursor: isDcpaDisabled ? 'not-allowed' : 'pointer',
+                          opacity: isDcpaDisabled ? 0.45 : 1,
                           transition: 'all 0.15s ease',
-                          boxShadow: isSelected ? '0 0 10px rgba(16, 185, 129, 0.4)' : 'none',
+                          boxShadow: (isSelected && !isDcpaDisabled) ? '0 0 10px rgba(16, 185, 129, 0.4)' : 'none',
                           userSelect: 'none'
                         }}
                       >
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', minWidth: 0 }}>
-                          <div style={{ fontSize: '13.5px', fontWeight: 'bold', color: isSelected ? '#ffffff' : '#f1f5f9' }}>
-                            {item.model}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
+                          {/* 🎯 伶俐型號名稱字體放大 0.5 倍 (由 13.5px 放大至 20px) */}
+                          <div style={{ fontSize: '20px', fontWeight: 'bold', color: isDcpaDisabled ? '#94a3b8' : (isSelected ? '#ffffff' : '#f1f5f9'), display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span>{item.model}</span>
+                            {isDcpaDisabled && (
+                              <span style={{ fontSize: '10.5px', padding: '1px 5px', borderRadius: '3px', backgroundColor: '#334155', color: '#f87171', border: '1px solid #64748b' }}>
+                                🚫 Wi-Fi免用 (灰底鎖定)
+                              </span>
+                            )}
                           </div>
-                          <div style={{ fontSize: '12.5px', fontWeight: 'bold', color: isSelected ? '#6ee7b7' : '#94a3b8' }}>
+                          <div style={{ fontSize: '15px', fontWeight: 'bold', color: isDcpaDisabled ? '#64748b' : (isSelected ? '#6ee7b7' : '#a7f3d0') }}>
                             {item.name}
                           </div>
-                          <div style={{ fontSize: '11px', color: '#64748b' }}>
-                            {item.note}
+                          <div style={{ fontSize: '11px', color: isDcpaDisabled ? '#64748b' : '#94a3b8' }}>
+                            {isDcpaDisabled ? '走 APP Wi-Fi 無線架構免用' : item.note}
                           </div>
                         </div>
 
-                        <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '6px' }}>
+                        <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '8px' }}>
                           <span style={{
                             fontSize: '11px',
                             fontWeight: 'bold',
-                            padding: '2px 6px',
+                            padding: '3px 8px',
                             borderRadius: '3px',
                             display: 'inline-block',
-                            backgroundColor: 'rgba(16, 185, 129, 0.2)',
-                            color: '#34d399',
-                            border: '1px solid #10b981'
+                            backgroundColor: isDcpaDisabled ? '#334155' : 'rgba(16, 185, 129, 0.2)',
+                            color: isDcpaDisabled ? '#94a3b8' : '#34d399',
+                            border: isDcpaDisabled ? '1px solid #64748b' : '1px solid #10b981'
                           }}>
-                            {item.tier}
+                            {isDcpaDisabled ? '免用' : item.tier}
                           </span>
-                          {item.price && (
-                            <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '1px' }}>
-                              NT$ {item.price.toLocaleString()}
-                            </div>
-                          )}
                         </div>
                       </div>
                     );
@@ -7486,99 +7810,7 @@ function App() {
           })()}
 
 
-          {/* 🎯 建議表下方專屬列印與匯出操作列 */}
-          {currentStep === 5 && (
-            <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '10px 16px',
-            backgroundColor: '#0b1329',
-            border: '1px solid #1e293b',
-            borderRadius: '8px',
-            marginTop: '10px',
-            flexShrink: 0,
-            gap: '12px',
-            flexWrap: 'wrap',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.4)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '13px', color: '#94a3b8' }}>
-              <span>規劃空間總數：<strong style={{ color: '#38bdf8' }}>{rows.length}</strong> 間</span>
-              <span>•</span>
-              <span>室內總能力需求：<strong style={{ color: '#a855f7' }}>{rows.reduce((acc, r) => acc + (parseFloat(r.cap_kw) || 0) * (parseInt(r.unit_count) || 1), 0).toFixed(1)}</strong> kW</span>
-              <span>•</span>
-              <span>智慧控制方案：<strong style={{ color: '#f59e0b' }}>
-                {selectedControlModes.includes('無') && selectedControlModes.length === 1
-                  ? '一般遙控器'
-                  : selectedControlModes.map(m => m === 'APP' ? 'APP 遠端控制' : (m === '集控' ? '集中控制器' : (m === '伶俐' ? '伶俐智能管理' : m))).join(' ＋ ')
-                }
-              </strong></span>
-              {(selectedControlModes.includes('集控') || fastControlMode.includes('集控')) && (() => {
-                const d3 = calculateD3NetStats(rows, selectedControllers);
-                return (
-                  <>
-                    <span>•</span>
-                    <span>D3-NET 通訊通道：<strong style={{ color: '#38bdf8' }}>{d3.suggestedPorts} Port</strong> (室外機 <strong style={{ color: '#34d399' }}>{d3.outdoorGroupCount}</strong> 組、室內機 <strong style={{ color: '#38bdf8' }}>{d3.indoorTotalCount}</strong> 台{d3.isModbus ? ' [Modbus 2組/16台限制]' : ''})</span>
-                  </>
-                );
-              })()}
-              {(selectedControlModes.includes('伶俐') || fastControlMode.includes('伶俐')) && (
-                <>
-                  <span>•</span>
-                  <span>伶俐智能管理：<strong style={{ color: '#10b981' }}>已選配 {selectedLingli.length} 項設備</strong></span>
-                </>
-              )}
-            </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <button
-                type="button"
-                onClick={() => window.print()}
-                style={{
-                  backgroundColor: '#1e293b',
-                  color: '#38bdf8',
-                  border: '1px solid #0284c7',
-                  padding: '8px 16px',
-                  borderRadius: '6px',
-                  fontSize: '13px',
-                  fontWeight: 'bold',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  transition: 'all 0.2s ease'
-                }}
-                title="呼叫列印功能"
-              >
-                <span>🖨️ 列印建議表</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleExportExcel}
-                disabled={exportLoading || rows.length === 0}
-                style={{
-                  backgroundColor: rows.length === 0 ? '#334155' : '#059669',
-                  color: '#ffffff',
-                  border: 'none',
-                  padding: '8px 20px',
-                  borderRadius: '6px',
-                  fontSize: '13px',
-                  fontWeight: 'bold',
-                  cursor: rows.length === 0 ? 'not-allowed' : 'pointer',
-                  boxShadow: rows.length === 0 ? 'none' : '0 2px 10px rgba(5, 150, 105, 0.4)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  transition: 'all 0.2s ease'
-                }}
-                title="匯出完整選機與報價表"
-              >
-                <span>{exportLoading ? "⏳ 正在產生檔案..." : "📊 匯出完整選機與報價表 (.xlsx)"}</span>
-              </button>
-            </div>
-          </div>
-          )}
         </section>
         )}
       </div>

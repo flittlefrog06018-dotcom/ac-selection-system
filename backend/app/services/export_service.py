@@ -161,7 +161,7 @@ class ExportService:
                 total_load_kcal = float(raw_total_kcal) if raw_total_kcal is not None and float(raw_total_kcal) > 0 else round(ping_val * final_suggested_kcal_per_ping)
                 
                 raw_total_kw = room.get("total_load_kw")
-                total_load_kw = float(raw_total_kw) if raw_total_kw is not None and float(raw_total_kw) > 0 else round(total_load_kcal / 860.0, 2)
+                total_load_kw = round(float(raw_total_kw), 1) if raw_total_kw is not None and float(raw_total_kw) > 0 else round(total_load_kcal / 860.0, 1)
                 
                 # 🎯 室內機型號
                 matched_model = str(room.get("recommended_model") or room.get("indoor_model") or room.get("best_match_model") or "").strip()
@@ -248,7 +248,9 @@ class ExportService:
                 cell_k.value = kw_per_ping
                 cell_k.number_format = '0.00'
                 
-                ws.cell(row=row_idx, column=settings.LOAD_L_COL).value = total_load_kw   # L: 總負荷 kW
+                cell_l = ws.cell(row=row_idx, column=settings.LOAD_L_COL)
+                cell_l.value = total_load_kw   # L: 總負荷 kW
+                cell_l.number_format = '0.0'
                 ws.cell(row=row_idx, column=settings.LOAD_M_COL).value = total_load_kcal # M: 總負荷 kcal
                 
                 # 🎯 室內機修正欄位 (N ~ V)
@@ -485,6 +487,20 @@ class ExportService:
                         break
                 if not has_val:
                     ws.column_dimensions[col_letter].hidden = True
+
+            # 🎯 匯出的選機表分頁僅保留"選機"、"設備報價單"和"系統套數"即可，其餘的選積分頁請隱藏
+            allowed_visible_titles = {"選機", "選機表", "設備報價單", "系統套數"}
+            for sheet in wb.worksheets:
+                if sheet.title in allowed_visible_titles:
+                    sheet.sheet_state = "visible"
+                else:
+                    sheet.sheet_state = "hidden"
+
+            # 確保啟用中的工作表為可見的工作表
+            for title in ["選機", "選機表", "設備報價單", "系統套數"]:
+                if title in wb.sheetnames:
+                    wb.active = wb[title]
+                    break
 
             output = io.BytesIO()
             wb.save(output)

@@ -306,6 +306,7 @@ class EquipmentSummaryService:
         # 1. 建立分頁【設備統計總表】
         # ========================================================
         ws1 = wb.create_sheet(title="設備統計總表")
+        ws1.sheet_state = "hidden"
         ws1.views.sheetView[0].showGridLines = True
 
         t_in = cls.process_units_table(indoor_items, is_out=False)
@@ -494,6 +495,7 @@ class EquipmentSummaryService:
         # 3. 建立分頁【D3-NET分析】
         # ========================================================
         ws3 = wb.create_sheet(title="D3-NET分析")
+        ws3.sheet_state = "hidden"
         ws3.views.sheetView[0].showGridLines = True
 
         comb_in = indoor_items + hrv_items
@@ -668,7 +670,10 @@ class EquipmentSummaryService:
                     "qty": total_sets,
                     "unit": "組",
                     "unit_price": combo_price,
-                    "notes": "含室內機+室外機整組"
+                    "notes": "含室內機+室外機整組",
+                    "is_outdoor": False,
+                    "model": out_m,
+                    "cap_kw": out_info.get("cap_kw") or in_info.get("cap_kw")
                 })
                 item_counter_a += 1
             else:
@@ -686,7 +691,10 @@ class EquipmentSummaryService:
                         "qty": out_q,
                         "unit": "台",
                         "unit_price": out_price,
-                        "notes": notes_out or "室外機單機"
+                        "notes": notes_out or "室外機單機",
+                        "is_outdoor": True,
+                        "model": out_m,
+                        "cap_kw": out_info.get("cap_kw")
                     })
                     item_counter_a += 1
 
@@ -706,7 +714,10 @@ class EquipmentSummaryService:
                         "qty": iq,
                         "unit": "台",
                         "unit_price": in_price,
-                        "notes": "室內機單機"
+                        "notes": "室內機單機",
+                        "is_outdoor": False,
+                        "model": im,
+                        "cap_kw": in_info.get("cap_kw")
                     })
                     item_counter_a += 1
 
@@ -721,7 +732,10 @@ class EquipmentSummaryService:
                 "qty": hq,
                 "unit": "台",
                 "unit_price": None,
-                "notes": "換氣淨化"
+                "notes": "換氣淨化",
+                "is_outdoor": False,
+                "model": hm,
+                "cap_kw": 0.0
             })
             item_counter_a += 1
 
@@ -734,8 +748,43 @@ class EquipmentSummaryService:
             else:
                 aggregated_equip[key]["qty"] += item["qty"]
 
+        # 🎯 依使用者指定排序：室外機依容量從小到大置頂，室內機接續依容量從小到大排列
+        import re
+
+        def extract_capacity(model_name: str, given_cap: Any) -> float:
+            if given_cap is not None:
+                try:
+                    c = float(given_cap)
+                    if c > 0:
+                        return c
+                except (ValueError, TypeError):
+                    pass
+            clean = re.sub(r'^[1-9]MX[A-Z]*', '', str(model_name).strip().upper())
+            m = re.search(r'(\d+)', clean)
+            if m:
+                try:
+                    return float(m.group(1))
+                except (ValueError, TypeError):
+                    pass
+            m2 = re.search(r'(\d+)', str(model_name))
+            if m2:
+                try:
+                    return float(m2.group(1))
+                except (ValueError, TypeError):
+                    pass
+            return 0.0
+
+        def equip_sort_key(item):
+            # 1. 室外機優先置頂 (0)，室內機與其他在後 (1)
+            is_out = 0 if item.get("is_outdoor") else 1
+            # 2. 容量從小到大升冪
+            cap = extract_capacity(item.get("model", ""), item.get("cap_kw"))
+            return (is_out, cap, item.get("name", ""))
+
+        sorted_equip_list = sorted(aggregated_equip.values(), key=equip_sort_key)
+
         equip_items = []
-        for idx, item in enumerate(aggregated_equip.values(), start=1):
+        for idx, item in enumerate(sorted_equip_list, start=1):
             item["item_code"] = f"A-{idx}"
             equip_items.append(item)
 
@@ -762,38 +811,6 @@ class EquipmentSummaryService:
                 "unit": "個",
                 "unit_price": rc_price or 4500.0,
                 "notes": "SA / VRV 室內機專用標準配置"
-            })
-            item_counter_b += 1
-
-        # VRV 冷媒分歧管
-        joint_counts = {}
-        for j in (joint_items or []):
-            jm = j["model"]
-            joint_counts[jm] = joint_counts.get(jm, 0) + j.get("qty", 1)
-
-        JOINT_PRICE_MAP = {
-            "KHRP26A22T": 1700.0,
-            "KHRP26A33T": 2400.0,
-            "KHRP26A72T": 3300.0,
-            "KHRP26A73T": 4600.0,
-            "KHRP26M22T": 1700.0,
-            "KHRP26M33T": 2400.0,
-            "KHRP26M72T": 3300.0,
-            "KHRP26M73T": 4600.0,
-            "BHFP22P100": 3700.0,
-            "BHFP22P151": 7500.0,
-        }
-
-        for jm, jq in joint_counts.items():
-            j_price = JOINT_PRICE_MAP.get(jm, 2400.0)
-            accessory_items.append({
-                "item_code": f"B-{item_counter_b}",
-                "cat": "冷媒配件",
-                "name": f"VRV 冷媒分歧管 ({jm})",
-                "qty": jq,
-                "unit": "套",
-                "unit_price": j_price,
-                "notes": "含原廠專用保溫材"
             })
             item_counter_b += 1
 
@@ -855,7 +872,7 @@ class EquipmentSummaryService:
                 })
 
         # 🎯 集中控制需求配件精準對應 (參照 EQUIPMENT_Data 分頁之 集控轉接基板 與 轉接小P版)
-        if has_central:
+        if has_central and not has_app:
             c_board_counts = {}
             p_board_counts = {}
             for r in rooms_data:
@@ -904,9 +921,11 @@ class EquipmentSummaryService:
             'DCPH01H': {'name': '伶俐智控管理器-住宅', 'price': 27700, 'note': '高階'}
         }
 
-        # 🎯 輸出選用之集中控制器與伶俐智能管理配件 (可同時並存選用)
+        # 🎯 輸出選用之集中控制器與伶俐智能管理配件 (可同時並存選用；走 APP Wi-Fi 無線架構時免用 DCPA01 與有線集控)
         if selected_controllers and len(selected_controllers) > 0:
             for ctrl_m in selected_controllers:
+                if has_app and (ctrl_m == 'DCPA01' or ctrl_m.startswith('DCS') or ctrl_m.startswith('DCM') or ctrl_m.startswith('DTP')):
+                    continue
                 c_info = db_srv.get_controller_info(ctrl_m)
                 if not c_info:
                     c_info = CONTROLLER_INFO_MAP.get(ctrl_m, {'name': '控制器', 'price': 0, 'note': '選配'})
@@ -931,6 +950,44 @@ class EquipmentSummaryService:
                 "unit_price": price_default,
                 "notes": "大金原廠集中控制器【高階】"
             })
+
+        # --- 2.5 彙整冷媒配件 (置於所有控制配件下方，參照 EQUIPMENT_Data controller&pipe) ---
+        joint_counts = {}
+        for j in (joint_items or []):
+            jm = str(j.get("model", "")).strip()
+            if jm:
+                joint_counts[jm] = joint_counts.get(jm, 0) + j.get("qty", 1)
+
+        # 若 joint_items 計算為空，但規劃中有 VRV 室內機 >= 2 台，自動保底產生 KHRP26A22T
+        if not joint_counts and vrv_sa_count >= 2:
+            joint_counts["KHRP26A22T"] = vrv_sa_count - 1
+
+        # EQUIPMENT_Data controller&pipe 原廠官方報價資料庫
+        JOINT_PRICE_MAP = {
+            "KHRP26A22T": 1700.0,
+            "KHRP26A33T": 2400.0,
+            "KHRP26A72T": 3300.0,
+            "KHRP26A73T": 4600.0,
+            "KHRP26M22T": 1700.0,
+            "KHRP26M33T": 2400.0,
+            "KHRP26M72T": 3300.0,
+            "KHRP26M73T": 4600.0,
+            "BHFP22P100": 3700.0,
+            "BHFP22P151": 7500.0,
+        }
+
+        for jm, jq in joint_counts.items():
+            j_price = JOINT_PRICE_MAP.get(jm, 1700.0 if "22T" in jm else 2400.0)
+            accessory_items.append({
+                "item_code": f"B-{item_counter_b}",
+                "cat": "冷媒配件",
+                "name": f"VRV 冷媒分歧管 ({jm})",
+                "qty": jq,
+                "unit": "套",
+                "unit_price": j_price,
+                "notes": "含原廠專用保溫材"
+            })
+            item_counter_b += 1
 
         # --- 3. 渲染報價單到工作表 ---
         ws_quote.cell(row=2, column=2, value="大金空調設備與配件報價清冊").font = font_title
