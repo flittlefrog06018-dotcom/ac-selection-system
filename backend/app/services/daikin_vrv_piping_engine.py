@@ -274,10 +274,12 @@ class DaikinVRVPipingEngine:
         elif node_type == 'ra':
             if capacity <= 36:
                 return {"l": "Ø6.4", "g": "Ø9.5", "code": "RA1"}
-            elif capacity <= 71:
+            elif capacity <= 50:
                 return {"l": "Ø6.4", "g": "Ø12.7", "code": "RA2"}
-            else:
+            elif capacity <= 71:
                 return {"l": "Ø6.4", "g": "Ø15.9", "code": "RA3"}
+            else:
+                return {"l": "Ø9.5", "g": "Ø15.9", "code": "RA4"}
         else:
             # 🎯 嚴格遵照《VRV冷媒管徑選用工具2026.5》表 5 室內機分支管選用表
             if capacity <= 50:

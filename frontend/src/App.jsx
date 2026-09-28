@@ -47,30 +47,64 @@ const ACCESSORY_PRICE_MAP = {
   'BHFP22P151': 7500,
 };
 
-// 🎯 依據《VRV冷媒管徑選用工具2026.5》表 5 與 SA 規範取得室內機分支管徑
+// 🎯 依據大金官方規範與《VRV冷媒管徑選用工具》取得室內機配管液氣管徑
 const getIndoorBranchPipeSize = (modelStr, systemType) => {
   const mUpper = (modelStr || "").trim().toUpperCase();
   const sysUpper = (systemType || "").trim().toUpperCase();
   
-  if (sysUpper === 'SA' || mUpper.startsWith('FBA') || mUpper.startsWith('FCA') || mUpper.startsWith('FHQ')) {
+  // 1. SA 商用系統
+  if (sysUpper === 'SA' || mUpper.startsWith('FBA') || mUpper.startsWith('FCA') || mUpper.startsWith('FHQ') || mUpper.startsWith('FAA') || mUpper.startsWith('FFA')) {
     return 'Ø9.5 / Ø15.9';
   }
   
-  // VRV 系統：依據表 5 室內機分支管選用表
-  const match = mUpper.match(/FX[A-Z]*?(\d+)/);
-  if (match) {
-    const num = parseInt(match[1]);
-    if ([20, 25, 32, 40, 50].includes(num)) {
+  // 2. VRV 系統 (FX 系列)：依據表 5 室內機分支管選用表
+  if (mUpper.startsWith('FX') || sysUpper === 'VRV') {
+    const match = mUpper.match(/FX[A-Z]*?(\d+)/) || mUpper.match(/(\d+)/);
+    if (match) {
+      const num = parseInt(match[1], 10);
+      if ([20, 25, 32, 40, 50].includes(num) || num <= 50) {
+        return 'Ø6.4 / Ø12.7';
+      } else if ([63, 71, 80, 90, 100, 112, 125, 140].includes(num) || num <= 140) {
+        return 'Ø9.5 / Ø15.9';
+      } else if (num === 200 || num <= 200) {
+        return 'Ø9.5 / Ø19.1';
+      } else if (num >= 250) {
+        return 'Ø9.5 / Ø22.2';
+      }
+    }
+    return 'Ø6.4 / Ø12.7';
+  }
+
+  // 3. RA 家用多聯 / 家用1對1系統 (FTHF, FTXM, FTXV, CTXF, CTKS, CTXM, CTKJ, FTX, CDXS, FDXS 等)
+  // 從型號提取級數數字 (例如 FTHF20ZVLT -> 20, FTXM28VVLT -> 28, FTHF30ZVLT -> 30, FTHF40ZVLT -> 40)
+  const nums = mUpper.match(/\d+/g);
+  if (nums && nums.length > 0) {
+    const num = parseInt(nums[0], 10);
+    if (num <= 36) {
+      // 20, 22, 25, 28, 30, 32, 35, 36 級：2分/3分管
+      return 'Ø6.4 / Ø9.5';
+    } else if (num <= 50) {
+      // 40, 41, 50 級：2分/4分管
       return 'Ø6.4 / Ø12.7';
-    } else if ([63, 71, 80, 90, 100, 112, 125, 140].includes(num)) {
+    } else if (num <= 71) {
+      // 60, 71 級：2分/5分管
+      return 'Ø6.4 / Ø15.9';
+    } else {
+      // 85, 90 級以上：3分/5分管
       return 'Ø9.5 / Ø15.9';
-    } else if (num === 200) {
-      return 'Ø9.5 / Ø19.1';
-    } else if (num === 250) {
-      return 'Ø9.5 / Ø22.2';
     }
   }
-  return 'Ø6.4 / Ø12.7';
+
+  // 若無法自型號解析數字，依容量 lookupModelCapKw 判定
+  const capKw = lookupModelCapKw(mUpper);
+  if (capKw > 0) {
+    if (capKw <= 3.6) return 'Ø6.4 / Ø9.5';
+    if (capKw <= 5.0) return 'Ø6.4 / Ø12.7';
+    if (capKw <= 7.1) return 'Ø6.4 / Ø15.9';
+    return 'Ø9.5 / Ø15.9';
+  }
+
+  return 'Ø6.4 / Ø9.5';
 };
 
 // 🎯 大金家用多聯 (MULTI) 與 VRV 室外機官方最大允許連接室內機總能力 (kW)

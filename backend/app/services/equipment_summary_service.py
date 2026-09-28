@@ -459,7 +459,15 @@ class EquipmentSummaryService:
 
                 for j, in_item in enumerate(g_data["indoor_list"]):
                     pref = "    └─ " if j == len(g_data["indoor_list"]) - 1 else "    ├─ "
-                    c_tree = ws2.cell(row=curr_r, column=2, value=f"{pref}{in_item['model']}")
+                    in_m = in_item['model']
+                    try:
+                        from app.services.daikin_vrv_piping_engine import DaikinVRVPipingEngine
+                        cap_idx = DaikinVRVPipingEngine.extract_capacity_index(in_m)
+                        pipe_info = DaikinVRVPipingEngine.get_indoor_branch_pipe('ra', cap_idx)
+                        pipe_lbl = f" (液氣管: {pipe_info['l']} / {pipe_info['g']})"
+                    except Exception:
+                        pipe_lbl = ""
+                    c_tree = ws2.cell(row=curr_r, column=2, value=f"{pref}{in_m}{pipe_lbl}")
                     c_tree_q = ws2.cell(row=curr_r, column=3, value=in_item.get("qty", 1))
                     c_tree.font = font_data; c_tree.border = border_thin
                     c_tree_q.font = font_data; c_tree_q.alignment = align_center; c_tree_q.border = border_thin
