@@ -274,7 +274,8 @@ class DaikinVRVPipingEngine:
         elif node_type == 'ra':
             if capacity <= 36:
                 return {"l": "Ø6.4", "g": "Ø9.5", "code": "RA1"}
-            elif capacity <= 50:
+            elif capacity <= 60:
+                # 40, 50, 60 級 (包含 FTHF60, FTXM60, FTXV60 等)：2分/4分管
                 return {"l": "Ø6.4", "g": "Ø12.7", "code": "RA2"}
             elif capacity <= 71:
                 return {"l": "Ø6.4", "g": "Ø15.9", "code": "RA3"}

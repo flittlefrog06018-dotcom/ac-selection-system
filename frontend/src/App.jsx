@@ -76,18 +76,18 @@ const getIndoorBranchPipeSize = (modelStr, systemType) => {
   }
 
   // 3. RA 家用多聯 / 家用1對1系統 (FTHF, FTXM, FTXV, CTXF, CTKS, CTXM, CTKJ, FTX, CDXS, FDXS 等)
-  // 從型號提取級數數字 (例如 FTHF20ZVLT -> 20, FTXM28VVLT -> 28, FTHF30ZVLT -> 30, FTHF40ZVLT -> 40)
+  // 從型號提取級數數字 (例如 FTHF20ZVLT -> 20, FTXM28VVLT -> 28, FTHF30ZVLT -> 30, FTHF40ZVLT -> 40, FTXM60 -> 60)
   const nums = mUpper.match(/\d+/g);
   if (nums && nums.length > 0) {
     const num = parseInt(nums[0], 10);
     if (num <= 36) {
       // 20, 22, 25, 28, 30, 32, 35, 36 級：2分/3分管
       return 'Ø6.4 / Ø9.5';
-    } else if (num <= 50) {
-      // 40, 41, 50 級：2分/4分管
+    } else if (num <= 60) {
+      // 40, 41, 50, 60 級 (包含 FTHF60, FTXM60, FTXV60 等)：2分/4分管
       return 'Ø6.4 / Ø12.7';
     } else if (num <= 71) {
-      // 60, 71 級：2分/5分管
+      // 71 級 (包含 FTHF71, FTXM71, FTXV71 等)：2分/5分管
       return 'Ø6.4 / Ø15.9';
     } else {
       // 85, 90 級以上：3分/5分管
@@ -99,7 +99,7 @@ const getIndoorBranchPipeSize = (modelStr, systemType) => {
   const capKw = lookupModelCapKw(mUpper);
   if (capKw > 0) {
     if (capKw <= 3.6) return 'Ø6.4 / Ø9.5';
-    if (capKw <= 5.0) return 'Ø6.4 / Ø12.7';
+    if (capKw <= 6.0) return 'Ø6.4 / Ø12.7';
     if (capKw <= 7.1) return 'Ø6.4 / Ø15.9';
     return 'Ø9.5 / Ø15.9';
   }
