@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>大金空調 AI 智慧選機系統 - 主管報告與技術解析全景</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&family=Noto+Sans+TC:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #080e1e;
+      --bg-card: rgba(15, 23, 42, 0.72);
+      --bg-card-hover: rgba(30, 41, 59, 0.88);
+      --border-subtle: rgba(51, 65, 85, 0.6);
+      --border-accent: rgba(56, 189, 248, 0.45);
+      --primary: #0284c7;
+      --primary-light: #38bdf8;
+      --primary-glow: rgba(56, 189, 248, 0.25);
+      --accent-cyan: #06b6d4;
+      --accent-emerald: #10b981;
+      --accent-purple: #8b5cf6;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+      --text-pure: #ffffff;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: 'Plus Jakarta Sans', 'Noto Sans TC', sans-serif;
+      font-size: 17px;
+      line-height: 1.8;
+      background-image: 
+        radial-gradient(circle at 10% 10%, rgba(2, 132, 199, 0.14) 0%, transparent 42%),
+        radial-gradient(circle at 90% 40%, rgba(139, 92, 246, 0.12) 0%, transparent 48%),
+        radial-gradient(circle at 50% 85%, rgba(16, 185, 129, 0.09) 0%, transparent 52%);
+      background-attachment: fixed;
+      overflow-x: hidden;
+    }
+
+    /* Top Sticky Nav */
+    .nav-bar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(8, 14, 30, 0.88);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 14px 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 800;
+      font-size: 18px;
+      letter-spacing: -0.3px;
+      color: var(--text-pure);
+    }
+
+    .nav-brand span.logo-badge {
+      background: linear-gradient(135deg, var(--primary), var(--accent-cyan));
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 900;
+      color: #fff;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 24px;
+    }
+
+    .nav-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 600;
+      transition: color 0.2s ease;
+    }
+
+    .nav-links a:hover {
+      color: var(--primary-light);
+    }
+
+    .live-btn {
+      background: linear-gradient(135deg, var(--primary), #0284c7);
+      border: 1px solid var(--primary-light);
+      color: #fff;
+      padding: 6px 18px;
+      border-radius: 9999px;
+      font-size: 14px;
+      font-weight: 700;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+      box-shadow: 0 0 15px rgba(56, 189, 248, 0.35);
+    }
+
+    .live-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 0 22px rgba(56, 189, 248, 0.6);
+    }
+
+    /* Container */
+    .container {
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 40px 24px 100px;
+    }
+
+    /* Hero */
+    .hero {
+      text-align: center;
+      padding: 60px 20px 50px;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(2, 132, 199, 0.15);
+      border: 1px solid var(--border-accent);
+      color: var(--primary-light);
+      padding: 6px 20px;
+      border-radius: 9999px;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      margin-bottom: 20px;
+    }
+
+    .hero-badge .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-emerald);
+      box-shadow: 0 0 10px var(--accent-emerald);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(1.3); }
+    }
+
+    h1 {
+      font-size: clamp(34px, 4.5vw, 54px);
+      font-weight: 900;
+      line-height: 1.25;
+      background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 55%, #38bdf8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 20px;
+    }
+
+    .hero-desc {
+      font-size: clamp(17px, 1.8vw, 21px);
+      color: var(--text-muted);
+      max-width: 980px;
+      margin: 0 auto 35px;
+      font-weight: 400;
+      line-height: 1.7;
+    }
+
+    .meta-bar {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 30px;
+      font-size: 14px;
+      color: var(--text-dim);
+      border-top: 1px solid var(--border-subtle);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 16px 20px;
+      margin: 0 auto 50px;
+      max-width: 900px;
+    }
+
+    .meta-item strong {
+      color: var(--text-main);
+    }
+
+    /* Section Styling */
+    .section-wrap {
+      margin-top: 70px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 30px;
+    }
+
+    .section-tag {
+      background: linear-gradient(135deg, var(--primary), var(--accent-purple));
+      color: #fff;
+      font-weight: 900;
+      font-size: 16px;
+      padding: 6px 16px;
+      border-radius: 12px;
+      letter-spacing: 0.5px;
+    }
+
+    .section-title {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--text-pure);
+    }
+
+    /* Cards Grid */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+      gap: 24px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 24px;
+    }
+
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-subtle);
+      border-radius: 18px;
+      padding: 28px 24px;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card:hover {
+      transform: translateY(-3px);
+      border-color: var(--border-accent);
+      background: var(--bg-card-hover);
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.45);
+    }
+
+    .card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, var(--primary-light), transparent);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .card:hover::before {
+      opacity: 1;
+    }
+
+    .card-icon {
+      font-size: 36px;
+      margin-bottom: 14px;
+      display: inline-block;
+    }
+
+    .card-title {
+      font-size: 19px;
+      font-weight: 700;
+      color: var(--text-pure);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-desc {
+      color: var(--text-muted);
+      font-size: 15px;
+      line-height: 1.75;
+    }
+
+    .badge-pain {
+      background: rgba(244, 63, 94, 0.15);
+      border: 1px solid rgba(244, 63, 94, 0.35);
+      color: #fb7185;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      margin-left: auto;
+    }
+
+    .badge-gain {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      color: #34d399;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      margin-left: auto;
+    }
+
+    /* Workflow Timeline */
+    .timeline {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      position: relative;
+    }
+
+    .timeline-item {
+      display: grid;
+      grid-template-columns: 80px 1fr;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 18px;
+      padding: 24px;
+      gap: 20px;
+      align-items: start;
+      transition: all 0.3s ease;
+    }
+
+    .timeline-item:hover {
+      border-color: var(--primary-light);
+      box-shadow: 0 8px 30px var(--primary-glow);
+    }
+
+    .timeline-num {
+      width: 60px;
+      height: 60px;
+      background: rgba(2, 132, 199, 0.18);
+      border: 2px solid var(--primary);
+      color: var(--primary-light);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      font-weight: 900;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .timeline-content h3 {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--text-pure);
+      margin-bottom: 8px;
+    }
+
+    .timeline-content p {
+      color: var(--text-muted);
+      font-size: 15px;
+      line-height: 1.75;
+      margin-bottom: 12px;
+    }
+
+    .timeline-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .tag-item {
+      background: rgba(51, 65, 85, 0.4);
+      border: 1px solid rgba(71, 85, 105, 0.5);
+      color: #cbd5e1;
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    /* Code & Tech Highlight Box */
+    .tech-box {
+      background: rgba(10, 16, 32, 0.95);
+      border: 1px solid var(--border-subtle);
+      border-radius: 18px;
+      padding: 26px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      color: #cbd5e1;
+      position: relative;
+    }
+
+    .tech-box strong {
+      color: var(--primary-light);
+    }
+
+    .tech-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 700;
+      margin-right: 6px;
+    }
+
+    .tb-py { background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); }
+    .tb-js { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
+    .tb-ai { background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); }
+    .tb-cv { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
+
+    /* Comparison Table */
+    .comp-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 18px;
+      overflow: hidden;
+    }
+
+    .comp-table th, .comp-table td {
+      padding: 18px 22px;
+      font-size: 15px;
+      text-align: left;
+    }
+
+    .comp-table th {
+      background: #1e293b;
+      color: #fff;
+      font-weight: 800;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .comp-table td {
+      border-bottom: 1px solid rgba(51, 65, 85, 0.35);
+      color: var(--text-muted);
+    }
+
+    .comp-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .comp-table tr:hover td {
+      background: rgba(30, 41, 59, 0.45);
+    }
+
+    /* Highlight Banner */
+    .banner {
+      background: linear-gradient(135deg, rgba(2, 132, 199, 0.22) 0%, rgba(139, 92, 246, 0.18) 100%);
+      border: 2px solid var(--primary-light);
+      border-radius: 20px;
+      padding: 40px 32px;
+      text-align: center;
+      margin-top: 60px;
+    }
+
+    .banner h2 {
+      font-size: 28px;
+      font-weight: 900;
+      color: #fff;
+      margin-bottom: 14px;
+    }
+
+    .banner p {
+      color: #cbd5e1;
+      font-size: 17px;
+      max-width: 860px;
+      margin: 0 auto 24px;
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 80px;
+      padding-top: 30px;
+      border-top: 1px solid var(--border-subtle);
+      color: var(--text-dim);
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Sticky Nav -->
+  <div class="nav-bar">
+    <div class="nav-brand">
+      <span class="logo-badge">DAIKIN AI</span>
+      <span>空調智慧選機自動化系統 - 主管報告</span>
+    </div>
+    <div class="nav-links">
+      <a href="#pains">痛點與動機</a>
+      <a href="#workflow">實作演練流程</a>
+      <a href="#tech">AI程式技術解析</a>
+      <a href="#benefits">成果與商業效益</a>
+    </div>
+    <a href="https://ac-selection-system.vercel.app/" target="_blank" class="live-btn">
+      🌐 實際演練站台 (Live Demo)
+    </a>
+  </div>
+
+  <div class="container">
+
+    <!-- Hero -->
+    <header class="hero">
+      <div class="hero-badge">
+        <span class="pulse-dot"></span>
+        <span>專案彙報：大金空調全自動化選機與底稿生成工程</span>
+      </div>
+      <h1>從圖面到官方選機報價單<br>次世代 AI 智慧選機系統開發進度回報</h1>
+      <p class="hero-desc">
+        針對傳統手動看圖算量、查閱目錄配對、配件基板遺漏與反覆謄寫 Excel 等核心痛點，運用 Google Antigravity、Python 幾何運算與現代多模態 AI 打造的零 CAD 依賴端到端智慧解決方案。
+      </p>
+
+      <div class="meta-bar">
+        <div class="meta-item">專案版本：<strong>v2.22.0 最新正式版</strong></div>
+        <div class="meta-item">報告日期：<strong>2026 年 9 月</strong></div>
+        <div class="meta-item">線上站台：<strong>ac-selection-system.vercel.app</strong></div>
+        <div class="meta-item">適用品牌：<strong>DAIKIN 大金空調 (RA / SA / VRV)</strong></div>
+      </div>
+    </header>
+
+    <!-- SECTION 1: 痛點與為何要做 -->
+    <section id="pains" class="section-wrap">
+      <div class="section-header">
+        <span class="section-tag">PART 1</span>
+        <h2 class="section-title">為何要做？傳統空調選機作業的 4 大致命痛點</h2>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-icon">📐</div>
+          <div class="card-title">
+            <span>痛點一：繪圖軟體授權與專業門檻高</span>
+            <span class="badge-pain">痛點</span>
+          </div>
+          <p class="card-desc">
+            過往計算室內空間面積，必須具備 AutoCAD 專業技能並安裝昂貴授權軟體。若客戶僅提供手機照片（JPG/PNG）或 PDF 圖面，業務或工程師需耗費數小時手動拉比例尺或徒手測量，外勤無法就地報價。
+          </p>
+        </div>
+
+        <div class="card">
+          <div class="card-icon">🧮</div>
+          <div class="card-title">
+            <span>痛點二：冷房熱負荷試算繁複且易出錯</span>
+            <span class="badge-pain">痛點</span>
+          </div>
+          <p class="card-desc">
+            各房間因西曬、頂樓、挑高或大面落地窗，需給予不同每坪熱負荷基準（500 ~ 900 kcal/hr/坪）。從平方公尺換算坪數、再乘算熱負荷與 kW 過程冗長，容易因計算機人為按錯導致噸數選配不足或過度超配。
+          </p>
+        </div>
+
+        <div class="card">
+          <div class="card-icon">📚</div>
+          <div class="card-title">
+            <span>痛點三：大金產品線龐雜，選型極耗時</span>
+            <span class="badge-pain">痛點</span>
+          </div>
+          <p class="card-desc">
+            大金涵蓋家用 (RA)、商用 (SA)、VRV 頂級多聯上百種室內外機。各系列具備不同供電（單相220V/三相380V）、容量指數、連接率上限（如 2MXM/3MXM 官方嚴格限制）及風扇型式，人工翻閱厚重型錄極易搭錯。
+          </p>
+        </div>
+
+        <div class="card">
+          <div class="card-icon">💸</div>
+          <div class="card-title">
+            <span>痛點四：控制配件與基板漏估造成虧損</span>
+            <span class="badge-pain">痛點</span>
+          </div>
+          <p class="card-desc">
+            當業主需求「手機 APP 遠端控制」或「中央集中控制」時，各室內機型號對應之專用轉接小 P 板（如 BRP067A42）、APP 控制卡（如 BRP072C42）或集控基板極易漏選；且手動謄寫 Excel 官方底稿耗損大量高薪工時。
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 2: 實際演練操作流程 -->
+    <section id="workflow" class="section-wrap">
+      <div class="section-header">
+        <span class="section-tag">PART 2</span>
+        <h2 class="section-title">實際操作演練流程：5 步極簡閉環 (Live Demo Flow)</h2>
+      </div>
+
+      <div class="timeline">
+        <div class="timeline-item">
+          <div class="timeline-num">01</div>
+          <div class="timeline-content">
+            <h3>步驟一：載入圖面與一鍵校正比例尺</h3>
+            <p>
+              拖曳或上傳任何格局平面圖（手機拍攝之 JPG、PNG 或 PDF 截圖）。點擊「參考尺寸」，在圖面上選取一段已知長度（如 90cm 標準房門或 CAD 標註尺），系統立即自動計算全圖像素/米（px/m）真實換算比率。
+            </p>
+            <div class="timeline-tags">
+              <span class="tag-item">免裝 AutoCAD</span>
+              <span class="tag-item">支援手機拍照</span>
+              <span class="tag-item">像素精準校正</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="timeline-item">
+          <div class="timeline-num">02</div>
+          <div class="timeline-content">
+            <h3>步驟二：空間框選與面積/坪數自動即時換算</h3>
+            <p>
+              使用「漆桶發散」穿透家具線條點擊房間內部自動辨識邊界，或使用「矩形拉框」、「多邊形 (PLine)」圈出空間。系統即時換算平方公尺（㎡）與坪數（P），並列入下方動態負載運算清冊中，開放空間亦可隨意劃線虛擬分割。
+            </p>
+            <div class="timeline-tags">
+              <span class="tag-item">漆桶智慧發散</span>
+              <span class="tag-item">多邊形精確圈選</span>
+              <span class="tag-item">坪數與㎡毫秒計算</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="timeline-item">
+          <div class="timeline-num">03</div>
+          <div class="timeline-content">
+            <h3>步驟三：智慧負荷計算與最適室內機自動推薦</h3>
+            <p>
+              系統依照各空間特性自動帶入每坪建議負荷（一般 500 kcal/hr，頂樓/西曬可一鍵拉升），全自動推導總熱需求（kW / kcal），並連鎖檢索大金全產品資料庫，秒級自動匹配出能力最契合之室內機型號與台數。
+            </p>
+            <div class="timeline-tags">
+              <span class="tag-item">RA / SA / VRV 即時切換</span>
+              <span class="tag-item">冷房能力防呆計算</span>
+              <span class="tag-item">壁掛/吊隱式動態鎖定</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="timeline-item">
+          <div class="timeline-num">04</div>
+          <div class="timeline-content">
+            <h3>步驟四：室外機智慧配對與多聯 / VRV 系統群組化</h3>
+            <p>
+              支援「單台 1對1 自動配對」、「家用多聯 (Multi) 智慧合併」與「VRV 大系統集中主機」。勾選多個空間點擊「併入同一台室外機」，系統自動遵循大金官方最大允許連接能力，並主動防呆警示超配或欠配。
+            </p>
+            <div class="timeline-tags">
+              <span class="tag-item">單機/多聯/VRV自由組合</span>
+              <span class="tag-item">官方連接率 100%~130% 檢驗</span>
+              <span class="tag-item">外機容量欠配/超配自動警告</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="timeline-item">
+          <div class="timeline-num">05</div>
+          <div class="timeline-content">
+            <h3>步驟五：控制配件自動精算與一鍵匯出大金官方 Excel</h3>
+            <p>
+              勾選控制需求（一般遙控、手機 APP 雲端控制、集中控制器、伶俐智能管理）。點擊「立即匯出選機表」，系統即刻產出具備樣式與公式的官方 Excel 活頁簿：包含【選機表】、【設備報價單】（室外機置頂升冪排序、精確補齊小P板與配件金額）與【系統套數】（標註標準液氣配管徑 Ø6.4/Ø9.5、Ø6.4/Ø12.7）。
+            </p>
+            <div class="timeline-tags">
+              <span class="tag-item">分頁白名單自動隱藏非必要分頁</span>
+              <span class="tag-item">室外機置頂與容量升冪排序</span>
+              <span class="tag-item">配件金額與小計公式連動</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 3: 技術架構與 AI 程式運用 -->
+    <section id="tech" class="section-wrap">
+      <div class="section-header">
+        <span class="section-tag">PART 3</span>
+        <h2 class="section-title">技術架構解析：Google Antigravity 與各程式語言職責</h2>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">
+            <span class="tech-badge tb-ai">AI 中樞</span>
+            <span>Google Antigravity 多代理人架構 (Multi-Agent)</span>
+          </div>
+          <p class="card-desc">
+            <strong>專案核心引擎：</strong>本系統開發與維運全程運用 Google Antigravity，其扮演了系統架構師、雙軌代碼重構引擎與自動化品質守門員角色。<br><br>
+            • <strong>規劃與規範防護：</strong>遵循自定義之 Track A 辨識原則（嚴禁硬編碼房間名或靜態 Mock 陣列，必須純演算法動態求值）。<br>
+            • <strong>自動化驗證與回歸：</strong>在每次更新大金配管與選機邏輯時，自動啟動 headless Python 執行驗證腳本，確保匯出試算表公式與資料庫 100% 對齊。
+          </p>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span class="tech-badge tb-py">後端主力</span>
+            <span>Python 在本專案中運用在哪裡？</span>
+          </div>
+          <p class="card-desc">
+            <strong>核心運算與後台微服務 (FastAPI + Python 3.11)：</strong><br>
+            • <strong>幾何與空間分析：</strong>使用 <code>OpenCV</code> (cv2) 與 <code>NumPy</code> 進行圖面自適應二值化、輪廓檢測與空間連通域（Connected Components）多邊形逼近。<br>
+            • <strong>報表動態渲染引擎：</strong>使用 <code>openpyxl</code> 載入大金官方範本，執行縱向跨列合併、公式注入、樣式套用及工作表白名單過濾。<br>
+            • <strong>VRV 樹狀配管計算器：</strong>以純 Python 實作 <code>DaikinVRVPipingEngine</code>，遵循大金官方手冊動態遞迴推導主幹管、次幹管與分歧頭型號。
+          </p>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span class="tech-badge tb-cv">影像辨識</span>
+            <span>圖面辨識是透過什麼 AI 與演算法分析？</span>
+          </div>
+          <p class="card-desc">
+            <strong>零 CAD 依賴的次世代視覺解構技術：</strong><br><br>
+            1. <strong>向量輪廓尋跡 (Contour Tracing)：</strong>利用 OpenCV 針對圖面線條進行 Sobel 梯度檢驗與 Canny 邊界尋跡，將圖像像素矩陣轉化為可計算之向量幾何頂點。<br>
+            2. <strong>OCR 文字辨識與坐標匹配：</strong>透過光學文字識別（OCR）動態擷取圖面文字標籤（如「客廳」、「主臥」）的 Bounding Box 坐標。<br>
+            3. <strong>幾何鄰近性演算法 (Spatial Proximity Matching)：</strong>以歐氏距離矩陣計算空間文字中心點與幾何封閉多邊形的重疊度，實現「零硬編碼」的動態房間名稱與面積綁定。
+          </p>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span class="tech-badge tb-js">前端表現</span>
+            <span>JavaScript / React 18 / ExcelJS 雙軌備援</span>
+          </div>
+          <p class="card-desc">
+            <strong>極速響應前端與雲端容錯機制：</strong><br><br>
+            • <strong>React 18 + Vite：</strong>打造流暢、低延遲的現代化操作介面，支援圖面縮放（Pan/Zoom）、自適應畫布與右鍵快捷選單。<br>
+            • <strong>HTML5 Canvas 2D：</strong>在毫秒級別內渲染多邊形標記、面積數值與紅框邊界。<br>
+            • <strong>ExcelJS 純前端離線備援：</strong>將設備資料庫打包至前端，在雲端無 Python 容器（如 Vercel 靜態環境）下，前端依然能 100% 獨立產出官方級 Excel 報表。
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 4: 成果與效益對比 -->
+    <section id="benefits" class="section-wrap">
+      <div class="section-header">
+        <span class="section-tag">PART 4</span>
+        <h2 class="section-title">效益對比：傳統人工作業 vs. AI 智慧選機系統</h2>
+      </div>
+
+      <table class="comp-table">
+        <thead>
+          <tr>
+            <th style="width: 25%;">評估維度</th>
+            <th style="width: 37%;">傳統人工作業模式</th>
+            <th style="width: 38%;">本系統 AI 智慧選機模式</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>作業時間</strong></td>
+            <td>一案平均需耗費 <strong>2 ~ 4 小時</strong>（開圖、量尺寸、查型錄、手打 Excel）。</td>
+            <td>全流程僅需 <strong>3 ~ 5 分鐘</strong>，效率巨幅提升 <strong>90% 以上</strong>。</td>
+          </tr>
+          <tr>
+            <td><strong>軟體工具要求</strong></td>
+            <td>需安裝專業 AutoCAD 軟體與昂貴授權，需具備製圖能力。</td>
+            <td><strong>零 CAD 依賴</strong>，使用一般瀏覽器（Chrome/Safari）即可跨平台作業。</td>
+          </tr>
+          <tr>
+            <td><strong>選型與計算精準度</strong></td>
+            <td>容易因手按計算機漏算熱負荷，或選錯室內外機連接率。</td>
+            <td>演算法嚴格遵循<strong>大金官方規格手冊</strong>，自動防呆超配與欠配。</td>
+          </tr>
+          <tr>
+            <td><strong>配件與報價完整度</strong></td>
+            <td>APP 雲端控制卡、小 P 板、VRV 分歧頭經常遺漏，導致報價短少虧損。</td>
+            <td>系統<strong>自動關聯清點控制配件與小 P 板</strong>，金額公式自動計入總價。</td>
+          </tr>
+          <tr>
+            <td><strong>配管管徑規範</strong></td>
+            <td>需手動查閱配管手冊，容易記錯 2分/3分 與 2分/4分 規格。</td>
+            <td>自動依照機型級數標註精確液氣管徑（如 20~36級標註 Ø6.4/Ø9.5，40~60級標註 Ø6.4/Ø12.7）。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Highlight Banner -->
+    <div class="banner">
+      <h2>🎉 系統已達正式商用標準，可隨時進行實機演練！</h2>
+      <p>
+        最新版本已部署於線上正式站台，完整支援圖面自適應辨識、大金全系列（RA/SA/VRV）配機、設備報價單分頁室外機置頂升冪排序，以及工作表白名單過濾機制。
+      </p>
+      <a href="https://ac-selection-system.vercel.app/" target="_blank" class="live-btn" style="font-size: 18px; padding: 12px 32px;">
+        🚀 前往線上站台立即體驗：ac-selection-system.vercel.app
+      </a>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <p>大金空調 AI 智慧選機自動化系統研發專案 • 專案存檔版本 v2.22.0 • 2026 年 9 月</p>
+    </footer>
+
+  </div>
+
+</body>
+</html>
