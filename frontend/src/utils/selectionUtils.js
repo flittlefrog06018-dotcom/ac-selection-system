@@ -204,7 +204,7 @@ export const lookupModelCapKw = (modelName) => {
 };
 
 export const getFuzzyBaseLoadByName = (spaceName) => {
-  if (!spaceName) return 500.0;
+  if (!spaceName) return 600.0;
   const cleanName = spaceName.trim();
   for (const rule of DYNAMIC_LOAD_RULES) {
     for (const kw of rule.keywords) {
@@ -213,7 +213,7 @@ export const getFuzzyBaseLoadByName = (spaceName) => {
       }
     }
   }
-  return 500.0;
+  return 600.0;
 };
 
 export const calculateShoelaceArea = (pts) => {

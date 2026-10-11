@@ -130,7 +130,7 @@ class EquipmentSummaryService:
         return records
 
     @classmethod
-    def append_summary_sheets(cls, wb, rooms_data: List[Dict[str, Any]], outdoor_groups: List[Dict[str, Any]] = None, selected_controllers: List[str] = None):
+    def append_summary_sheets(cls, wb, rooms_data: List[Dict[str, Any]], outdoor_groups: List[Dict[str, Any]] = None, selected_controllers: List[str] = None, custom_piping_trees: Dict[str, Any] = None, custom_piping_diagram_images: Dict[str, str] = None, hrv_info: Dict[str, Any] = None):
         """
         在現有的 workbook 之後附加三個專業統計分頁：
         1. 設備統計總表
@@ -223,9 +223,10 @@ class EquipmentSummaryService:
                     "outdoor_model": out_model,
                     "outdoor_qty": out_qty,
                     "sys_name": sys_name,
+                    "g_id": g_id,
                     "indoor_list": []
                 }
-            grouped_by_outdoor[sys_key]["indoor_list"].append({"model": m_in, "qty": q_in})
+            grouped_by_outdoor[sys_key]["indoor_list"].append({"model": m_in, "qty": q_in, "room_name": r.get("space_name") or r.get("room_name")})
 
         # 收集所有室外機統計清單
         for sys_k, g_data in grouped_by_outdoor.items():
@@ -271,7 +272,7 @@ class EquipmentSummaryService:
         except Exception as act_err:
             logger.warning(f"Failed to extract control accessories: {act_err}")
 
-        # 🎯 利用 DaikinVRVPipingEngine 獨立運算管徑與分歧頭 (只有 VRV 系統會用到分歧頭以及 BP 箱)
+        # 🎯 利用 DaikinVRVPipingEngine 獨立運算管徑與分歧頭 (優先套用使用者自訂流程圖)
         joint_items = []
         try:
             from app.services.daikin_vrv_piping_engine import DaikinVRVPipingEngine
@@ -281,12 +282,30 @@ class EquipmentSummaryService:
                     continue
                 is_vrv_sys = any(k in out_m.upper() for k in ['RSUYQ', 'RXYQ', 'RXQ', 'RXYMQ', 'RXMQ', 'RXSQ', 'RWEYQ']) or ('VRV' in g_data.get("sys_name", "").upper()) or any(str(i.get("model", "")).upper().startswith("FX") for i in g_data.get("indoor_list", []))
 
-                # 構建完整級聯管路架構與全部分歧頭
-                root_node, sys_joints = DaikinVRVPipingEngine.build_cascading_system(out_m, g_data["indoor_list"])
-                flat_rows = DaikinVRVPipingEngine.flatten_system_to_rows(out_m, g_data["indoor_list"])
-                g_data["piping_root"] = root_node
-                g_data["piping_joints"] = sys_joints
-                g_data["evaluated_tree_rows"] = flat_rows
+                g_id = g_data.get("g_id")
+                custom_items = None
+                if custom_piping_trees and isinstance(custom_piping_trees, dict):
+                    if g_id and g_id in custom_piping_trees:
+                        custom_items = custom_piping_trees[g_id]
+                    elif "sys-default" in custom_piping_trees:
+                        custom_items = custom_piping_trees["sys-default"]
+                    elif len(custom_piping_trees) > 0:
+                        custom_items = list(custom_piping_trees.values())[0]
+
+                if custom_items and isinstance(custom_items, list) and len(custom_items) > 0:
+                    flat_rows = DaikinVRVPipingEngine.flatten_custom_tree_to_rows(out_m, custom_items)
+                    root_node, sys_joints = DaikinVRVPipingEngine.build_cascading_system(out_m, g_data["indoor_list"])
+                    g_data["piping_root"] = root_node
+                    g_data["piping_joints"] = sys_joints
+                    g_data["evaluated_tree_rows"] = flat_rows
+                    g_data["custom_items"] = custom_items
+                else:
+                    root_node, sys_joints = DaikinVRVPipingEngine.build_cascading_system(out_m, g_data["indoor_list"])
+                    flat_rows = DaikinVRVPipingEngine.flatten_system_to_rows(out_m, g_data["indoor_list"])
+                    g_data["piping_root"] = root_node
+                    g_data["piping_joints"] = sys_joints
+                    g_data["evaluated_tree_rows"] = flat_rows
+                    g_data["custom_items"] = None
 
                 # 只有 VRV 系統才清點分歧頭計入報價單與總表 (含第一分歧頭與所有次分歧頭)
                 if is_vrv_sys:
@@ -300,7 +319,7 @@ class EquipmentSummaryService:
         # ========================================================
         # 0. 建立分頁【設備報價單】 (依據經理指示之報價清冊格式，緊接在主選機表之後)
         # ========================================================
-        ws_quote = cls._build_quotation_sheet(wb, rooms_data, grouped_by_outdoor, hrv_items, joint_items, adapter_board_items, db_srv, selected_controllers=selected_controllers)
+        ws_quote = cls._build_quotation_sheet(wb, rooms_data, grouped_by_outdoor, hrv_items, joint_items, adapter_board_items, db_srv, selected_controllers=selected_controllers, hrv_info=hrv_info)
 
         # ========================================================
         # 1. 建立分頁【設備統計總表】
@@ -457,39 +476,72 @@ class EquipmentSummaryService:
                 cell_q.font = font_bold; cell_q.alignment = align_center; cell_q.border = border_thin; cell_q.fill = fill_subtotal
                 curr_r += 1
 
-                for j, in_item in enumerate(g_data["indoor_list"]):
-                    pref = "    └─ " if j == len(g_data["indoor_list"]) - 1 else "    ├─ "
-                    in_m = in_item['model']
-                    try:
-                        from app.services.daikin_vrv_piping_engine import DaikinVRVPipingEngine
-                        cap_idx = DaikinVRVPipingEngine.extract_capacity_index(in_m)
-                        pipe_info = DaikinVRVPipingEngine.get_indoor_branch_pipe('ra', cap_idx)
-                        pipe_lbl = f" (液氣管: {pipe_info['l']} / {pipe_info['g']})"
-                    except Exception:
-                        pipe_lbl = ""
-                    c_tree = ws2.cell(row=curr_r, column=2, value=f"{pref}{in_m}{pipe_lbl}")
-                    c_tree_q = ws2.cell(row=curr_r, column=3, value=in_item.get("qty", 1))
-                    c_tree.font = font_data; c_tree.border = border_thin
-                    c_tree_q.font = font_data; c_tree_q.alignment = align_center; c_tree_q.border = border_thin
-                    curr_r += 1
+                tree_rows = g_data.get("evaluated_tree_rows")
+                if tree_rows and len(tree_rows) > 1:
+                    for t_row in tree_rows[1:]:
+                        struct_lbl = t_row["結構"]
+                        q_val = t_row.get("數量", 1)
+                        c_tree = ws2.cell(row=curr_r, column=2, value=f"    {struct_lbl}")
+                        c_tree_q = ws2.cell(row=curr_r, column=3, value=q_val)
+                        c_tree.font = font_data; c_tree.border = border_thin
+                        c_tree_q.font = font_data; c_tree_q.alignment = align_center; c_tree_q.border = border_thin
+                        curr_r += 1
+                else:
+                    for j, in_item in enumerate(g_data["indoor_list"]):
+                        pref = "    └─ " if j == len(g_data["indoor_list"]) - 1 else "    ├─ "
+                        in_m = in_item.get('model', '')
+                        s_name = in_item.get('space_name') or in_item.get('room_name') or in_item.get('name') or ''
+                        try:
+                            from app.services.daikin_vrv_piping_engine import DaikinVRVPipingEngine
+                            cap_idx = DaikinVRVPipingEngine.extract_capacity_index(in_m)
+                            pipe_info = DaikinVRVPipingEngine.get_indoor_branch_pipe('ra', cap_idx)
+                            pipe_lbl = f" (配管: {pipe_info['l']} / {pipe_info['g']})"
+                        except Exception:
+                            pipe_lbl = ""
+                        display_name = f"{s_name} [{in_m}]" if s_name else in_m
+                        c_tree = ws2.cell(row=curr_r, column=2, value=f"{pref}{display_name}{pipe_lbl}")
+                        c_tree_q = ws2.cell(row=curr_r, column=3, value=in_item.get("qty", 1))
+                        c_tree.font = font_data; c_tree.border = border_thin
+                        c_tree_q.font = font_data; c_tree_q.alignment = align_center; c_tree_q.border = border_thin
+                        curr_r += 1
 
-            # 🎯 若為 VRV 系統，同時提供直式與橫式 CAD 架構示意圖 (並列於同分頁)
+            # 🎯 若為 VRV 系統，優先直接嵌入 UI 介面所呈現之原汁原味冷媒流程圖 (亦提供繪製備份)
             if is_vrv and g_data.get("indoor_list"):
                 try:
                     from openpyxl.drawing.image import Image as OpenpyxlImage
                     from app.services.daikin_vrv_piping_engine import DaikinFlowchartDiagramDrawer
 
-                    # 1. 直式流程圖 (直式的保留不刪除)
-                    diag_vert_buf = DaikinFlowchartDiagramDrawer.draw_system_diagram(out_m, g_data["indoor_list"])
-                    xl_img_vert = OpenpyxlImage(diag_vert_buf)
-                    ws2.add_image(xl_img_vert, f"E{img_curr_row}")
+                    ui_img_buf = None
+                    if custom_piping_diagram_images and isinstance(custom_piping_diagram_images, dict):
+                        g_id = g_data.get("g_id")
+                        raw_img = (
+                            custom_piping_diagram_images.get(g_id) or
+                            custom_piping_diagram_images.get("sys-default") or
+                            (list(custom_piping_diagram_images.values())[0] if custom_piping_diagram_images else None)
+                        )
+                        if raw_img and isinstance(raw_img, str) and raw_img.startswith("data:image"):
+                            try:
+                                import base64
+                                img_str = raw_img.split(",")[1]
+                                img_bytes = base64.b64decode(img_str)
+                                ui_img_buf = io.BytesIO(img_bytes)
+                            except Exception as b64_err:
+                                logger.warning(f"Failed to decode base64 diagram image: {b64_err}")
 
-                    # 2. 橫式水平配置圖 (同分頁同時提供參考)
-                    diag_horiz_buf = DaikinFlowchartDiagramDrawer.draw_horizontal_system_diagram(out_m, g_data["indoor_list"])
-                    xl_img_horiz = OpenpyxlImage(diag_horiz_buf)
-                    ws2.add_image(xl_img_horiz, f"N{img_curr_row}")
+                    if ui_img_buf:
+                        xl_img_ui = OpenpyxlImage(ui_img_buf)
+                        ws2.add_image(xl_img_ui, f"E{img_curr_row}")
+                    else:
+                        items_to_draw = g_data.get("custom_items") or g_data["indoor_list"]
+                        diag_vert_buf = DaikinFlowchartDiagramDrawer.draw_system_diagram(out_m, items_to_draw)
+                        xl_img_vert = OpenpyxlImage(diag_vert_buf)
+                        ws2.add_image(xl_img_vert, f"E{img_curr_row}")
 
-                    num_u = max(len(g_data["indoor_list"]), 2)
+                        diag_horiz_buf = DaikinFlowchartDiagramDrawer.draw_horizontal_system_diagram(out_m, items_to_draw)
+                        xl_img_horiz = OpenpyxlImage(diag_horiz_buf)
+                        ws2.add_image(xl_img_horiz, f"N{img_curr_row}")
+
+                    num_u = max(len(g_data.get("custom_items") or g_data["indoor_list"]), 2)
                     rows_occupied = max(num_u * 4 + 4, 18)
                     img_curr_row += rows_occupied
                 except Exception as diag_err:
@@ -596,7 +648,7 @@ class EquipmentSummaryService:
                 ws.column_dimensions[col_letter].width = max(max_len + 4, 12)
 
     @classmethod
-    def _build_quotation_sheet(cls, wb, rooms_data, grouped_by_outdoor, hrv_items, joint_items, adapter_board_items, db_srv, selected_controllers=None):
+    def _build_quotation_sheet(cls, wb, rooms_data, grouped_by_outdoor, hrv_items, joint_items, adapter_board_items, db_srv, selected_controllers=None, hrv_info=None):
         font_header = Font(name="微軟正黑體", size=11, bold=True, color="FFFFFF")
         font_data = Font(name="微軟正黑體", size=10)
         font_bold = Font(name="微軟正黑體", size=10, bold=True)
@@ -1066,8 +1118,75 @@ class EquipmentSummaryService:
             c.border = border_total
         curr_row += 2
 
-        # 二、其他配件
-        sec2_cell = ws_quote.cell(row=curr_row, column=2, value="二、其他配件")
+        # 🎯 二、換氣設備 (若有選定全熱交換器)
+        sub_hrv_row = None
+        if hrv_info and hrv_info.get("model"):
+            hrv_items_list = [
+                {
+                    "sys_cat": "HRV",
+                    "name": hrv_info["model"],
+                    "qty": 1,
+                    "unit": "台",
+                    "unit_price": hrv_info.get("price") or 50000.0,
+                    "notes": f"全熱交換器 (風量 {hrv_info.get('airflow', 0)} CMH{'，內建PM2.5濾網' if hrv_info.get('has_pm25') else ''})"
+                },
+                {
+                    "sys_cat": "HRV",
+                    "name": "全熱交換器專用有線遙控器 (BRC1H63W)",
+                    "qty": 1,
+                    "unit": "個",
+                    "unit_price": 1500.0,
+                    "notes": "全熱交換器專用有線液晶遙控器"
+                }
+            ]
+
+            sec_hrv_cell = ws_quote.cell(row=curr_row, column=2, value="二、換氣設備")
+            sec_hrv_cell.font = font_section
+            for col_i in range(2, 9):
+                ws_quote.cell(row=curr_row, column=col_i).fill = fill_section
+                ws_quote.cell(row=curr_row, column=col_i).border = border_thin
+            curr_row += 1
+
+            hrv_start = curr_row
+            for it in hrv_items_list:
+                ws_quote.cell(row=curr_row, column=2, value=it["sys_cat"]).alignment = align_center
+                ws_quote.cell(row=curr_row, column=3, value=it["name"]).alignment = align_left
+                ws_quote.cell(row=curr_row, column=4, value=it["qty"]).alignment = align_center
+                ws_quote.cell(row=curr_row, column=5, value=it["unit"]).alignment = align_center
+
+                c_p = ws_quote.cell(row=curr_row, column=6)
+                if it["unit_price"] is not None:
+                    c_p.value = it["unit_price"]
+                c_p.number_format = '#,##0'
+                c_p.alignment = align_right
+
+                c_a = ws_quote.cell(row=curr_row, column=7, value=f"=D{curr_row}*F{curr_row}")
+                c_a.number_format = '#,##0'
+                c_a.alignment = align_right
+
+                ws_quote.cell(row=curr_row, column=8, value=it["notes"]).alignment = align_left
+
+                for col_i in range(2, 9):
+                    ws_quote.cell(row=curr_row, column=col_i).font = font_data
+                    ws_quote.cell(row=curr_row, column=col_i).border = border_thin
+                curr_row += 1
+            hrv_end = curr_row - 1
+
+            sub_hrv_row = curr_row
+            ws_quote.cell(row=curr_row, column=2, value="【換氣設備小計】").font = font_bold
+            c_sub_hrv = ws_quote.cell(row=curr_row, column=7, value=f"=SUM(G{hrv_start}:G{hrv_end})")
+            c_sub_hrv.font = font_bold
+            c_sub_hrv.number_format = '#,##0'
+            c_sub_hrv.alignment = align_right
+            for col_i in range(2, 9):
+                c = ws_quote.cell(row=curr_row, column=col_i)
+                c.fill = fill_subtotal
+                c.border = border_total
+            curr_row += 2
+
+        # 其他配件區塊 (有換氣設備時為「三、其他配件」，否則維持「二、其他配件」)
+        sec_acc_title = "三、其他配件" if sub_hrv_row else "二、其他配件"
+        sec2_cell = ws_quote.cell(row=curr_row, column=2, value=sec_acc_title)
         sec2_cell.font = font_section
         for col_i in range(2, 9):
             ws_quote.cell(row=curr_row, column=col_i).fill = fill_section
@@ -1117,10 +1236,11 @@ class EquipmentSummaryService:
             c.border = border_total
         curr_row += 2
 
-        # 三、設備與配件總計
+        # 設備與配件總計
         untaxed_row = curr_row
         ws_quote.cell(row=curr_row, column=2, value="【設備與配件未稅總計】").font = font_bold
-        c_untaxed = ws_quote.cell(row=curr_row, column=7, value=f"=G{sub_a_row}+G{sub_b_row}")
+        c_untaxed_formula = f"=G{sub_a_row}+G{sub_hrv_row}+G{sub_b_row}" if sub_hrv_row else f"=G{sub_a_row}+G{sub_b_row}"
+        c_untaxed = ws_quote.cell(row=curr_row, column=7, value=c_untaxed_formula)
         c_untaxed.font = font_bold
         c_untaxed.number_format = '#,##0'
         c_untaxed.alignment = align_right

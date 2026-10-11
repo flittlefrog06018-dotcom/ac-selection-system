@@ -122,6 +122,9 @@ class ExportRequest(BaseModel):
     outdoor_groups: Optional[List[Dict[str, Any]]] = None
     control_mode: Optional[str] = "無"
     selected_controllers: Optional[List[str]] = None
+    custom_piping_trees: Optional[Dict[str, Any]] = None
+    custom_piping_diagram_images: Optional[Dict[str, str]] = None
+    hrv_config: Optional[Dict[str, Any]] = None
 
 class OCRSpaceNameRequest(BaseModel):
     image_base64: str
@@ -630,7 +633,14 @@ async def export_excel(payload: ExportRequest):
                 if not r.get("control_mode") or r.get("control_mode") == "無":
                     r["control_mode"] = payload.control_mode
 
-        output = ExportService.generate_excel_report(raw_rooms_data, payload.outdoor_groups, selected_controllers=payload.selected_controllers)
+        output = ExportService.generate_excel_report(
+            raw_rooms_data,
+            payload.outdoor_groups,
+            selected_controllers=payload.selected_controllers,
+            custom_piping_trees=payload.custom_piping_trees,
+            custom_piping_diagram_images=payload.custom_piping_diagram_images,
+            hrv_config=payload.hrv_config
+        )
 
         raw_case_name = payload.filename.strip() if payload.filename else ""
         if raw_case_name:

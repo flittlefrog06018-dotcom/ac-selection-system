@@ -1269,7 +1269,7 @@ export const EQUIPMENT_DB = {
   ]
 };
 
-export const MODIFIER_VALUES = { 全內周: -0.10, 二面牆: 0.05, 西曬: 0.06, 挑高: 0.04, 頂曬: 0.05 };
+export const MODIFIER_VALUES = { 全內周: -0.10, "1面牆": -0.05, 二面牆: -0.05, 西曬: 0.06, 挑高: 0.04, 頂曬: 0.05 };
 
 // 🎯 半透明 Alpha 0.35 多邊形著色遮罩色系 (符合 Python 原型畫面風格)
 export const OVERLAY_COLORS = [
@@ -1285,22 +1285,44 @@ export const OVERLAY_COLORS = [
 export const CROSSHAIR_CURSOR_STYLE = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'><line x1='16' y1='0' x2='16' y2='32' stroke='%23ef4444' stroke-width='2'/><line x1='0' y1='16' x2='32' y2='16' stroke='%23ef4444' stroke-width='2'/><circle cx='16' cy='16' r='3' fill='%23ffffff' stroke='%23ef4444' stroke-width='1.5'/></svg>") 16 16, crosshair`;
 
 export const DYNAMIC_LOAD_RULES = [
-  { keywords: ["辦公室", "辦公", "小辦公", "開放辦公", "洽談", "合約", "會議", "會客", "演講", "休息", "簡報", "作業區", "討論"], load: 630.0 },
-  { keywords: ["董事長", "總經理", "主管", "經理", "執行長", "副總"], load: 550.0 },
-  { keywords: ["茶水", "茶水間", "茶水區"], load: 450.0 },
-  { keywords: ["男廁", "女廁", "殘障廁所", "廁所", "洗手間", "衛浴", "浴室"], load: 350.0 },
-  { keywords: ["吧台", "咖啡", "咖啡區", "酒吧"], load: 700.0 },
-  { keywords: ["前台", "櫃台", "大廳", "接待區"], load: 660.0 },
-  { keywords: ["更衣", "更衣間", "更衣室"], load: 400.0 },
-  { keywords: ["儲藏", "儲藏室", "庫房", "倉庫"], load: 450.0 },
-  { keywords: ["玄關", "走道", "走廊", "通道"], load: 450.0 },
-  { keywords: ["主臥", "主臥室", "套房"], load: 520.0 },
-  { keywords: ["次臥", "女兒房", "小孩房", "客房", "臥室", "臥房", "店鋪"], load: 500.0 },
-  { keywords: ["書房", "閱覽室"], load: 500.0 },
-  { keywords: ["客廳", "起居室"], load: 550.0 },
-  { keywords: ["餐廳", "用餐區", "飯廳"], load: 600.0 },
+  // 廚房、中央廚房、吧台、咖啡、咖啡區、酒吧 -> 700
   { keywords: ["廚房", "中央廚房"], load: 700.0 },
-  { keywords: ["檔案室", "檔案", "機房", "設備房", "伺服器", "電腦房"], load: 650.0 }
+  { keywords: ["吧台", "咖啡", "咖啡區", "酒吧"], load: 700.0 },
+
+  // 前台、櫃台、大廳、接待區 -> 660
+  { keywords: ["前台", "櫃台", "大廳", "接待區"], load: 660.0 },
+
+  // 餐廳、用餐區、飯廳 -> 650
+  { keywords: ["餐廳", "用餐區", "飯廳", "視訊室兼餐廳"], load: 650.0 },
+  // 開放辦公、大辦公 -> 650
+  { keywords: ["開放辦公", "大辦公"], load: 650.0 },
+  // 董事長、總經理、主管、經理 -> 650
+  { keywords: ["董事長", "總經理", "主管", "經理", "經理室", "執行長", "副總"], load: 650.0 },
+  // 檔案室、機房、設備房、伺服器、電腦房 -> 650
+  { keywords: ["檔案室", "檔案", "機房", "設備房", "伺服器", "電腦房"], load: 650.0 },
+
+  // 主臥、主臥室、套房 -> 600
+  { keywords: ["主臥", "主臥室", "套房"], load: 600.0 },
+  // 次臥、女兒房、小孩房、男孩房、兒子房、傭人、管家、客房、臥室、臥房、店鋪 -> 600
+  { keywords: ["次臥", "女兒房", "小孩房", "男孩房", "兒子房", "傭人", "管家", "客房", "臥室", "臥房", "店鋪"], load: 600.0 },
+  // 客廳、起居室 -> 600
+  { keywords: ["客廳", "起居室", "客餐廳"], load: 600.0 },
+  // 辦公室、小辦公、洽談、會議、會客、演講、休息、貴賓、簡報、作業區、討論 -> 600
+  { keywords: ["小辦公", "辦公室", "辦公", "洽談", "合約", "會議", "會客", "演講", "休息", "貴賓", "簡報", "作業區", "討論"], load: 600.0 },
+
+  // 書房、閱覽室 -> 500
+  { keywords: ["書房", "閱覽室"], load: 500.0 },
+  // 茶水、茶水間、茶水區 -> 500
+  { keywords: ["茶水", "茶水間", "茶水區"], load: 500.0 },
+
+  // 儲藏室、更衣室、更衣間、衣帽、庫房、倉庫 -> 450
+  { keywords: ["更衣", "更衣間", "更衣室", "衣帽", "衣帽間"], load: 450.0 },
+  { keywords: ["儲藏", "儲藏室", "庫房", "倉庫", "儲物室"], load: 450.0 },
+  // 玄關、走道、走廊、通道 -> 450
+  { keywords: ["玄關", "走道", "走廊", "通道"], load: 450.0 },
+
+  // 男廁、女廁、殘障廁所、無障礙、廁所、洗手間、衛浴、浴室、客廁 -> 400
+  { keywords: ["男廁", "女廁", "殘障廁所", "無障礙", "廁所", "洗手間", "衛浴", "浴室", "客廁"], load: 400.0 }
 ];
 
 // 🎯 測試存取保護密碼 (預設為 daikin2026，可改為任意密碼或改為 "" 取消密碼)
@@ -4052,3 +4074,22 @@ export const VRV_PIPE_BRANCHES_DB = [
   { model: "BHFP22P100", name: "VRV室外機分歧頭 (100)", price: 3700.0, type: "室外機分歧頭" },
   { model: "BHFP22P151", name: "VRV室外機分歧頭 (151)", price: 7500.0, type: "室外機分歧頭" }
 ];
+
+// 🎯 大金全熱交換器規格資料庫 (來自 EQUIPMENT_Data 的 HRV 分頁)
+export const HRV_UNITS_DB = [
+  { model: 'VAM150HVLT', airflow: 150, power_supply: '1φ, 220V, 60Hz', power_kw: 0.06, dimensions: '278×551×810', price: 50000, pm25: '內建' },
+  { model: 'VAM250HVLT', airflow: 250, power_supply: '1φ, 220V, 60Hz', power_kw: 0.06, dimensions: '278×551×810', price: 60000, pm25: '內建' },
+  { model: 'VAM350HVLT', airflow: 350, power_supply: '1φ, 220V, 60Hz', power_kw: 0.12, dimensions: '306×800×879', price: 70000, pm25: '內建' },
+  { model: 'VAM500HVLT', airflow: 500, power_supply: '1φ, 220V, 60Hz', power_kw: 0.20, dimensions: '338×832×973', price: 80000, pm25: '內建' },
+  { model: 'VAM650HVLT', airflow: 650, power_supply: '1φ, 220V, 60Hz', power_kw: 0.34, dimensions: '338×832×973', price: 50000, pm25: '內建' },
+  { model: 'VAM800HVLT', airflow: 800, power_supply: '1φ, 220V, 60Hz', power_kw: 0.38, dimensions: '387×1,012×1,110', price: 50000, pm25: '內建' },
+  { model: 'VAM1000HVLT', airflow: 1000, power_supply: '1φ, 220V, 60Hz', power_kw: 0.38, dimensions: '387×1,012×1,110', price: 50000, pm25: '內建' },
+  { model: 'VAM1500HVLT', airflow: 1500, power_supply: '1φ, 220V, 60Hz', power_kw: 0.76, dimensions: '785×1,012×1,110', price: 50000, pm25: '內建' },
+  { model: 'VAM2000HVLT', airflow: 2000, power_supply: '1φ, 220V, 60Hz', power_kw: 0.76, dimensions: '785×1,012×1,110', price: 50000, pm25: '內建' },
+];
+
+export const matchHrvUnit = (totalAirflow) => {
+  if (!totalAirflow || totalAirflow <= 0) return null;
+  const sorted = [...HRV_UNITS_DB].sort((a, b) => a.airflow - b.airflow);
+  return sorted.find(m => m.airflow >= totalAirflow) || sorted[sorted.length - 1];
+};

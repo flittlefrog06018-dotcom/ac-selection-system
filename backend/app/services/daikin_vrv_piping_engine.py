@@ -468,23 +468,72 @@ class DaikinVRVPipingEngine:
     # 扁平化文字樹狀清單產生器 (符合 Excel 【系統套數】格式)
     # ----------------------------------------------------
     @classmethod
+    def flatten_custom_tree_to_rows(cls, outdoor_model: str, custom_items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        依照使用者在前端自訂的樹狀拓撲結構 (包含第一階層主幹與第二階層次分歧 Sub-Branch) 進行精準文字樹狀展平
+        """
+        main_pipes = cls.get_main_trunk_pipe(outdoor_model)
+        rows = []
+        rows.append({"結構": f"{outdoor_model} (主幹管: {main_pipes['l']}/{main_pipes['g']})", "數量": 1, "is_main": True, "node_type": "main"})
+        
+        num_items = len(custom_items)
+        for idx, item in enumerate(custom_items):
+            is_last = (idx == num_items - 1)
+            pref1 = "└─ " if is_last else "├─ "
+            pipe_prefix = "   " if is_last else "│  "
+            it_type = item.get("type", "indoor")
+            
+            if it_type == "indoor":
+                m = item.get("model", "")
+                c = cls.extract_capacity_index(m)
+                is_in_vrv = m.upper().startswith("FX") or cls.check_is_vrv(outdoor_model)
+                n_type = 'vrv' if is_in_vrv else 'ra'
+                p = cls.get_indoor_branch_pipe(n_type, c)
+                s_name = item.get("space_name") or item.get("room_name") or item.get("space") or item.get("name") or "空間"
+                label = f"{pref1}{s_name}: [VRV] {m} (配管: {p['l']}/{p['g']})"
+                rows.append({"結構": label, "數量": item.get("qty", 1), "is_main": False, "node_type": n_type})
+                
+            elif it_type == "sub_branch":
+                children = item.get("children", [])
+                sub_total_x = sum(cls.extract_capacity_index(c.get("model", "")) * c.get("qty", 1) for c in children)
+                sub_joint = cls.get_secondary_joint(sub_total_x)
+                branch_label = f"{pref1}[次分歧頭 {sub_joint}] (次分歧網絡 - 共 {len(children)} 台)"
+                rows.append({"結構": branch_label, "數量": 1, "is_main": True, "node_type": "joint"})
+                
+                c_num = len(children)
+                for c_idx, child in enumerate(children):
+                    c_is_last = (c_idx == c_num - 1)
+                    c_pref2 = f"{pipe_prefix}└─ " if c_is_last else f"{pipe_prefix}├─ "
+                    cm = child.get("model", "")
+                    cc = cls.extract_capacity_index(cm)
+                    cp = cls.get_indoor_branch_pipe('vrv', cc)
+                    cs_name = child.get("space_name") or child.get("room_name") or child.get("space") or child.get("name") or "空間"
+                    clabel = f"{c_pref2}{cs_name}: [VRV] {cm} (配管: {cp['l']}/{cp['g']})"
+                    rows.append({"結構": clabel, "數量": child.get("qty", 1), "is_main": False, "node_type": "vrv"})
+
+        return rows
+
+    @classmethod
     def flatten_system_to_rows(cls, outdoor_model: str, indoor_items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         is_vrv = cls.check_is_vrv(outdoor_model, indoor_items)
+        main_pipes = cls.get_main_trunk_pipe(outdoor_model)
         rows = []
-        rows.append({"結構": outdoor_model, "數量": 1, "is_main": True, "node_type": "main"})
+        rows.append({"結構": f"{outdoor_model} (主幹管: {main_pipes['l']}/{main_pipes['g']})", "數量": 1, "is_main": True, "node_type": "main"})
 
         num_units = len(indoor_items)
         for idx, item in enumerate(indoor_items):
             is_last = (idx == num_units - 1)
             pref = "└─ " if is_last else "├─ "
-            m = item.get("model", "")
+            m = item.get("model") or item.get("best_match_model") or ""
             c = cls.extract_capacity_index(m)
             is_in_vrv = is_vrv or m.upper().startswith("FX")
             is_in_sa = any(k in m.upper() for k in ['FBA', 'FAA', 'FCA', 'FFA', 'FHQ']) or "SA" in str(item.get("system_type", "")).upper()
             n_type = 'vrv' if is_in_vrv else ('sa' if is_in_sa else 'ra')
             p = cls.get_indoor_branch_pipe(n_type, c)
             tag = "[VRV]" if is_in_vrv else ("[商用]" if is_in_sa else "[家用]")
-            label = f"{pref}{tag} {m} (配管: {p['l']}/{p['g']})"
+            s_name = item.get("space_name") or item.get("room_name") or item.get("space") or item.get("name") or ""
+            name_part = f"{s_name}: " if s_name else ""
+            label = f"{pref}{name_part}{tag} {m} (配管: {p['l']}/{p['g']})"
             rows.append({"結構": label, "數量": item.get("qty", 1), "is_main": False, "node_type": n_type})
 
         return rows
@@ -574,79 +623,191 @@ class DaikinFlowchartDiagramDrawer:
             draw.rectangle([trunk_x + 15, trunk_y1 + 10, trunk_x + 190, trunk_y1 + 34], fill=COLOR_PIPE_BG, outline=COLOR_PIPE_TEXT, width=1)
             draw.text((trunk_x + 102, trunk_y1 + 22), main_pipe_str, fill=COLOR_PIPE_TEXT, font=font_pipe, anchor="mm")
 
-        # 3. 逐層繪製各分支節點與室內機
-        curr_y = trunk_y2
+        # 3. 逐層解析分支節點 (原生支援單台室內機與次分歧網絡 Sub-Branch 拓撲)
+        parsed_nodes = []
+        for item in indoor_items:
+            it_type = item.get("type", "indoor")
+            if it_type == "sub_branch":
+                children = item.get("children", [])
+                sub_children = []
+                for child in children:
+                    cm = child.get("model") or child.get("best_match_model") or ""
+                    cr = child.get("space_name") or child.get("room_name") or child.get("space") or child.get("name") or "空間"
+                    cc = DaikinVRVPipingEngine.extract_capacity_index(cm)
+                    cp = DaikinVRVPipingEngine.get_indoor_branch_pipe('vrv', cc)
+                    sub_children.append({
+                        "model": cm,
+                        "room": cr,
+                        "cap": cc,
+                        "pipe_l": cp["l"],
+                        "pipe_g": cp["g"]
+                    })
+                sub_total_x = sum(c["cap"] for c in sub_children)
+                sub_joint = DaikinVRVPipingEngine.get_secondary_joint(sub_total_x)
+                sub_pipe = DaikinVRVPipingEngine.get_sub_trunk_pipe(sub_total_x)
+                parsed_nodes.append({
+                    "type": "sub_branch",
+                    "name": item.get("name") or "次分歧網絡",
+                    "joint": sub_joint,
+                    "sub_pipe": sub_pipe,
+                    "cap": sub_total_x,
+                    "children": sub_children
+                })
+            else:
+                m = item.get("model") or item.get("best_match_model") or ""
+                r = item.get("space_name") or item.get("room_name") or item.get("space") or item.get("name") or "空間"
+                c = DaikinVRVPipingEngine.extract_capacity_index(m)
+                is_in_vrv = is_vrv or m.upper().startswith("FX")
+                is_in_sa = any(k in m.upper() for k in ['FBA', 'FAA', 'FCA', 'FFA', 'FHQ']) or "SA" in str(item.get("system_type", "")).upper()
+                n_type = 'vrv' if is_in_vrv else ('sa' if is_in_sa else 'ra')
+                p = DaikinVRVPipingEngine.get_indoor_branch_pipe(n_type, c)
+                parsed_nodes.append({
+                    "type": "indoor",
+                    "model": m,
+                    "room": r,
+                    "cap": c,
+                    "pipe_l": p["l"],
+                    "pipe_g": p["g"]
+                })
+
+        total_visual_rows = sum(len(n["children"]) if n["type"] == "sub_branch" else 1 for n in parsed_nodes)
+        total_visual_rows = max(total_visual_rows, 2)
+        height = header_height + (total_visual_rows * row_height) + footer_height
+
+        img = Image.new('RGB', (width, height), color=(255, 255, 255))
+        draw = ImageDraw.Draw(img)
+
         horizontal_line_len = 240
         box_w, box_h = 300, 48
 
-        flat_endpoints = []
-        for item in indoor_items:
-            m = item.get("model", "")
-            r = item.get("room_name", "空間")
-            c = DaikinVRVPipingEngine.extract_capacity_index(m)
-            is_in_vrv = is_vrv or m.upper().startswith("FX")
-            is_in_sa = any(k in m.upper() for k in ['FBA', 'FAA', 'FCA', 'FFA', 'FHQ']) or "SA" in str(item.get("system_type", "")).upper()
-            n_type = 'vrv' if is_in_vrv else ('sa' if is_in_sa else 'ra')
-            p = DaikinVRVPipingEngine.get_indoor_branch_pipe(n_type, c)
-            flat_endpoints.append({
-                "model": m,
-                "room": r,
-                "cap": c,
-                "pipe_l": p["l"],
-                "pipe_g": p["g"]
-            })
+        # 重新繪製室外機卡片 (根據調整後的高寬)
+        draw.rectangle([out_x, out_y, out_x + out_w, out_y + out_h], fill=COLOR_MAIN, outline=COLOR_MAIN)
+        draw.text((out_x + out_w // 2, out_y + 14), out_title_str, fill=(255, 255, 255), font=font_box, anchor="mm")
+        draw.text((out_x + out_w // 2, out_y + 36), out_spec_str, fill=(255, 255, 255), font=font_box, anchor="mm")
+        draw.line([(trunk_x, trunk_y1), (trunk_x, trunk_y2)], fill=COLOR_LINE, width=3)
+        if is_vrv:
+            main_pipe_str = f"主幹管: {root_node.pipe_liquid} / {root_node.pipe_gas}"
+            draw.rectangle([trunk_x + 15, trunk_y1 + 10, trunk_x + 190, trunk_y1 + 34], fill=COLOR_PIPE_BG, outline=COLOR_PIPE_TEXT, width=1)
+            draw.text((trunk_x + 102, trunk_y1 + 22), main_pipe_str, fill=COLOR_PIPE_TEXT, font=font_pipe, anchor="mm")
 
-        num_units = len(flat_endpoints)
-        joint_idx = 0
+        # 自底向上計算下游能力總和
+        downstream_sums = []
+        cur_sum = 0
+        for n in reversed(parsed_nodes):
+            cur_sum += n["cap"]
+            downstream_sums.append(cur_sum)
+        downstream_sums.reverse()
 
-        for idx, ep in enumerate(flat_endpoints):
-            branch_y = curr_y + (idx * row_height)
-            is_last = (idx == num_units - 1)
+        curr_y = trunk_y2
+        num_nodes = len(parsed_nodes)
 
-            # (A) 垂直幹管
-            if not is_last:
-                draw.line([(trunk_x, branch_y), (trunk_x, branch_y + row_height)], fill=COLOR_LINE, width=3)
-                # 若為 VRV 系統，且非末端，標註次幹管管徑
-                if is_vrv and idx < len(all_joints) - 1:
-                    rem_cap = sum(u["cap"] for u in flat_endpoints[idx+1:])
+        for idx, node in enumerate(parsed_nodes):
+            is_last_node = (idx == num_nodes - 1)
+            node_y = curr_y
+
+            if node["type"] == "indoor":
+                # (A) 單台室內機節點
+                if not is_last_node:
+                    draw.line([(trunk_x, node_y), (trunk_x, node_y + row_height)], fill=COLOR_LINE, width=3)
+                    # 次幹管徑標註
+                    rem_cap = downstream_sums[idx + 1]
                     sub_p = DaikinVRVPipingEngine.get_sub_trunk_pipe(rem_cap)
                     sub_p_str = f"次幹: {sub_p['l']}/{sub_p['g']}"
-                    draw.rectangle([trunk_x + 12, branch_y + 24, trunk_x + 150, branch_y + 44], fill=COLOR_PIPE_BG, outline=COLOR_PIPE_BORDER, width=1)
-                    draw.text((trunk_x + 81, branch_y + 34), sub_p_str, fill=COLOR_PIPE_TEXT, font=font_pipe, anchor="mm")
+                    draw.rectangle([trunk_x + 12, node_y + 24, trunk_x + 150, node_y + 44], fill=COLOR_PIPE_BG, outline=COLOR_PIPE_BORDER, width=1)
+                    draw.text((trunk_x + 81, node_y + 34), sub_p_str, fill=COLOR_PIPE_TEXT, font=font_pipe, anchor="mm")
 
-            # (B) 分歧頭節點 (圓圈與型號)
-            if is_vrv and num_units > 1:
-                if not is_last:
-                    draw.ellipse([trunk_x - 6, branch_y - 6, trunk_x + 6, branch_y + 6], fill=(255, 255, 255), outline=COLOR_PIPE_TEXT, width=2)
-                    j_info = all_joints[joint_idx] if joint_idx < len(all_joints) else None
-                    if j_info:
-                        j_label = f"{j_info['model']} [{j_info['role']}]"
-                        draw.rectangle([trunk_x - 170, branch_y - 12, trunk_x - 10, branch_y + 12], fill=COLOR_JOINT_BG, outline=COLOR_JOINT_BORDER, width=1)
-                        draw.text((trunk_x - 90, branch_y), j_label, fill=COLOR_JOINT_TEXT, font=font_joint, anchor="mm")
-                    joint_idx += 1
-                else:
-                    draw.ellipse([trunk_x - 5, branch_y - 5, trunk_x + 5, branch_y + 5], fill=COLOR_LINE)
-            else:
-                draw.ellipse([trunk_x - 5, branch_y - 5, trunk_x + 5, branch_y + 5], fill=COLOR_LINE)
+                # 主幹分歧頭標籤 (若非末端)
+                if is_vrv and not is_last_node:
+                    draw.ellipse([trunk_x - 6, node_y - 6, trunk_x + 6, node_y + 6], fill=(255, 255, 255), outline=COLOR_PIPE_TEXT, width=2)
+                    j_model = DaikinVRVPipingEngine.get_secondary_joint(downstream_sums[idx])
+                    role_str = "第一分歧頭" if idx == 0 else f"次分歧頭-{idx}"
+                    j_label = f"{j_model} [{role_str}]"
+                    draw.rectangle([trunk_x - 170, node_y - 12, trunk_x - 10, node_y + 12], fill=COLOR_JOINT_BG, outline=COLOR_JOINT_BORDER, width=1)
+                    draw.text((trunk_x - 90, node_y), j_label, fill=COLOR_JOINT_TEXT, font=font_joint, anchor="mm")
 
-            # (C) 水平分支管
-            h_x2 = trunk_x + horizontal_line_len
-            draw.line([(trunk_x, branch_y), (h_x2, branch_y)], fill=COLOR_LINE, width=2)
+                # 水平分支配管
+                h_x2 = trunk_x + horizontal_line_len
+                draw.line([(trunk_x, node_y), (h_x2, node_y)], fill=COLOR_LINE, width=2)
+                branch_pipe_str = f"配管: {node['pipe_l']} / {node['pipe_g']}"
+                mid_hx = (trunk_x + h_x2) // 2
+                draw.rectangle([mid_hx - 60, node_y - 18, mid_hx + 60, node_y - 2], fill=COLOR_PIPE_BG, outline=COLOR_PIPE_BORDER, width=1)
+                draw.text((mid_hx, node_y - 10), branch_pipe_str, fill=COLOR_PIPE_TEXT, font=font_pipe, anchor="mm")
 
-            # 配管尺寸標註
-            branch_pipe_str = f"配管: {ep['pipe_l']} / {ep['pipe_g']}"
-            mid_hx = (trunk_x + h_x2) // 2
-            draw.rectangle([mid_hx - 60, branch_y - 18, mid_hx + 60, branch_y - 2], fill=COLOR_PIPE_BG, outline=COLOR_PIPE_BORDER, width=1)
-            draw.text((mid_hx, branch_y - 10), branch_pipe_str, fill=COLOR_PIPE_TEXT, font=font_pipe, anchor="mm")
+                # 室內機方框卡片
+                box_x = h_x2
+                box_y = node_y - (box_h // 2)
+                draw.rectangle([box_x, box_y, box_x + box_w, box_y + box_h], fill=COLOR_BOX_BG, outline=COLOR_MAIN, width=2)
+                room_title = f"{node['room']}  ({node['model']})"
+                cap_sub = f"能力指數: {node['cap']} | 分支配管: {node['pipe_l']} / {node['pipe_g']}"
+                draw.text((box_x + 12, box_y + 14), room_title, fill=COLOR_MAIN, font=font_box, anchor="lm")
+                draw.text((box_x + 12, box_y + 34), cap_sub, fill=(100, 116, 139), font=font_pipe, anchor="lm")
 
-            # (D) 室內機卡片方框
-            box_x = h_x2
-            box_y = branch_y - (box_h // 2)
-            draw.rectangle([box_x, box_y, box_x + box_w, box_y + box_h], fill=COLOR_BOX_BG, outline=COLOR_MAIN, width=2)
-            room_title = f"{ep['room']}  ({ep['model']})"
-            cap_sub = f"能力指數: {ep['cap']} | 分支配管: {ep['pipe_l']} / {ep['pipe_g']}"
-            draw.text((box_x + 12, box_y + 14), room_title, fill=COLOR_MAIN, font=font_box, anchor="lm")
-            draw.text((box_x + 12, box_y + 34), cap_sub, fill=(100, 116, 139), font=font_pipe, anchor="lm")
+                curr_y += row_height
+
+            elif node["type"] == "sub_branch":
+                # (B) 次分歧網絡群組 (Sub-Branch)
+                children = node["children"]
+                sub_span = max(len(children), 1)
+                sub_total_h = sub_span * row_height
+
+                # 主幹垂直段延伸至該群組下方
+                if not is_last_node:
+                    draw.line([(trunk_x, node_y), (trunk_x, node_y + sub_total_h)], fill=COLOR_LINE, width=3)
+                    rem_cap = downstream_sums[idx + 1]
+                    sub_p = DaikinVRVPipingEngine.get_sub_trunk_pipe(rem_cap)
+                    sub_p_str = f"次幹: {sub_p['l']}/{sub_p['g']}"
+                    draw.rectangle([trunk_x + 12, node_y + 24, trunk_x + 150, node_y + 44], fill=COLOR_PIPE_BG, outline=COLOR_PIPE_BORDER, width=1)
+                    draw.text((trunk_x + 81, node_y + 34), sub_p_str, fill=COLOR_PIPE_TEXT, font=font_pipe, anchor="mm")
+
+                # 主幹分歧頭標籤 (圓圈與文字)
+                if is_vrv and not is_last_node:
+                    draw.ellipse([trunk_x - 6, node_y - 6, trunk_x + 6, node_y + 6], fill=(255, 255, 255), outline=COLOR_PIPE_TEXT, width=2)
+                    j_model = DaikinVRVPipingEngine.get_secondary_joint(downstream_sums[idx])
+                    role_str = "第一分歧頭" if idx == 0 else f"次分歧頭-{idx}"
+                    j_label = f"{j_model} [{role_str}]"
+                    draw.rectangle([trunk_x - 170, node_y - 12, trunk_x - 10, node_y + 12], fill=COLOR_JOINT_BG, outline=COLOR_JOINT_BORDER, width=1)
+                    draw.text((trunk_x - 90, node_y), j_label, fill=COLOR_JOINT_TEXT, font=font_joint, anchor="mm")
+
+                # 水平引出次幹管至次分歧頭位置
+                sub_joint_x = trunk_x + 110
+                draw.line([(trunk_x, node_y), (sub_joint_x, node_y)], fill=COLOR_LINE, width=2)
+                sub_pipe_info = node["sub_pipe"]
+                sub_pipe_lbl = f"次幹: {sub_pipe_info['l']}/{sub_pipe_info['g']}"
+                draw.rectangle([trunk_x + 15, node_y - 18, trunk_x + 95, node_y - 2], fill=COLOR_PIPE_BG, outline=COLOR_PIPE_BORDER, width=1)
+                draw.text((trunk_x + 55, node_y - 10), sub_pipe_lbl, fill=COLOR_PIPE_TEXT, font=font_pipe, anchor="mm")
+
+                # 繪製次分歧頭徽章 (粉紅邊框卡片標記 KHRP26A22T 等)
+                draw.rectangle([sub_joint_x - 5, node_y - 12, sub_joint_x + 75, node_y + 12], fill=COLOR_JOINT_BG, outline=COLOR_JOINT_TEXT, width=2)
+                draw.text((sub_joint_x + 35, node_y), node["joint"], fill=COLOR_JOINT_TEXT, font=font_joint, anchor="mm")
+
+                # 次分歧垂直分配管 (自 sub_joint_x + 75 垂直延伸覆蓋所有 children)
+                sub_bus_x = sub_joint_x + 75
+                last_child_y = node_y + (len(children) - 1) * row_height
+                if len(children) > 1:
+                    draw.line([(sub_bus_x, node_y), (sub_bus_x, last_child_y)], fill=COLOR_LINE, width=2)
+
+                # 逐一繪製子室內機分支
+                for c_idx, child in enumerate(children):
+                    child_y = node_y + (c_idx * row_height)
+                    h_end_x = trunk_x + horizontal_line_len + 75
+                    draw.line([(sub_bus_x, child_y), (h_end_x, child_y)], fill=COLOR_LINE, width=2)
+
+                    # 子分支配管標籤
+                    c_pipe_str = f"配管: {child['pipe_l']} / {child['pipe_g']}"
+                    c_mid_x = (sub_bus_x + h_end_x) // 2
+                    draw.rectangle([c_mid_x - 55, child_y - 18, c_mid_x + 55, child_y - 2], fill=COLOR_PIPE_BG, outline=COLOR_PIPE_BORDER, width=1)
+                    draw.text((c_mid_x, child_y - 10), c_pipe_str, fill=COLOR_PIPE_TEXT, font=font_pipe, anchor="mm")
+
+                    # 子室內機方框卡片
+                    c_box_x = h_end_x
+                    c_box_y = child_y - (box_h // 2)
+                    draw.rectangle([c_box_x, c_box_y, c_box_x + box_w, c_box_y + box_h], fill=COLOR_BOX_BG, outline=COLOR_MAIN, width=2)
+                    c_room_title = f"{child['room']}  ({child['model']})"
+                    c_cap_sub = f"能力指數: {child['cap']} | 分支配管: {child['pipe_l']} / {child['pipe_g']}"
+                    draw.text((c_box_x + 12, c_box_y + 14), c_room_title, fill=COLOR_MAIN, font=font_box, anchor="lm")
+                    draw.text((c_box_x + 12, c_box_y + 34), c_cap_sub, fill=(100, 116, 139), font=font_pipe, anchor="lm")
+
+                curr_y += sub_total_h
 
         buf = io.BytesIO()
         img.save(buf, format='PNG')
@@ -669,8 +830,8 @@ class DaikinFlowchartDiagramDrawer:
 
         flat_endpoints = []
         for item in indoor_items:
-            m = item.get("model", "")
-            r = item.get("room_name", "空間")
+            m = item.get("model") or item.get("best_match_model") or ""
+            r = item.get("space_name") or item.get("room_name") or item.get("space") or item.get("name") or "空間"
             c = DaikinVRVPipingEngine.extract_capacity_index(m)
             is_in_vrv = is_vrv or m.upper().startswith("FX")
             is_in_sa = any(k in m.upper() for k in ['FBA', 'FAA', 'FCA', 'FFA', 'FHQ']) or "SA" in str(item.get("system_type", "")).upper()

@@ -522,3 +522,187 @@ body {
   }
 }
 
+/* ==========================================================================
+   📱 手機行動版專用響應式樣式 (螢幕寬度 <= 768px 自動生效，電腦版保持 100% 原樣)
+   ========================================================================== */
+@media (max-width: 768px) {
+  /* 1. 外層容器解鎖捲軸，允許手機自然上下拖曳滾動 */
+  .app-root-container {
+    height: auto !important;
+    min-height: 100vh !important;
+    max-height: none !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 8px 10px !important;
+  }
+
+  /* 2. 頁面標題列縮小適配 */
+  .app-header {
+    margin-bottom: 6px !important;
+    padding-bottom: 6px !important;
+  }
+  .app-header h1 {
+    font-size: 18px !important;
+  }
+  .app-header .logo-badge {
+    font-size: 13px !important;
+    padding: 2px 6px !important;
+  }
+
+  /* 3. 5 步驟導引列改為「水平滑動列」，不再垂直霸占半個螢幕 */
+  .wizard-steps-wrapper {
+    padding: 4px 6px !important;
+    margin-bottom: 8px !important;
+  }
+  .wizard-steps-grid {
+    display: flex !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    flex-wrap: nowrap !important;
+    gap: 8px !important;
+    -webkit-overflow-scrolling: touch !important;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 4px !important;
+  }
+  .wizard-step-btn {
+    flex: 0 0 145px !important;
+    min-width: 145px !important;
+    scroll-snap-align: start !important;
+    padding: 6px 8px !important;
+  }
+
+  /* 4. 主內容區域改為直向單欄排列，解除高度截斷 */
+  .app-main-layout {
+    display: flex !important;
+    flex-direction: column !important;
+    grid-template-columns: 1fr !important;
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
+    gap: 10px !important;
+  }
+
+  /* 5. 圖面展示卡片區塊保持充足高度 */
+  .floorplan-section {
+    height: auto !important;
+    min-height: 520px !important;
+    overflow: visible !important;
+    padding: 8px !important;
+  }
+
+  /* 6. 圖面頂部控制列（收折、換圖、縮放）支援橫向滾動 */
+  .floorplan-top-toolbar {
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    justify-content: flex-start !important;
+    gap: 6px !important;
+    padding-bottom: 4px !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  .floorplan-top-toolbar button,
+  .floorplan-top-toolbar div {
+    flex-shrink: 0 !important;
+  }
+
+  /* 7. 圖面編輯工具列（參考尺寸、漆桶、拉框等）支援橫向滾動，不再擠成多排 */
+  .floorplan-tool-row {
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    justify-content: flex-start !important;
+    gap: 6px !important;
+    padding: 6px 8px !important;
+    margin-bottom: 8px !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  .floorplan-tool-row > div {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    gap: 6px !important;
+  }
+  .floorplan-tool-row button {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+  }
+
+  /* 8. 圖面預覽 Canvas 容器在手機上確保大面積呈現，解鎖觸控 */
+  .floorplan-preview-box {
+    height: 60vh !important;
+    min-height: 420px !important;
+    max-height: 600px !important;
+    touch-action: manipulation !important;
+    border-radius: 8px !important;
+  }
+
+  /* 9. 表格卡片區域在手機上自然向下延伸並支援橫向滑動 */
+  .table-section-card {
+    height: auto !important;
+    min-height: 450px !important;
+    overflow: visible !important;
+    padding: 10px 8px !important;
+  }
+
+  /* 10. 📱 手機版隱藏橫向寬表格，以垂直卡片流與底部抽屜取代 */
+  .table-scroll-container {
+    display: none !important;
+  }
+  .mobile-room-cards-container {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    margin-top: 8px !important;
+    margin-bottom: 24px !important;
+  }
+  .mobile-bottom-sheet-backdrop {
+    display: flex !important;
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.78) !important;
+    backdrop-filter: blur(8px) !important;
+    z-index: 99999 !important;
+    justify-content: flex-end !important;
+    flex-direction: column !important;
+  }
+  .mobile-bottom-sheet {
+    background-color: #0f172a !important;
+    border-top: 2px solid #38bdf8 !important;
+    border-radius: 20px 20px 0 0 !important;
+    max-height: 85vh !important;
+    overflow-y: auto !important;
+    padding: 16px 18px 32px !important;
+    box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.85) !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* 版本號標籤切換 */
+  .desktop-version-badge {
+    display: none !important;
+  }
+  .mobile-version-badge {
+    display: inline-block !important;
+  }
+}
+
+/* ==========================================================================
+   🖥️ 電腦版 (解析度 > 768px)：隱藏手機卡片與抽屜，100% 保持原始大表格與樣式
+   ========================================================================== */
+@media (min-width: 769px) {
+  .mobile-room-cards-container,
+  .mobile-bottom-sheet-backdrop {
+    display: none !important;
+  }
+  .table-scroll-container {
+    display: block !important;
+  }
+  .desktop-version-badge {
+    display: inline-block !important;
+  }
+  .mobile-version-badge {
+    display: none !important;
+  }
+}
+
+
+

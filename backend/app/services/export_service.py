@@ -8,6 +8,19 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+# 🎯 大金全熱交換器規格資料庫 (參照 EQUIPMENT_Data 之 HRV 分頁第 3~9 行)
+HRV_UNITS_DB = [
+    {"model": "VAM150HVLT", "airflow": 150, "power_supply": "1φ, 220V, 60Hz", "power_kw": 0.06, "dimensions": "278×551×810", "price": 50000.0},
+    {"model": "VAM250HVLT", "airflow": 250, "power_supply": "1φ, 220V, 60Hz", "power_kw": 0.06, "dimensions": "278×551×810", "price": 60000.0},
+    {"model": "VAM350HVLT", "airflow": 350, "power_supply": "1φ, 220V, 60Hz", "power_kw": 0.12, "dimensions": "306×800×879", "price": 70000.0},
+    {"model": "VAM500HVLT", "airflow": 500, "power_supply": "1φ, 220V, 60Hz", "power_kw": 0.20, "dimensions": "338×832×973", "price": 80000.0},
+    {"model": "VAM650HVLT", "airflow": 650, "power_supply": "1φ, 220V, 60Hz", "power_kw": 0.34, "dimensions": "338×832×973", "price": 50000.0},
+    {"model": "VAM800HVLT", "airflow": 800, "power_supply": "1φ, 220V, 60Hz", "power_kw": 0.38, "dimensions": "387×1,012×1,110", "price": 50000.0},
+    {"model": "VAM1000HVLT", "airflow": 1000, "power_supply": "1φ, 220V, 60Hz", "power_kw": 0.38, "dimensions": "387×1,012×1,110", "price": 50000.0},
+    {"model": "VAM1500HVLT", "airflow": 1500, "power_supply": "1φ, 220V, 60Hz", "power_kw": 0.76, "dimensions": "785×1,012×1,110", "price": 50000.0},
+    {"model": "VAM2000HVLT", "airflow": 2000, "power_supply": "1φ, 220V, 60Hz", "power_kw": 0.76, "dimensions": "785×1,012×1,110", "price": 50000.0},
+]
+
 class ExportService:
     @classmethod
     def get_template_path(cls) -> str:
@@ -28,7 +41,7 @@ class ExportService:
         return candidates[0]
 
     @classmethod
-    def generate_excel_report(cls, rooms_data: List[Dict[str, Any]], outdoor_groups: List[Dict[str, Any]] = None, selected_controllers: List[str] = None) -> io.BytesIO:
+    def generate_excel_report(cls, rooms_data: List[Dict[str, Any]], outdoor_groups: List[Dict[str, Any]] = None, selected_controllers: List[str] = None, custom_piping_trees: Dict[str, Any] = None, custom_piping_diagram_images: Dict[str, str] = None, hrv_config: Dict[str, Any] = None) -> io.BytesIO:
         """
         Loads the template Excel sheet '選機表-.xlsx', maps properties,
         and performs vertical cell merging (rowspan) for outdoor unit cards.
@@ -54,6 +67,37 @@ class ExportService:
             # 🎯 核心規格：flat_rows_to_render 嚴格為全場勾選之選定空間 (rooms_data)，不重複，不上贅列！
             flat_rows_to_render = rooms_data or []
             group_spans = [] # 室外機併機縱向跨列合併描述
+
+            # 🎯 計算全熱交換器選型與各空間規劃數據 (EQUIPMENT_Data HRV 分頁)
+            import math
+            hrv_cfg = hrv_config or {}
+            raw_sel = hrv_cfg.get("selected_indices")
+            has_cleared = bool(hrv_cfg.get("has_cleared", False))
+            if raw_sel is not None and (len(raw_sel) > 0 or has_cleared):
+                hrv_sel_set = set(raw_sel)
+            else:
+                hrv_sel_set = set(range(len(flat_rows_to_render)))
+            basis_map = hrv_cfg.get("airflow_basis_map") or {}
+            has_pm25 = bool(hrv_cfg.get("has_pm25", False))
+
+            total_hrv_airflow = 0
+            for s_idx, r in enumerate(flat_rows_to_render):
+                a_m2 = float(r.get("area_m2") or 0.0)
+                if a_m2 <= 0 and float(r.get("area_ping") or 0.0) > 0:
+                    a_m2 = float(r.get("area_ping")) / 0.3025
+                ppl = math.ceil(a_m2 / 5.0) if a_m2 > 0 else 1
+                b_val = float(basis_map.get(str(s_idx), basis_map.get(s_idx, 30.0)))
+                if s_idx in hrv_sel_set:
+                    total_hrv_airflow += int(ppl * b_val)
+
+            matched_hrv = None
+            if total_hrv_airflow > 0:
+                for item in sorted(HRV_UNITS_DB, key=lambda x: x["airflow"]):
+                    if item["airflow"] >= total_hrv_airflow:
+                        matched_hrv = item
+                        break
+                if not matched_hrv and HRV_UNITS_DB:
+                    matched_hrv = HRV_UNITS_DB[-1]
 
             # 🎯 掃描連續具備相同 outdoorGroupId 之列進行縱向跨列合併
             i = 0
@@ -153,7 +197,7 @@ class ExportService:
                 ping_val = float(raw_ping) if raw_ping is not None and float(raw_ping) > 0 else (round(area_m2 * 0.3025, 2) if area_m2 > 0 else 0.0)
                 
                 # 🎯 每坪負荷基準 (kcal/hr/坪)
-                final_suggested_kcal_per_ping = float(room.get("calc_basis") or room.get("final_suggested_kcal_per_ping") or room.get("base_suggested_load") or 500.0)
+                final_suggested_kcal_per_ping = float(room.get("calc_basis") or room.get("final_suggested_kcal_per_ping") or room.get("base_suggested_load") or 600.0)
                 kw_per_ping = round(final_suggested_kcal_per_ping / 860.0, 2)
                 
                 # 🎯 總熱負荷 kcal/hr 與 kW
@@ -406,6 +450,51 @@ class ExportService:
                         ws.cell(row=row_idx, column=42).value = " | ".join(notes)
                         ws.cell(row=row_idx, column=42).alignment = align_center
 
+                # 🎯 全熱交換器規劃欄位 (Col 43 ~ 53: AQ ~ BA)
+                a_m2_val = float(room.get("area_m2") or 0.0)
+                if a_m2_val <= 0 and float(room.get("area_ping") or 0.0) > 0:
+                    a_m2_val = float(room.get("area_ping")) / 0.3025
+                est_ppl = math.ceil(a_m2_val / 5.0) if a_m2_val > 0 else 1
+                b_val = float(basis_map.get(str(i), basis_map.get(i, 30.0)))
+                req_airflow = int(est_ppl * b_val)
+                is_this_hrv = i in hrv_sel_set
+
+                ws.cell(row=row_idx, column=43).value = "5m2/人"
+                ws.cell(row=row_idx, column=44).value = est_ppl
+                ws.cell(row=row_idx, column=45).value = "30CMH/人"
+                ws.cell(row=row_idx, column=46).value = req_airflow
+
+                # 僅在首列填入全案全熱交換器規格，後續執行跨列合併 (Merge Cells Col 47 ~ 53)
+                if i == 0:
+                    if matched_hrv:
+                        ws.cell(row=row_idx, column=47).value = total_hrv_airflow
+                        ws.cell(row=row_idx, column=48).value = matched_hrv["model"]
+                        ws.cell(row=row_idx, column=49).value = 1
+                        ws.cell(row=row_idx, column=50).value = matched_hrv["power_kw"]
+                        ws.cell(row=row_idx, column=51).value = matched_hrv["power_supply"]
+                        ws.cell(row=row_idx, column=52).value = matched_hrv["dimensions"]
+                        ws.cell(row=row_idx, column=53).value = "需要" if has_pm25 else "-"
+                    else:
+                        for c_col in range(47, 54):
+                            ws.cell(row=row_idx, column=c_col).value = "-"
+                elif not matched_hrv:
+                    for c_col in range(47, 54):
+                        ws.cell(row=row_idx, column=c_col).value = "-"
+
+                for c_col in range(43, 54):
+                    ws.cell(row=row_idx, column=c_col).alignment = align_center
+
+            # 🎯 確保選機表第 8 列表頭 BA 欄位標記為 PM2.5濾網
+            ws.cell(row=8, column=53).value = "PM2.5濾網"
+
+            # 🎯 全熱交換器跨列合併：Col 47 ~ 53 (AU ~ BA: 加總風量、型號、台數、耗電、電源、尺寸、PM2.5)
+            if len(flat_rows_to_render) > 1 and matched_hrv:
+                hrv_start_row = start_row
+                hrv_end_row = start_row + len(flat_rows_to_render) - 1
+                for hrv_col in range(47, 54):
+                    ws.merge_cells(start_row=hrv_start_row, end_row=hrv_end_row, start_column=hrv_col, end_column=hrv_col)
+                    ws.cell(row=hrv_start_row, column=hrv_col).alignment = align_center
+
             # 🎯 執行室外機群組縱向跨列合併與 EQUIPMENT_Data 對應填入 (openpyxl Rowspan Engine)
             for span in group_spans:
                 s_r = span["start_row"]
@@ -470,7 +559,25 @@ class ExportService:
             # 🎯 整合設備統計總表、系統套數樹狀拓撲、D3-NET 分析分頁 (獨立模組化調用)
             try:
                 from app.services.equipment_summary_service import EquipmentSummaryService
-                EquipmentSummaryService.append_summary_sheets(wb, flat_rows_to_render, outdoor_groups, selected_controllers=selected_controllers)
+                hrv_summary_info = None
+                if matched_hrv:
+                    hrv_summary_info = {
+                        "model": matched_hrv["model"],
+                        "airflow": matched_hrv["airflow"],
+                        "price": matched_hrv["price"],
+                        "has_pm25": has_pm25,
+                        "total_airflow": total_hrv_airflow
+                    }
+
+                EquipmentSummaryService.append_summary_sheets(
+                    wb,
+                    flat_rows_to_render,
+                    outdoor_groups,
+                    selected_controllers=selected_controllers,
+                    custom_piping_trees=custom_piping_trees,
+                    custom_piping_diagram_images=custom_piping_diagram_images,
+                    hrv_info=hrv_summary_info
+                )
             except Exception as summary_err:
                 logger.error(f"Failed to generate summary sheets: {summary_err}")
 
