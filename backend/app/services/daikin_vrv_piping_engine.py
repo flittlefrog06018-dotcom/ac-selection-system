@@ -472,9 +472,14 @@ class DaikinVRVPipingEngine:
         """
         依照使用者在前端自訂的樹狀拓撲結構 (包含第一階層主幹與第二階層次分歧 Sub-Branch) 進行精準文字樹狀展平
         """
-        main_pipes = cls.get_main_trunk_pipe(outdoor_model)
+        is_vrv = cls.check_is_vrv(outdoor_model)
         rows = []
-        rows.append({"結構": f"{outdoor_model} (主幹管: {main_pipes['l']}/{main_pipes['g']})", "數量": 1, "is_main": True, "node_type": "main"})
+        if is_vrv:
+            main_pipes = cls.get_main_trunk_pipe(outdoor_model)
+            header = f"{outdoor_model} (主幹管: {main_pipes['l']}/{main_pipes['g']})"
+        else:
+            header = f"{outdoor_model}"
+        rows.append({"結構": header, "數量": 1, "is_main": True, "node_type": "main"})
         
         num_items = len(custom_items)
         for idx, item in enumerate(custom_items):
@@ -497,8 +502,24 @@ class DaikinVRVPipingEngine:
                 children = item.get("children", [])
                 sub_total_x = sum(cls.extract_capacity_index(c.get("model", "")) * c.get("qty", 1) for c in children)
                 sub_joint = cls.get_secondary_joint(sub_total_x)
+                
+                # 🎯 計算從此主幹分歧點往後的所有下游容量 (包含此次分歧與後續所有空間)
+                remaining_x = sub_total_x + sum(
+                    sum(cls.extract_capacity_index(c.get("model", "")) * c.get("qty", 1) for c in post_it.get("children", []))
+                    if post_it.get("type") == "sub_branch"
+                    else cls.extract_capacity_index(post_it.get("model", "")) * post_it.get("qty", 1)
+                    for post_it in custom_items[idx + 1:]
+                )
+                main_sub_joint = cls.get_secondary_joint(remaining_x)
+
+                # 🎯 1. 主幹次幹管分歧頭 (將主幹分歧至次分歧網絡與後續空間，數量: 1)
+                if not is_last or idx > 0:
+                    trunk_sub_label = f"{pref1}[次分歧頭 {main_sub_joint}] (次幹管分歧點)"
+                    rows.append({"結構": trunk_sub_label, "數量": 1, "is_main": False, "node_type": "joint"})
+
+                # 🎯 2. 次分歧網絡內部次分歧頭 (分歧至該網絡內部各室內機，數量: 1)
                 branch_label = f"{pref1}[次分歧頭 {sub_joint}] (次分歧網絡 - 共 {len(children)} 台)"
-                rows.append({"結構": branch_label, "數量": 1, "is_main": True, "node_type": "joint"})
+                rows.append({"結構": branch_label, "數量": 1, "is_main": False, "node_type": "joint"})
                 
                 c_num = len(children)
                 for c_idx, child in enumerate(children):
@@ -516,9 +537,14 @@ class DaikinVRVPipingEngine:
     @classmethod
     def flatten_system_to_rows(cls, outdoor_model: str, indoor_items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         is_vrv = cls.check_is_vrv(outdoor_model, indoor_items)
-        main_pipes = cls.get_main_trunk_pipe(outdoor_model)
         rows = []
-        rows.append({"結構": f"{outdoor_model} (主幹管: {main_pipes['l']}/{main_pipes['g']})", "數量": 1, "is_main": True, "node_type": "main"})
+        if is_vrv:
+            main_pipes = cls.get_main_trunk_pipe(outdoor_model)
+            header = f"{outdoor_model} (主幹管: {main_pipes['l']}/{main_pipes['g']})"
+        else:
+            # RA 家用多聯/SA：無主幹管，直接呈現室外機型號
+            header = f"{outdoor_model}"
+        rows.append({"結構": header, "數量": 1, "is_main": True, "node_type": "main"})
 
         num_units = len(indoor_items)
         for idx, item in enumerate(indoor_items):

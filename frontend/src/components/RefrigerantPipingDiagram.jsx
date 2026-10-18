@@ -1078,9 +1078,16 @@ export default function RefrigerantPipingDiagram({ rows = [], outdoorGroups = []
                     strokeWidth="1.5"
                     filter="url(#shadow)"
                   />
-                  <text x="70" y="22" fill="#ffffff" fontSize="12" fontWeight="bold" textAnchor="middle">
-                    主機 ({topologyCalculations.outdoorHp} HP)
-                  </text>
+                  {(() => {
+                    const m = (topologyCalculations.outdoorModel || '').toUpperCase();
+                    const isHideHp = /RSUYQ(112|125|140|160)/.test(m);
+                    const titleText = isHideHp ? "主機" : `主機 (${topologyCalculations.outdoorHp} HP)`;
+                    return (
+                      <text x="70" y="22" fill="#ffffff" fontSize="12" fontWeight="bold" textAnchor="middle">
+                        {titleText}
+                      </text>
+                    );
+                  })()}
                   <text x="70" y="41" fill="#e0f2fe" fontSize="11" fontWeight="bold" textAnchor="middle">
                     {topologyCalculations.outdoorModel}
                   </text>

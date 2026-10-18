@@ -78,6 +78,18 @@ class ExportService:
             else:
                 hrv_sel_set = set(range(len(flat_rows_to_render)))
             basis_map = hrv_cfg.get("airflow_basis_map") or {}
+            people_map = hrv_cfg.get("people_map") or {}
+
+            def _resolve_ppl(idx: int, area_m2: float) -> int:
+                raw = people_map.get(str(idx), people_map.get(idx))
+                try:
+                    n = int(raw)
+                    if n >= 1:
+                        return n
+                except (TypeError, ValueError):
+                    pass
+                return math.ceil(area_m2 / 5.0) if area_m2 > 0 else 1
+
             has_pm25 = bool(hrv_cfg.get("has_pm25", False))
 
             total_hrv_airflow = 0
@@ -85,7 +97,7 @@ class ExportService:
                 a_m2 = float(r.get("area_m2") or 0.0)
                 if a_m2 <= 0 and float(r.get("area_ping") or 0.0) > 0:
                     a_m2 = float(r.get("area_ping")) / 0.3025
-                ppl = math.ceil(a_m2 / 5.0) if a_m2 > 0 else 1
+                ppl = _resolve_ppl(s_idx, a_m2)
                 b_val = float(basis_map.get(str(s_idx), basis_map.get(s_idx, 30.0)))
                 if s_idx in hrv_sel_set:
                     total_hrv_airflow += int(ppl * b_val)
@@ -454,7 +466,7 @@ class ExportService:
                 a_m2_val = float(room.get("area_m2") or 0.0)
                 if a_m2_val <= 0 and float(room.get("area_ping") or 0.0) > 0:
                     a_m2_val = float(room.get("area_ping")) / 0.3025
-                est_ppl = math.ceil(a_m2_val / 5.0) if a_m2_val > 0 else 1
+                est_ppl = _resolve_ppl(i, a_m2_val)
                 b_val = float(basis_map.get(str(i), basis_map.get(i, 30.0)))
                 req_airflow = int(est_ppl * b_val)
                 is_this_hrv = i in hrv_sel_set

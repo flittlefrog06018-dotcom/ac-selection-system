@@ -1,5 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { toast, ToastContainer } from 'react-toastify';
+import {
+  saveProjectToIndexedDB,
+  getAllProjectsFromIndexedDB,
+  deleteProjectFromIndexedDB,
+  downloadDaikinFile,
+  readDaikinFile,
+  blobUrlToBase64
+} from './utils/projectStorage';
 // 🎯 EQUIPMENT_Data controller 分頁黃底集中控制器規格資料庫 (含高階/低階分類與價格)
 // 🎯 EQUIPMENT_Data controller&pipe 分頁集中控制器規格資料庫 (純 D3-NET 集中控制盤)
 const CONTROLLER_CANDIDATES = [
@@ -647,11 +655,28 @@ function App() {
   const hasCtrlClickedRef = useRef(false);
   const [userHasCustomGroups, setUserHasCustomGroups] = useState(false);
 
-  // 🎯 匯出選機表確認彈窗 State (當未全選空間時提示確認匯出範圍：全部或局部)
+  // 🎯 匯出選機表確認彈窗 State (支援空間範圍確認、自訂專案名稱與同步儲存 .daikin 專案檔選項)
   const [exportConfirmModal, setExportConfirmModal] = useState({
     show: false,
     totalCount: 0,
-    selectedCount: 0
+    selectedCount: 0,
+    projectName: '',
+    saveProjectFile: true,       // 🎯 預設勾選：同步儲存/下載 .daikin 專案檔
+    saveToIndexedDB: true,       // 🎯 預設勾選：儲存至本機案場庫
+    exportScope: 'all'           // 'all' | 'selected'
+  });
+
+  // 🎯 案場專案庫彈窗 State (IndexedDB 本機專案列表、即時載入、刪除、可攜式 .daikin 檔案匯入)
+  const [projectLibraryModal, setProjectLibraryModal] = useState({
+    show: false,
+    projects: [],
+    loading: false
+  });
+
+  // 🎯 更換圖檔防呆保護確認彈窗 State (避免誤換圖面導致已規劃之空間與設備選型清空)
+  const [replaceImageModal, setReplaceImageModal] = useState({
+    show: false,
+    pendingFile: null
   });
 
   // 🎯 依使用者指示：當步驟小於 5 (尚未完成 1~5 步驟) 或選定系統完全無 VRV (只有 SA 或 RA) 時，自動將冷媒流程圖分頁切回選型表
@@ -1465,6 +1490,29 @@ function App() {
     }
   }, [fastSystem, fastSeries, fastOutdoorType, fastOutdoorPower, userHasCustomGroups, rows, currentStep]);
 
+  // 🎯 核心連動：上下室外機電源維持絕對相同一致
+  // 若場上室外機群組具有統一的電源（例如 RA / 家用多聯全為 1φ, 220V, 60Hz），上方頂部室外機電源自動保持同步！
+  useEffect(() => {
+    if (!rows || rows.length === 0) return;
+    const powerSet = new Set();
+    outdoorGroups.forEach(g => {
+      if (g.power_supply) powerSet.add(g.power_supply);
+    });
+    rows.forEach(r => {
+      if (r.power_supply) powerSet.add(r.power_supply);
+    });
+
+    if (powerSet.size === 1) {
+      const unifiedPower = Array.from(powerSet)[0];
+      if (unifiedPower && unifiedPower !== fastOutdoorPower) {
+        setFastOutdoorPower(unifiedPower);
+        if (unifiedPower.includes('1φ, 220V') && (fastOutdoorType === '冷暖上吹型' || fastOutdoorType === '冷專上吹型')) {
+          setFastOutdoorType('側吹單風扇');
+        }
+      }
+    }
+  }, [rows, outdoorGroups, fastOutdoorPower, fastOutdoorType]);
+
   const handleTableContextMenu = (e, index = null) => {
     e.preventDefault();
     e.stopPropagation();
@@ -1954,10 +2002,13 @@ function App() {
     setFastOutdoorPower(newPower);
     setUserHasCustomGroups(false);
 
-    const syncedRows = rows.map(r => {
-      const isVRV = (r.system_type === 'VRV') || (!r.system_type && r.best_match_model?.startsWith('FX'));
-      return isVRV ? { ...r, outdoor_type: effectiveType, power_supply: newPower, isCustomOutdoor: false } : r;
-    });
+    // 🎯 上下室外機電源維持絕對相同一致：同步更新所有空間之室外機電源
+    const syncedRows = rows.map(r => ({
+      ...r,
+      outdoor_type: effectiveType,
+      power_supply: newPower,
+      isCustomOutdoor: false
+    }));
 
     const { updatedRows, groups } = autoGroupAllRows(syncedRows, fastSystem, fastSeries, effectiveType, newPower, fastUnitType);
     setRows(updatedRows);
@@ -2590,20 +2641,14 @@ function App() {
     const boxW = box.clientWidth || 0;
     const boxH = box.clientHeight || 0;
 
-    if (nw > 0 && nh > 0 && boxW > 0 && boxH > 0) {
+    // 🎯 嚴格要求 box 尺寸大於 80px (避免收折過渡中抓到縮水尺寸)
+    if (nw > 0 && nh > 0 && boxW > 80 && boxH > 80) {
       // 🎯 依據原生長寬比精準適配預覽框 (嚴格等比 contain，杜絕多餘空白被 SVG 誤認)
       const ratio = Math.min(boxW / nw, boxH / nh);
       const targetW = Math.max(1, Math.round(nw * ratio));
       const targetH = Math.max(1, Math.round(nh * ratio));
       container.style.width = `${targetW}px`;
       container.style.height = `${targetH}px`;
-    } else {
-      const w = img.clientWidth || img.offsetWidth;
-      const h = img.clientHeight || img.offsetHeight;
-      if (w > 0 && h > 0) {
-        container.style.width = `${w}px`;
-        container.style.height = `${h}px`;
-      }
     }
   }, []);
 
@@ -3114,14 +3159,25 @@ function App() {
     reader.readAsDataURL(selectedFile);
   };
 
-  const processFile = async (selectedFile) => {
-    if (selectedFile) {
-      setFile(selectedFile);
-      convertFileToPreviewImage(selectedFile);
-      setScale(1);
-      setPosition({ x: 0, y: 0 });
+  const processFile = async (selectedFile, forceReset = false) => {
+    if (!selectedFile) return;
 
-      // 🎯 更換圖面時全數自動重置標示、參考尺寸、回到第一步 (工具列重新放大)
+    // 🎯 更換圖面防呆保護：若目前已有規劃中空間且未確認重置，跳出確認彈窗
+    if (!forceReset && rows && rows.length > 0) {
+      setReplaceImageModal({
+        show: true,
+        pendingFile: selectedFile
+      });
+      return;
+    }
+
+    setFile(selectedFile);
+    convertFileToPreviewImage(selectedFile);
+    setScale(1);
+    setPosition({ x: 0, y: 0 });
+
+    if (forceReset) {
+      // 🎯 全新開案：重置標示、參考尺寸、回到第一步
       setCurrentStep(1);
       setRows([]);
       setPlinePoints([]);
@@ -3131,8 +3187,31 @@ function App() {
       setIsRectDrawing(false);
       setPixelToMeterRatio(null);
       setDrawToolMode('view');
-
+      setUserHasCustomGroups(false);
+      setOutdoorGroups([]);
+      toast.success(`📁 已全新載入圖檔「${selectedFile.name}」！空間與選機已清空，請重新解析或拉框。`);
+    } else {
       toast.success(`📁 已成功載入圖檔「${selectedFile.name}」！請點選 [🚀 執行圖面自動解析] 或自行拉框。`);
+    }
+  };
+
+  // 🎯 更換圖檔防呆：保留現有空間與設備選型，僅更換底圖
+  const handleKeepSpacesAndUpdateImage = () => {
+    const pending = replaceImageModal.pendingFile;
+    if (pending) {
+      setFile(pending);
+      convertFileToPreviewImage(pending);
+      toast.success(`🖼️ 底圖已替換為「${pending.name}」！已完整保留現有 ${rows.length} 個空間與設備配置。`);
+    }
+    setReplaceImageModal({ show: false, pendingFile: null });
+  };
+
+  // 🎯 更換圖檔防呆：全新開案 (清空並重設)
+  const handleFreshStartWithImage = () => {
+    const pending = replaceImageModal.pendingFile;
+    setReplaceImageModal({ show: false, pendingFile: null });
+    if (pending) {
+      processFile(pending, true);
     }
   };
 
@@ -3810,7 +3889,7 @@ function App() {
 
       flatRowsToRender.forEach((r, idx) => {
         const aM2 = parseFloat(r.area_m2) || ((parseFloat(r.area_ping) || 0) / 0.3025);
-        const ppl = Math.ceil(aM2 / 5.0) || 1;
+        const ppl = parseInt(activeHrv?.peopleMap?.[idx], 10) || Math.ceil(aM2 / 5.0) || 1;
         const bVal = (activeHrv?.airflowBasisMap && activeHrv.airflowBasisMap[idx]) || 30;
         if (isHrvSelected(idx)) {
           totalHrvAirflow += ppl * bVal;
@@ -4871,7 +4950,7 @@ function App() {
 
       flatRowsToRender.forEach((r, idx) => {
         const aM2 = parseFloat(r.area_m2) || ((parseFloat(r.area_ping) || 0) / 0.3025);
-        const ppl = Math.ceil(aM2 / 5.0) || 1;
+        const ppl = parseInt(hrvState.peopleMap?.[idx], 10) || Math.ceil(aM2 / 5.0) || 1;
         const bVal = (hrvState.airflowBasisMap && hrvState.airflowBasisMap[idx]) || 30;
         if (isHrvSelected(idx)) {
           totalHrvAirflow += ppl * bVal;
@@ -5067,7 +5146,7 @@ function App() {
 
         // 🎯 全熱交換器規劃欄位 (Col 43 ~ 53: AQ ~ BA)
         const areaM2Val = parseFloat(row.area_m2) || ((parseFloat(row.area_ping) || 0) / 0.3025);
-        const estPeople = Math.ceil(areaM2Val / 5.0) || 1;
+        const estPeople = parseInt(hrvState.peopleMap?.[i], 10) || Math.ceil(areaM2Val / 5.0) || 1;
         const airflowBasis = (hrvState.airflowBasisMap && hrvState.airflowBasisMap[i]) || 30;
         const reqAirflow = estPeople * airflowBasis;
         const isThisSelectedHrv = isHrvSelected(i);
@@ -5207,7 +5286,197 @@ function App() {
     }
   };
 
-  // 🎯 點擊匯出按鈕：檢查是否全選，若未全選則彈出確認視窗 (全部或局部)
+  // ========================================================
+  // 🎯 案場專案快照管理核心邏輯 (Project Snapshot & Storage)
+  // ========================================================
+
+  // 🎯 建立完整專案快照 (包含底圖Base64、比例尺、空間多邊形、選型與冷媒流程圖)
+  const buildCurrentProjectSnapshot = async (customName = null) => {
+    const rawFileName = file ? file.name : "";
+    const defaultName = rawFileName ? (rawFileName.substring(0, rawFileName.lastIndexOf('.')) || rawFileName) : "大金空調選機專案";
+    const projName = (customName || defaultName).trim();
+
+    // 處理底圖：若是 Blob URL 則轉成 Base64，確保專案檔可跨設備獨立開啟
+    let safePreviewBase64 = null;
+    if (previewUrl) {
+      safePreviewBase64 = await blobUrlToBase64(previewUrl);
+    }
+
+    return {
+      version: "2.25.0",
+      id: `proj_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+      projectName: projName,
+      savedAt: new Date().toISOString(),
+      fileName: file ? file.name : "無底圖放樣",
+      fileType: file ? file.type : "image/png",
+      previewUrl: safePreviewBase64,
+      scale,
+      position,
+      paperSize,
+      scaleRatio,
+      customScaleVal,
+      pixelToMeterRatio,
+      currentStep,
+      activeTableTab,
+      fastSystem,
+      fastSeries,
+      fastUnitType,
+      fastOutdoorType,
+      fastOutdoorPower,
+      fastControlMode,
+      selectedControlModes,
+      selectedControllers,
+      dcs301Qty,
+      selectedLingli,
+      userHasCustomGroups,
+      outdoorGroups: outdoorGroups || [],
+      customPipingTrees: customPipingTrees || {},
+      customPipingDiagramImages: customPipingDiagramImages || {},
+      hrvState: {
+        selectedIndices: hrvState?.selectedIndices || [],
+        airflowBasisMap: hrvState?.airflowBasisMap || {},
+        peopleMap: hrvState?.peopleMap || {},
+        hasPm25: !!hrvState?.hasPm25,
+        hasCleared: !!hrvState?.hasCleared
+      },
+      rows: (rows || []).map(r => ({ ...r }))
+    };
+  };
+
+  // 🎯 還原專案快照 (一鍵完整恢復所有圖面、空間、選型與配管狀態)
+  const restoreProjectSnapshot = (snapshot) => {
+    try {
+      if (!snapshot) return;
+
+      if (snapshot.previewUrl) {
+        setPreviewUrl(snapshot.previewUrl);
+      }
+      if (snapshot.fileName) {
+        setFile({ name: snapshot.fileName, type: snapshot.fileType || 'image/png' });
+      }
+      if (snapshot.scale !== undefined) setScale(snapshot.scale);
+      if (snapshot.position) setPosition(snapshot.position);
+      if (snapshot.paperSize) setPaperSize(snapshot.paperSize);
+      if (snapshot.scaleRatio) setScaleRatio(snapshot.scaleRatio);
+      if (snapshot.customScaleVal) setCustomScaleVal(snapshot.customScaleVal);
+      if (snapshot.pixelToMeterRatio !== undefined) setPixelToMeterRatio(snapshot.pixelToMeterRatio);
+
+      if (snapshot.fastSystem) setFastSystem(snapshot.fastSystem);
+      if (snapshot.fastSeries) setFastSeries(snapshot.fastSeries);
+      if (snapshot.fastUnitType) setFastUnitType(snapshot.fastUnitType);
+      if (snapshot.fastOutdoorType) setFastOutdoorType(snapshot.fastOutdoorType);
+      if (snapshot.fastOutdoorPower) setFastOutdoorPower(snapshot.fastOutdoorPower);
+      if (snapshot.fastControlMode) setFastControlMode(snapshot.fastControlMode);
+
+      if (snapshot.selectedControlModes) setSelectedControlModes(snapshot.selectedControlModes);
+      if (snapshot.selectedControllers) setSelectedControllers(snapshot.selectedControllers);
+      if (snapshot.dcs301Qty !== undefined) setDcs301Qty(snapshot.dcs301Qty);
+      if (snapshot.selectedLingli) setSelectedLingli(snapshot.selectedLingli);
+      if (snapshot.userHasCustomGroups !== undefined) setUserHasCustomGroups(snapshot.userHasCustomGroups);
+
+      if (snapshot.outdoorGroups) setOutdoorGroups(snapshot.outdoorGroups);
+      if (snapshot.customPipingTrees) setCustomPipingTrees(snapshot.customPipingTrees);
+      if (snapshot.customPipingDiagramImages) setCustomPipingDiagramImages(snapshot.customPipingDiagramImages);
+
+      if (snapshot.hrvState) {
+        setHrvState({
+          selectedIndices: snapshot.hrvState.selectedIndices || [],
+          airflowBasisMap: snapshot.hrvState.airflowBasisMap || {},
+          peopleMap: snapshot.hrvState.peopleMap || {},
+          hasPm25: !!snapshot.hrvState.hasPm25,
+          hasCleared: !!snapshot.hrvState.hasCleared
+        });
+      }
+
+      if (snapshot.rows && Array.isArray(snapshot.rows)) {
+        setRows(snapshot.rows);
+      }
+
+      if (snapshot.currentStep) setCurrentStep(snapshot.currentStep);
+      if (snapshot.activeTableTab) setActiveTableTab(snapshot.activeTableTab);
+
+      toast.success(`🎉 成功載入專案【${snapshot.projectName || '選機案場'}】！已完整還原空間與設備配置。`);
+    } catch (err) {
+      console.error('還原專案快照失敗:', err);
+      toast.error(`❌ 載入專案失敗: ${err.message}`);
+    }
+  };
+
+  // 🎯 頂部快速儲存目前專案 (存入本機 IndexedDB 並下載 .daikin 專案檔)
+  const handleQuickSaveProject = async () => {
+    if (!rows || rows.length === 0) {
+      toast.warn("💡 目前尚無空間數據可儲存！");
+      return;
+    }
+    try {
+      const rawFileName = file ? file.name : "";
+      const defaultName = rawFileName ? (rawFileName.substring(0, rawFileName.lastIndexOf('.')) || rawFileName) : "大金空調選機專案";
+      const userProjName = window.prompt("請輸入要儲存的專案名稱：", defaultName);
+      if (userProjName === null) return; // 使用者按取消
+
+      toast.info("⏳ 正在打包專案數據與底圖快照...");
+      const snapshot = await buildCurrentProjectSnapshot(userProjName || defaultName);
+      await saveProjectToIndexedDB(snapshot);
+      const downloadedName = downloadDaikinFile(snapshot, userProjName || defaultName);
+
+      toast.success(`💾 專案已成功儲存至本機案場庫，並已下載「${downloadedName}」！`);
+    } catch (err) {
+      console.error("儲存專案失敗:", err);
+      toast.error(`❌ 儲存專案失敗: ${err.message}`);
+    }
+  };
+
+  // 🎯 開啟專案庫管理彈窗 (載入所有歷史專案列表)
+  const handleOpenProjectLibrary = async () => {
+    setProjectLibraryModal(prev => ({ ...prev, show: true, loading: true }));
+    try {
+      const list = await getAllProjectsFromIndexedDB();
+      setProjectLibraryModal({ show: true, projects: list, loading: false });
+    } catch (err) {
+      console.error("讀取專案庫失敗:", err);
+      toast.error("讀取本機專案庫失敗！");
+      setProjectLibraryModal(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  // 🎯 從專案庫載入指定專案
+  const handleLoadProjectFromDB = (proj) => {
+    restoreProjectSnapshot(proj);
+    setProjectLibraryModal(prev => ({ ...prev, show: false }));
+  };
+
+  // 🎯 從專案庫刪除指定專案
+  const handleDeleteProjectFromDB = async (id, projName, e) => {
+    e.stopPropagation();
+    if (!window.confirm(`確定要刪除本機存檔【${projName}】嗎？`)) return;
+    try {
+      await deleteProjectFromIndexedDB(id);
+      setProjectLibraryModal(prev => ({
+        ...prev,
+        projects: prev.projects.filter(p => p.id !== id)
+      }));
+      toast.info(`🗑️ 已刪除案場【${projName}】。`);
+    } catch (err) {
+      toast.error(`刪除失敗: ${err.message}`);
+    }
+  };
+
+  // 🎯 匯入外部 .daikin 專案檔
+  const handleImportDaikinFile = async (uploadedFile) => {
+    if (!uploadedFile) return;
+    try {
+      toast.info("⏳ 正在解析專案檔 (.daikin)...");
+      const snapshot = await readDaikinFile(uploadedFile);
+      restoreProjectSnapshot(snapshot);
+      await saveProjectToIndexedDB(snapshot);
+      setProjectLibraryModal(prev => ({ ...prev, show: false }));
+    } catch (err) {
+      console.error("匯入 .daikin 失敗:", err);
+      toast.error(`❌ 匯入失敗: ${err.message}`);
+    }
+  };
+
+  // 🎯 點擊匯出按鈕：彈出匯出確認彈窗（包含空間範圍與儲存專案選項）
   const handleExportExcel = () => {
     if (!rows || rows.length === 0) {
       toast.error("❌ 目前尚無空間數據可供匯出！");
@@ -5217,23 +5486,22 @@ function App() {
     const selectedRows = rows.filter(r => r.selected);
     const totalCount = rows.length;
     const selectedCount = selectedRows.length;
+    const rawFileName = file ? file.name : "";
+    const defaultName = rawFileName ? (rawFileName.substring(0, rawFileName.lastIndexOf('.')) || rawFileName) : "大金空調選機專案";
 
-    // 🎯 若未將所有空間全選，跳出提醒視窗確認本次列印範圍
-    if (selectedCount < totalCount) {
-      setExportConfirmModal({
-        show: true,
-        totalCount,
-        selectedCount
-      });
-      return;
-    }
-
-    // 若本來就是全選狀態，直接匯出全部空間
-    executeExportExcel(rows);
+    setExportConfirmModal({
+      show: true,
+      totalCount,
+      selectedCount,
+      projectName: defaultName,
+      saveProjectFile: true,       // 🎯 預設勾選同步儲存專案檔
+      saveToIndexedDB: true,       // 🎯 預設勾選存入本機案場庫
+      exportScope: (selectedCount > 0 && selectedCount < totalCount) ? 'selected' : 'all'
+    });
   };
 
   // 🎯 實際執行匯出選機表與報價表之核心邏輯
-  const executeExportExcel = async (targetRows) => {
+  const executeExportExcel = async (targetRows, customCaseName = null) => {
     const filteredRows = targetRows || rows.filter(row => row.selected);
 
     if (filteredRows.length === 0) {
@@ -5243,7 +5511,7 @@ function App() {
 
     setExportLoading(true);
     const rawFileName = file ? file.name : "";
-    const baseCaseName = rawFileName ? rawFileName.substring(0, rawFileName.lastIndexOf('.')) || rawFileName : "規劃案";
+    const baseCaseName = (customCaseName || (rawFileName ? (rawFileName.substring(0, rawFileName.lastIndexOf('.')) || rawFileName) : "規劃案")).trim();
 
     try {
       const payload = {
@@ -5319,6 +5587,7 @@ function App() {
             ? hrvState.selectedIndices
             : filteredRows.map((_, i) => i),
           airflow_basis_map: hrvState.airflowBasisMap || {},
+          people_map: hrvState.peopleMap || {},
           has_pm25: !!hrvState.hasPm25,
           has_cleared: !!hrvState.hasCleared
         }
@@ -5570,7 +5839,55 @@ function App() {
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span className="desktop-version-badge" style={{
+          {/* 🎯 專案存檔與歷史案場庫管理按鈕 */}
+          <button
+            type="button"
+            onClick={handleQuickSaveProject}
+            disabled={rows.length === 0}
+            style={{
+              backgroundColor: rows.length === 0 ? '#334155' : '#0284c7',
+              color: '#ffffff',
+              border: '1px solid #38bdf8',
+              padding: '4px 10px',
+              borderRadius: '6px',
+              fontSize: '11.5px',
+              fontWeight: 'bold',
+              cursor: rows.length === 0 ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              boxShadow: rows.length === 0 ? 'none' : '0 2px 8px rgba(2, 132, 199, 0.4)',
+              transition: 'all 0.2s ease'
+            }}
+            title={rows.length === 0 ? "尚無空間可存檔" : "快速儲存目前案場快照至本機並下載 .daikin 專案檔"}
+          >
+            <span>💾 儲存專案</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleOpenProjectLibrary}
+            style={{
+              backgroundColor: '#1e293b',
+              color: '#38bdf8',
+              border: '1px solid #0284c7',
+              padding: '4px 10px',
+              borderRadius: '6px',
+              fontSize: '11.5px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+              transition: 'all 0.2s ease'
+            }}
+            title="開啟本機已存案場庫或匯入可攜式 .daikin 專案檔"
+          >
+            <span>📂 專案庫 / 匯入</span>
+          </button>
+
+          <span style={{
             fontSize: '11px',
             backgroundColor: '#1e293b',
             color: '#38bdf8',
@@ -5579,18 +5896,7 @@ function App() {
             borderRadius: '4px',
             fontWeight: 'bold'
           }}>
-            電腦版 v2.24.0 (2026/10/11 23:59)
-          </span>
-          <span className="mobile-version-badge" style={{
-            fontSize: '10.5px',
-            backgroundColor: 'rgba(56, 189, 248, 0.15)',
-            color: '#38bdf8',
-            border: '1px solid #38bdf8',
-            padding: '2px 6px',
-            borderRadius: '4px',
-            fontWeight: 'bold'
-          }}>
-            手機板 V1 (2026/09/30 22:03)
+            v2.26.0 (2026/10/18 22:50)
           </span>
           <span style={{ fontSize: '12px', color: '#64748b' }}>Backend: Connected</span>
         </div>
@@ -5729,89 +6035,101 @@ function App() {
         overflow: 'hidden',
         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
       }}>
-        {isSidebarCollapsed ? (
-          /* 🎯 收折狀態：極簡立體選單與展開按鈕 */
-          <section
-            style={{
-              backgroundColor: '#1e293b',
-              border: '1px solid #334155',
-              borderRadius: '12px',
-              padding: '12px 6px',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              cursor: 'pointer',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-              userSelect: 'none'
+        {/* 🎯 收折狀態條：常駐 DOM，以 display 切換，徹底防止 Unmount 導致 SVG 框線與坐標重算偏移 */}
+        <section
+          style={{
+            backgroundColor: '#1e293b',
+            border: '1px solid #334155',
+            borderRadius: '12px',
+            padding: '12px 6px',
+            display: isSidebarCollapsed ? 'flex' : 'none',
+            flexDirection: 'column',
+            alignItems: 'center',
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+            userSelect: 'none'
+          }}
+          onClick={() => {
+            setIsSidebarCollapsed(false);
+            setTimeout(syncSize, 50);
+            setTimeout(syncSize, 150);
+            setTimeout(syncSize, 320);
+            setTimeout(syncSize, 500);
+          }}
+          title="點擊展開圖面比對視窗"
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsSidebarCollapsed(false);
+              setTimeout(syncSize, 50);
+              setTimeout(syncSize, 150);
+              setTimeout(syncSize, 320);
+              setTimeout(syncSize, 500);
             }}
-            onClick={() => setIsSidebarCollapsed(false)}
-            title="點擊展開圖面比對視窗"
-          >
-            <button
-              onClick={(e) => { e.stopPropagation(); setIsSidebarCollapsed(false); }}
-              style={{
-                backgroundColor: '#3b82f6',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '6px',
-                padding: '8px 4px',
-                cursor: 'pointer',
-                fontWeight: 'bold',
-                fontSize: '13px',
-                width: '100%',
-                marginBottom: '15px',
-                boxShadow: '0 2px 8px rgba(59, 130, 246, 0.4)'
-              }}
-              title="展開圖面比對視視圖"
-            >
-              ▶
-            </button>
-            <div style={{
-              writingMode: 'vertical-rl',
-              letterSpacing: '4px',
-              fontSize: '14px',
+            style={{
+              backgroundColor: '#3b82f6',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '6px',
+              padding: '8px 4px',
+              cursor: 'pointer',
               fontWeight: 'bold',
-              color: '#38bdf8',
-              margin: '10px 0'
-            }}>
-              🖼️ 實時圖面比對 (已收折)
-            </div>
-            {previewUrl && (
-              <img
-                src={previewUrl}
-                alt="圖面縮圖"
-                style={{
-                  width: '36px',
-                  height: '48px',
-                  objectFit: 'cover',
-                  borderRadius: '4px',
-                  border: '1px solid #38bdf8',
-                  marginTop: 'auto'
-                }}
-              />
-            )}
-          </section>
-        ) : (
-          /* 🎯 正常展開狀態：完整獨立視圖與收折按鈕 */
-          (() => {
-            const isCompactWindow = currentStep > 1;
-            const tbFontSize = isCompactWindow ? '11.5px' : '14px';
-            const tbPadding = isCompactWindow ? '3px 8px' : '6px 12px';
-            const tbAnalyzePadding = isCompactWindow ? '4px 10px' : '6px 16px';
-            const tbGap = isCompactWindow ? '4px' : '8px';
-            const tbRadius = '6px';
+              fontSize: '13px',
+              width: '100%',
+              marginBottom: '15px',
+              boxShadow: '0 2px 8px rgba(59, 130, 246, 0.4)'
+            }}
+            title="展開圖面比對視圖"
+          >
+            ▶
+          </button>
+          <div style={{
+            writingMode: 'vertical-rl',
+            letterSpacing: '4px',
+            fontSize: '14px',
+            fontWeight: 'bold',
+            color: '#38bdf8',
+            margin: '10px 0'
+          }}>
+            🖼️ 實時圖面比對 (已收折)
+          </div>
+          {previewUrl && (
+            <img
+              src={previewUrl}
+              alt="圖面縮圖"
+              style={{
+                width: '36px',
+                height: '48px',
+                objectFit: 'cover',
+                borderRadius: '4px',
+                border: '1px solid #38bdf8',
+                marginTop: 'auto'
+              }}
+            />
+          )}
+        </section>
 
-            return (
-              <section className="floorplan-section" style={{
-                ...styles.card,
-                height: '100%',
-                minHeight: 0,
-                display: 'flex',
-                flexDirection: 'column',
-                padding: '10px 12px',
-                boxSizing: 'border-box',
-                overflow: 'hidden'
-              }}>
+        {/* 🎯 正常展開狀態：完整獨立視圖，常駐 DOM 防止重掛載銷毀幾何狀態 */}
+        {(() => {
+          const isCompactWindow = currentStep > 1;
+          const tbFontSize = isCompactWindow ? '11.5px' : '14px';
+          const tbPadding = isCompactWindow ? '3px 8px' : '6px 12px';
+          const tbAnalyzePadding = isCompactWindow ? '4px 10px' : '6px 16px';
+          const tbGap = isCompactWindow ? '4px' : '8px';
+          const tbRadius = '6px';
+
+          return (
+            <section className="floorplan-section" style={{
+              ...styles.card,
+              height: '100%',
+              minHeight: 0,
+              display: isSidebarCollapsed ? 'none' : 'flex',
+              flexDirection: 'column',
+              padding: '10px 12px',
+              boxSizing: 'border-box',
+              overflow: 'hidden'
+            }}>
                 <div className="floorplan-top-toolbar" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px', flexShrink: 0 }}>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <button
@@ -6517,8 +6835,6 @@ function App() {
                   display: 'inline-flex',
                   lineHeight: 0,
                   fontSize: 0,
-                  maxWidth: '100%',
-                  maxHeight: '100%',
                   transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
                   transformOrigin: 'center center',
                   transition: isPanning ? 'none' : 'transform 0.08s ease-out'
@@ -6539,6 +6855,7 @@ function App() {
                     style={{
                       width: '100%',
                       height: '100%',
+                      objectFit: 'fill',
                       display: 'block',
                       userSelect: 'none',
                       WebkitUserDrag: 'none',
@@ -6729,8 +7046,7 @@ function App() {
           </div>
         </section>
             );
-          })()
-        )}
+          })()}
 
         {currentStep > 1 && (
         <section className="table-section-card" style={{
@@ -9460,7 +9776,7 @@ function App() {
         </div>
       )}
 
-      {/* 🎯 未全選空間時之匯出範圍確認提醒視窗 */}
+      {/* 🎯 匯出選機表與專案存檔整合確認視窗 */}
       {exportConfirmModal.show && (
         <div
           style={{
@@ -9469,8 +9785,8 @@ function App() {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.72)',
-            backdropFilter: 'blur(5px)',
+            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(6px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -9478,18 +9794,18 @@ function App() {
           }}
           onClick={(e) => {
             if (e.target === e.currentTarget) {
-              setExportConfirmModal({ show: false, totalCount: 0, selectedCount: 0 });
+              setExportConfirmModal(prev => ({ ...prev, show: false }));
             }
           }}
         >
           <div
             style={{
               backgroundColor: '#0f172a',
-              borderRadius: '14px',
-              border: '1px solid #334155',
-              boxShadow: '0 25px 60px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(56, 189, 248, 0.2)',
-              width: '90%',
-              maxWidth: '480px',
+              borderRadius: '16px',
+              border: '1.5px solid #0284c7',
+              boxShadow: '0 25px 60px rgba(0, 0, 0, 0.85), 0 0 25px rgba(56, 189, 248, 0.25)',
+              width: '92%',
+              maxWidth: '520px',
               padding: '24px',
               color: '#f8fafc',
               animation: 'fadeInScale 0.2s ease'
@@ -9498,14 +9814,14 @@ function App() {
             {/* 標題列 */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '1px solid #1e293b', paddingBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '20px' }}>⚠️</span>
-                <span style={{ fontSize: '17px', fontWeight: 'bold', color: '#f8fafc' }}>
-                  確認選機報表匯出範圍
+                <span style={{ fontSize: '22px' }}>📊</span>
+                <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#f8fafc' }}>
+                  匯出選機報表與儲存專案
                 </span>
               </div>
               <button
                 type="button"
-                onClick={() => setExportConfirmModal({ show: false, totalCount: 0, selectedCount: 0 })}
+                onClick={() => setExportConfirmModal(prev => ({ ...prev, show: false }))}
                 style={{
                   background: 'none',
                   border: 'none',
@@ -9519,53 +9835,163 @@ function App() {
               </button>
             </div>
 
-            {/* 說明文字與狀態標籤 */}
-            <div style={{ marginBottom: '20px', lineHeight: '1.6' }}>
-              <div style={{
-                backgroundColor: '#1e293b',
-                borderRadius: '8px',
-                padding: '12px 16px',
-                marginBottom: '14px',
-                border: '1px solid #334155',
-                display: 'flex',
-                justifyContent: 'space-around',
-                alignItems: 'center'
-              }}>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '12px', color: '#94a3b8' }}>全案空間總數</div>
-                  <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#38bdf8', marginTop: '2px' }}>
-                    {exportConfirmModal.totalCount} 間
-                  </div>
-                </div>
-                <div style={{ width: '1px', height: '32px', backgroundColor: '#475569' }} />
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '12px', color: '#94a3b8' }}>目前勾選空間</div>
-                  <div style={{ fontSize: '20px', fontWeight: 'bold', color: exportConfirmModal.selectedCount === 0 ? '#ef4444' : '#f59e0b', marginTop: '2px' }}>
-                    {exportConfirmModal.selectedCount} 間
-                  </div>
-                </div>
+            {/* 專案名稱設定 */}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '12.5px', color: '#94a3b8', marginBottom: '6px', fontWeight: 'bold' }}>
+                專案 / 案場名稱：
+              </label>
+              <input
+                type="text"
+                value={exportConfirmModal.projectName}
+                onChange={(e) => setExportConfirmModal(prev => ({ ...prev, projectName: e.target.value }))}
+                placeholder="請輸入案場或專案名稱 (如: 信義聯勤_A戶_VRV方案)"
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid #334155',
+                  backgroundColor: '#1e293b',
+                  color: '#ffffff',
+                  fontSize: '14px',
+                  boxSizing: 'border-box',
+                  outline: 'none'
+                }}
+              />
+            </div>
+
+            {/* 匯出範圍選擇 */}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '12.5px', color: '#94a3b8', marginBottom: '6px', fontWeight: 'bold' }}>
+                匯出空間範圍：
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: exportConfirmModal.selectedCount > 0 && exportConfirmModal.selectedCount < exportConfirmModal.totalCount ? '1fr 1fr' : '1fr', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setExportConfirmModal(prev => ({ ...prev, exportScope: 'all' }))}
+                  style={{
+                    backgroundColor: exportConfirmModal.exportScope === 'all' ? '#0284c7' : '#1e293b',
+                    color: exportConfirmModal.exportScope === 'all' ? '#ffffff' : '#cbd5e1',
+                    border: exportConfirmModal.exportScope === 'all' ? '1.5px solid #38bdf8' : '1px solid #334155',
+                    padding: '9px 12px',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  📦 匯出全部空間 ({exportConfirmModal.totalCount} 間)
+                </button>
+
+                {exportConfirmModal.selectedCount > 0 && exportConfirmModal.selectedCount < exportConfirmModal.totalCount && (
+                  <button
+                    type="button"
+                    onClick={() => setExportConfirmModal(prev => ({ ...prev, exportScope: 'selected' }))}
+                    style={{
+                      backgroundColor: exportConfirmModal.exportScope === 'selected' ? '#10b981' : '#1e293b',
+                      color: exportConfirmModal.exportScope === 'selected' ? '#ffffff' : '#cbd5e1',
+                      border: exportConfirmModal.exportScope === 'selected' ? '1.5px solid #34d399' : '1px solid #334155',
+                      padding: '9px 12px',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    📑 僅匯出勾選 ({exportConfirmModal.selectedCount} 間)
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* 🎯 儲存專案選項 (User 指定核心項目) */}
+            <div style={{
+              backgroundColor: '#0c2340',
+              border: '1.5px solid #0284c7',
+              borderRadius: '10px',
+              padding: '12px 14px',
+              marginBottom: '20px'
+            }}>
+              <div style={{ fontSize: '13.5px', fontWeight: 'bold', color: '#38bdf8', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>💾</span>
+                <span>專案記錄與可微調檔備份</span>
               </div>
 
-              <p style={{ fontSize: '14px', color: '#cbd5e1', margin: '0 0 6px 0' }}>
-                系統偵測到您<strong style={{ color: '#f59e0b' }}>尚未全選</strong>所有空間名稱。
-              </p>
-              <p style={{ fontSize: '13px', color: '#94a3b8', margin: 0 }}>
-                請問本次匯出您需要列印全案的<strong>全部空間</strong>，還是僅匯出已勾選的<strong>局部空間</strong>？
-              </p>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', marginBottom: '10px' }}>
+                <input
+                  type="checkbox"
+                  checked={exportConfirmModal.saveProjectFile}
+                  onChange={(e) => setExportConfirmModal(prev => ({ ...prev, saveProjectFile: e.target.checked }))}
+                  style={{ width: '17px', height: '17px', marginTop: '2px', accentColor: '#38bdf8', cursor: 'pointer' }}
+                />
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#f8fafc' }}>
+                    同步下載為可微調專案檔 (.daikin)
+                  </div>
+                  <div style={{ fontSize: '11.5px', color: '#94a3b8', lineHeight: '1.4', marginTop: '2px' }}>
+                    將底圖、框選空間與選機設備打包成單一檔案，供不同電腦開啟或日後微調（如切換 RA / VRV 方案）。
+                  </div>
+                </div>
+              </label>
+
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={exportConfirmModal.saveToIndexedDB}
+                  onChange={(e) => setExportConfirmModal(prev => ({ ...prev, saveToIndexedDB: e.target.checked }))}
+                  style={{ width: '17px', height: '17px', marginTop: '2px', accentColor: '#10b981', cursor: 'pointer' }}
+                />
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#f8fafc' }}>
+                    儲存至本機案場庫 (IndexedDB)
+                  </div>
+                  <div style={{ fontSize: '11.5px', color: '#94a3b8', lineHeight: '1.4', marginTop: '2px' }}>
+                    免下載檔案也能在上方「📂 專案庫」一秒直接叫出或切換此案場。
+                  </div>
+                </div>
+              </label>
             </div>
 
             {/* 操作按鈕 */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {/* 按鈕 1: 匯出全部空間 */}
+            <div style={{ display: 'flex', gap: '10px' }}>
               <button
                 type="button"
-                onClick={() => {
-                  setExportConfirmModal({ show: false, totalCount: 0, selectedCount: 0 });
-                  setRows(prev => prev.map(r => ({ ...r, selected: true })));
-                  executeExportExcel(rows);
+                onClick={async () => {
+                  const targetRows = exportConfirmModal.exportScope === 'selected'
+                    ? rows.filter(r => r.selected)
+                    : rows;
+                  const projName = (exportConfirmModal.projectName || (file?.name ? file.name.substring(0, file.name.lastIndexOf('.')) : '大金空調選機專案')).trim();
+
+                  // 若勾選存檔
+                  if (exportConfirmModal.saveProjectFile || exportConfirmModal.saveToIndexedDB) {
+                    try {
+                      toast.info("⏳ 正在打包專案數據與底圖快照...");
+                      const snapshot = await buildCurrentProjectSnapshot(projName);
+                      if (exportConfirmModal.saveToIndexedDB) {
+                        await saveProjectToIndexedDB(snapshot);
+                      }
+                      if (exportConfirmModal.saveProjectFile) {
+                        downloadDaikinFile(snapshot, projName);
+                      }
+                      toast.success(`💾 專案「${projName}」已成功儲存備份！`);
+                    } catch (err) {
+                      console.error("專案同步存檔失敗:", err);
+                      toast.error(`專案檔儲存失敗: ${err.message}`);
+                    }
+                  }
+
+                  setExportConfirmModal(prev => ({ ...prev, show: false }));
+                  if (exportConfirmModal.exportScope === 'all') {
+                    setRows(prev => prev.map(r => ({ ...r, selected: true })));
+                  }
+                  executeExportExcel(targetRows, projName);
                 }}
                 style={{
-                  backgroundColor: '#0284c7',
+                  flex: 2,
+                  backgroundColor: '#059669',
                   color: '#ffffff',
                   border: 'none',
                   padding: '12px 16px',
@@ -9577,52 +10003,22 @@ function App() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  boxShadow: '0 4px 12px rgba(2, 132, 199, 0.4)',
+                  boxShadow: '0 4px 14px rgba(5, 150, 105, 0.4)',
                   transition: 'all 0.2s ease'
                 }}
               >
-                <span>📦 匯出全部空間 ({exportConfirmModal.totalCount} 間)</span>
+                <span>🚀 確認匯出選機表與專案</span>
               </button>
 
-              {/* 按鈕 2: 僅匯出局部已勾選空間 */}
-              {exportConfirmModal.selectedCount > 0 && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const partialRows = rows.filter(r => r.selected);
-                    setExportConfirmModal({ show: false, totalCount: 0, selectedCount: 0 });
-                    executeExportExcel(partialRows);
-                  }}
-                  style={{
-                    backgroundColor: '#10b981',
-                    color: '#ffffff',
-                    border: 'none',
-                    padding: '12px 16px',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.4)',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  <span>📑 僅匯出局部已勾選空間 ({exportConfirmModal.selectedCount} 間)</span>
-                </button>
-              )}
-
-              {/* 按鈕 3: 取消 */}
               <button
                 type="button"
-                onClick={() => setExportConfirmModal({ show: false, totalCount: 0, selectedCount: 0 })}
+                onClick={() => setExportConfirmModal(prev => ({ ...prev, show: false }))}
                 style={{
+                  flex: 1,
                   backgroundColor: '#1e293b',
                   color: '#94a3b8',
                   border: '1px solid #334155',
-                  padding: '10px 16px',
+                  padding: '12px 16px',
                   borderRadius: '8px',
                   fontSize: '13.5px',
                   fontWeight: 'bold',
@@ -9632,6 +10028,442 @@ function App() {
                 }}
               >
                 取消
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🎯 案場專案庫管理視窗 (本機 IndexedDB 快照庫 & .daikin 專案檔匯入) */}
+      {projectLibraryModal.show && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setProjectLibraryModal(prev => ({ ...prev, show: false }));
+            }
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#0f172a',
+              borderRadius: '16px',
+              border: '1.5px solid #0284c7',
+              boxShadow: '0 25px 60px rgba(0, 0, 0, 0.9), 0 0 25px rgba(56, 189, 248, 0.25)',
+              width: '92%',
+              maxWidth: '680px',
+              maxHeight: '85vh',
+              display: 'flex',
+              flexDirection: 'column',
+              padding: '24px',
+              color: '#f8fafc',
+              animation: 'fadeInScale 0.2s ease'
+            }}
+          >
+            {/* 標題列 */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '1px solid #1e293b', paddingBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '22px' }}>📂</span>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#f8fafc' }}>
+                    案場專案管理庫
+                  </h3>
+                  <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>
+                    管理本機歷史案場快照，或匯入外部 .daikin 專案檔一秒還原
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setProjectLibraryModal(prev => ({ ...prev, show: false }))}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#94a3b8',
+                  fontSize: '20px',
+                  cursor: 'pointer',
+                  padding: '4px'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* 匯入外部 .daikin 專案檔區塊 */}
+            <div style={{
+              backgroundColor: '#1e293b',
+              border: '1.5px dashed #0284c7',
+              borderRadius: '10px',
+              padding: '14px',
+              marginBottom: '18px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              flexWrap: 'wrap'
+            }}>
+              <div>
+                <div style={{ fontSize: '13.5px', fontWeight: 'bold', color: '#38bdf8' }}>
+                  📤 匯入可攜式專案檔 (.daikin)
+                </div>
+                <div style={{ fontSize: '11.5px', color: '#94a3b8', marginTop: '2px' }}>
+                  從其他電腦交接或過去備份的 .daikin 專案檔，一鍵還原所有選機與圖面
+                </div>
+              </div>
+              <label style={{
+                backgroundColor: '#0284c7',
+                color: '#ffffff',
+                padding: '8px 16px',
+                borderRadius: '6px',
+                fontSize: '12.5px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 2px 8px rgba(2, 132, 199, 0.4)'
+              }}>
+                <span>選擇 .daikin 檔案</span>
+                <input
+                  type="file"
+                  accept=".daikin,application/json"
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    const f = e.target.files && e.target.files[0];
+                    if (f) handleImportDaikinFile(f);
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+            </div>
+
+            {/* 本機已存案場列表 */}
+            <div style={{ fontSize: '13.5px', fontWeight: 'bold', color: '#cbd5e1', marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span>📚 本機已存案場列表 ({projectLibraryModal.projects.length} 個)</span>
+              <button
+                type="button"
+                onClick={handleOpenProjectLibrary}
+                style={{ background: 'none', border: 'none', color: '#38bdf8', fontSize: '12px', cursor: 'pointer', textDecoration: 'underline' }}
+              >
+                🔄 重新整理
+              </button>
+            </div>
+
+            <div style={{
+              flex: 1,
+              overflowY: 'auto',
+              minHeight: '200px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+              paddingRight: '4px'
+            }}>
+              {projectLibraryModal.loading ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
+                  ⏳ 正在讀取本機案場庫...
+                </div>
+              ) : projectLibraryModal.projects.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 20px', color: '#64748b', backgroundColor: '#1e293b', borderRadius: '8px' }}>
+                  <div style={{ fontSize: '32px', marginBottom: '8px' }}>📭</div>
+                  <div style={{ fontSize: '13.5px', color: '#cbd5e1', fontWeight: 'bold' }}>目前本機尚未儲存任何案場</div>
+                  <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>
+                    匯出選機表時勾選「儲存專案」，或點擊頂部【💾 儲存專案】即可自動存檔於此。
+                  </div>
+                </div>
+              ) : (
+                projectLibraryModal.projects.map((proj) => {
+                  const dateStr = proj.savedAt ? new Date(proj.savedAt).toLocaleString('zh-TW', { hour12: false }) : '未知時間';
+                  const spaceCount = proj.rows ? proj.rows.length : 0;
+                  const sysType = proj.fastSystem || (proj.rows && proj.rows[0]?.system_type) || 'VRV';
+
+                  return (
+                    <div
+                      key={proj.id}
+                      style={{
+                        backgroundColor: '#1e293b',
+                        border: '1px solid #334155',
+                        borderRadius: '8px',
+                        padding: '12px 14px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '12px',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+                        {proj.previewUrl ? (
+                          <img
+                            src={proj.previewUrl}
+                            alt="縮圖"
+                            style={{
+                              width: '46px',
+                              height: '46px',
+                              objectFit: 'cover',
+                              borderRadius: '6px',
+                              border: '1px solid #475569',
+                              flexShrink: 0
+                            }}
+                          />
+                        ) : (
+                          <div style={{
+                            width: '46px',
+                            height: '46px',
+                            borderRadius: '6px',
+                            backgroundColor: '#0f172a',
+                            border: '1px solid #334155',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '20px',
+                            flexShrink: 0
+                          }}>
+                            📄
+                          </div>
+                        )}
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#f8fafc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {proj.projectName}
+                          </div>
+                          <div style={{ fontSize: '11.5px', color: '#94a3b8', marginTop: '3px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                            <span>🕒 {dateStr}</span>
+                            <span>•</span>
+                            <span style={{ color: '#38bdf8' }}>{spaceCount} 個空間</span>
+                            <span>•</span>
+                            <span style={{ color: '#10b981' }}>{sysType}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                        <button
+                          type="button"
+                          onClick={() => handleLoadProjectFromDB(proj)}
+                          style={{
+                            backgroundColor: '#0284c7',
+                            color: '#ffffff',
+                            border: 'none',
+                            padding: '6px 12px',
+                            borderRadius: '6px',
+                            fontSize: '12px',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                          title="載入此專案並恢復所有設定"
+                        >
+                          <span>📥 載入</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => downloadDaikinFile(proj)}
+                          style={{
+                            backgroundColor: '#334155',
+                            color: '#38bdf8',
+                            border: '1px solid #475569',
+                            padding: '6px 10px',
+                            borderRadius: '6px',
+                            fontSize: '12px',
+                            cursor: 'pointer'
+                          }}
+                          title="下載為 .daikin 專案檔"
+                        >
+                          💾
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={(e) => handleDeleteProjectFromDB(proj.id, proj.projectName, e)}
+                          style={{
+                            backgroundColor: '#1e293b',
+                            color: '#ef4444',
+                            border: '1px solid #7f1d1d',
+                            padding: '6px 10px',
+                            borderRadius: '6px',
+                            fontSize: '12px',
+                            cursor: 'pointer'
+                          }}
+                          title="從本機刪除此存檔"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #1e293b', paddingTop: '12px' }}>
+              <button
+                type="button"
+                onClick={() => setProjectLibraryModal(prev => ({ ...prev, show: false }))}
+                style={{
+                  backgroundColor: '#334155',
+                  color: '#cbd5e1',
+                  border: 'none',
+                  padding: '8px 18px',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
+                }}
+              >
+                關閉
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🎯 更換圖檔防呆確認視窗 (保護目前已編輯的空間與設備) */}
+      {replaceImageModal.show && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setReplaceImageModal({ show: false, pendingFile: null });
+            }
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#0f172a',
+              borderRadius: '16px',
+              border: '1.5px solid #f59e0b',
+              boxShadow: '0 25px 60px rgba(0, 0, 0, 0.9), 0 0 25px rgba(245, 158, 11, 0.25)',
+              width: '92%',
+              maxWidth: '500px',
+              padding: '24px',
+              color: '#f8fafc',
+              animation: 'fadeInScale 0.2s ease'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+              <span style={{ fontSize: '24px' }}>⚠️</span>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '17px', color: '#f59e0b', fontWeight: 'bold' }}>
+                  更換圖檔保護提醒
+                </h3>
+                <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>
+                  新圖檔：{replaceImageModal.pendingFile?.name}
+                </div>
+              </div>
+            </div>
+
+            <div style={{
+              backgroundColor: '#1e293b',
+              borderRadius: '8px',
+              padding: '12px 14px',
+              marginBottom: '16px',
+              fontSize: '13px',
+              color: '#cbd5e1',
+              lineHeight: '1.6'
+            }}>
+              系統偵測到您目前已有規劃中空間與選機設備（共 <strong style={{ color: '#38bdf8' }}>{rows.length}</strong> 個空間）。
+              請問本次更換圖檔您需要：
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {/* 選項 1: 全新開案 */}
+              <button
+                type="button"
+                onClick={handleFreshStartWithImage}
+                style={{
+                  backgroundColor: '#dc2626',
+                  color: '#ffffff',
+                  border: 'none',
+                  padding: '12px 14px',
+                  borderRadius: '8px',
+                  fontSize: '13.5px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <span>🆕</span>
+                <div>
+                  <div>全新開案（清空現有空間重新辨識）</div>
+                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.8)', fontWeight: 'normal', marginTop: '2px' }}>
+                    清空當前所有空間與選機，使用新圖重新進行比例標定與框選
+                  </div>
+                </div>
+              </button>
+
+              {/* 選項 3: 先備份 */}
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const snapshot = await buildCurrentProjectSnapshot();
+                    downloadDaikinFile(snapshot);
+                    await saveProjectToIndexedDB(snapshot);
+                    toast.success("💾 目前專案已安全下載備份！您現在可以放心選擇更換方式。");
+                  } catch (err) {
+                    toast.error(`備份失敗: ${err.message}`);
+                  }
+                }}
+                style={{
+                  backgroundColor: '#1e293b',
+                  color: '#38bdf8',
+                  border: '1px solid #0284c7',
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  textAlign: 'center'
+                }}
+              >
+                💾 先下載目前專案備份檔 (.daikin)
+              </button>
+
+              {/* 取消按鈕 */}
+              <button
+                type="button"
+                onClick={() => setReplaceImageModal({ show: false, pendingFile: null })}
+                style={{
+                  backgroundColor: 'transparent',
+                  color: '#94a3b8',
+                  border: '1px solid #334155',
+                  padding: '8px 14px',
+                  borderRadius: '8px',
+                  fontSize: '12.5px',
+                  cursor: 'pointer',
+                  textAlign: 'center'
+                }}
+              >
+                取消更換
               </button>
             </div>
           </div>

@@ -32,6 +32,9 @@ export default function HeatRecoveryVentilatorTable({
     ? hrvState.airflowBasisMap
     : localAirflowBasisMap;
 
+  // 預計人數手動覆寫表 (index -> 人數)；未覆寫者以 5㎡/人 自動計算
+  const peopleMap = (hrvState && hrvState.peopleMap) || {};
+
   const hasPm25 = hrvState && hrvState.hasPm25 !== undefined
     ? hrvState.hasPm25
     : localHasPm25;
@@ -99,6 +102,27 @@ export default function HeatRecoveryVentilatorTable({
     }
   };
 
+  // 預計人數手動變更 (清空則回復自動計算)
+  const handlePeopleChange = (index, raw) => {
+    updateHrvState(prev => ({
+      ...prev,
+      peopleMap: { ...((prev && prev.peopleMap) || {}), [index]: raw }
+    }));
+  };
+
+  const handlePeopleBlur = (index) => {
+    updateHrvState(prev => {
+      const nextMap = { ...((prev && prev.peopleMap) || {}) };
+      const n = parseInt(nextMap[index], 10);
+      if (isNaN(n) || n < 1) {
+        delete nextMap[index];
+      } else {
+        nextMap[index] = n;
+      }
+      return { ...prev, peopleMap: nextMap };
+    });
+  };
+
   // 風量規劃基準變更
   const handleAirflowBasisChange = (index, val) => {
     const nextMap = {
@@ -150,7 +174,11 @@ export default function HeatRecoveryVentilatorTable({
   const spaceCalculations = rows.map((row, index) => {
     const areaM2 = parseFloat(row.area_m2) || ((parseFloat(row.area_ping) || 0) / 0.3025) || 0;
     const areaPing = parseFloat(row.area_ping) || (areaM2 > 0 ? areaM2 * 0.3025 : 0);
-    const estimatedPeople = areaM2 > 0 ? Math.ceil(areaM2 / 5.0) : 1;
+    const autoPeople = areaM2 > 0 ? Math.ceil(areaM2 / 5.0) : 1;
+    const isPeopleOverridden = peopleMap[index] !== undefined;
+    const overrideNum = parseInt(peopleMap[index], 10);
+    const estimatedPeople = isPeopleOverridden && overrideNum >= 1 ? overrideNum : autoPeople;
+    const peopleInputVal = isPeopleOverridden ? peopleMap[index] : autoPeople;
     const currentBasisVal = airflowBasisMap[index] !== undefined ? airflowBasisMap[index] : 30;
     const indoorDemandAirflow = estimatedPeople * currentBasisVal;
     const isSelected = selectedIndices.includes(index);
@@ -161,6 +189,9 @@ export default function HeatRecoveryVentilatorTable({
       areaM2,
       areaPing,
       estimatedPeople,
+      autoPeople,
+      peopleInputVal,
+      isPeopleOverridden,
       currentBasisVal,
       indoorDemandAirflow,
       isSelected
@@ -462,15 +493,29 @@ export default function HeatRecoveryVentilatorTable({
 
                     {/* 4. 預計人數 */}
                     <td style={{ ...styles.td, textAlign: 'center' }}>
-                      <span style={{
-                        color: isSelected ? '#38bdf8' : '#64748b',
-                        fontWeight: 'bold',
-                        backgroundColor: isSelected ? 'rgba(56, 189, 248, 0.1)' : 'transparent',
-                        padding: '2px 8px',
-                        borderRadius: '4px'
-                      }}>
-                        {calc.estimatedPeople} 人
-                      </span>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          disabled={!isSelected}
+                          value={calc.peopleInputVal}
+                          onChange={(e) => handlePeopleChange(index, e.target.value)}
+                          onBlur={() => handlePeopleBlur(index)}
+                          title={calc.isPeopleOverridden
+                            ? `已手動修改（自動值 ${calc.autoPeople} 人），清空可回復自動計算`
+                            : '依 5㎡/人 自動計算，可手動修改'}
+                          style={{
+                            ...styles.basisInput,
+                            width: '42px',
+                            color: calc.isPeopleOverridden ? '#facc15' : '#38bdf8',
+                            borderColor: calc.isPeopleOverridden ? '#facc15' : '#475569',
+                            opacity: isSelected ? 1 : 0.45,
+                            cursor: isSelected ? 'text' : 'not-allowed'
+                          }}
+                        />
+                        <span style={{ fontSize: '11.5px', color: isSelected ? '#94a3b8' : '#475569' }}>人</span>
+                      </div>
                     </td>
 
                     {/* 5. 風量規劃基準 */}
@@ -529,9 +574,6 @@ export default function HeatRecoveryVentilatorTable({
                                 {totalAirflow.toLocaleString()}
                               </span>
                               <span style={{ fontSize: '11px', color: '#6ee7b7' }}>m³/hr</span>
-                              <span style={{ fontSize: '10.5px', color: '#94a3b8', marginTop: '2px' }}>
-                                (已選 {selectedCount} 空間)
-                              </span>
                             </div>
                           ) : (
                             <span style={{ color: '#475569' }}>-</span>
@@ -553,9 +595,6 @@ export default function HeatRecoveryVentilatorTable({
                                 letterSpacing: '0.5px'
                               }}>
                                 {matchedHrv.model}
-                              </span>
-                              <span style={{ fontSize: '11px', color: '#a855f7' }}>
-                                風量 {matchedHrv.airflow} CMH
                               </span>
                             </div>
                           ) : (
@@ -579,10 +618,8 @@ export default function HeatRecoveryVentilatorTable({
                           <label
                             style={{
                               display: 'inline-flex',
-                              flexDirection: 'column',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              gap: '6px',
                               cursor: 'pointer',
                               userSelect: 'none',
                               padding: '8px 10px',
@@ -599,14 +636,6 @@ export default function HeatRecoveryVentilatorTable({
                               onChange={handleTogglePm25}
                               style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#10b981' }}
                             />
-                            <span style={{
-                              fontSize: '12px',
-                              fontWeight: 'bold',
-                              color: hasPm25 ? '#34d399' : '#94a3b8',
-                              whiteSpace: 'nowrap'
-                            }}>
-                              {hasPm25 ? '✓ 需要' : '未勾選'}
-                            </span>
                           </label>
                         </td>
                       </>

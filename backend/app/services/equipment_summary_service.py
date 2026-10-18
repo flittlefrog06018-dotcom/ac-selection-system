@@ -1,8 +1,12 @@
 import re
 import math
+import io
+import logging
 from typing import List, Dict, Any
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
+
+logger = logging.getLogger(__name__)
 
 class EquipmentSummaryService:
     """
