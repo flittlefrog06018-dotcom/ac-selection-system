@@ -71,12 +71,17 @@ class ExportService:
             # 🎯 計算全熱交換器選型與各空間規劃數據 (EQUIPMENT_Data HRV 分頁)
             import math
             hrv_cfg = hrv_config or {}
+            is_hrv_enabled = bool(hrv_cfg.get("enabled", True))
             raw_sel = hrv_cfg.get("selected_indices")
             has_cleared = bool(hrv_cfg.get("has_cleared", False))
-            if raw_sel is not None and (len(raw_sel) > 0 or has_cleared):
+
+            # 🎯 若使用者未勾選啟用全熱、已清空或選擇不選全熱，則徹底不啟用全熱計算
+            if not is_hrv_enabled or has_cleared or raw_sel == []:
+                hrv_sel_set = set()
+            elif raw_sel is not None and len(raw_sel) > 0:
                 hrv_sel_set = set(raw_sel)
             else:
-                hrv_sel_set = set(range(len(flat_rows_to_render)))
+                hrv_sel_set = set()  # 預設不啟用全熱，避免非預期自動全選
             basis_map = hrv_cfg.get("airflow_basis_map") or {}
             people_map = hrv_cfg.get("people_map") or {}
 
@@ -93,14 +98,15 @@ class ExportService:
             has_pm25 = bool(hrv_cfg.get("has_pm25", False))
 
             total_hrv_airflow = 0
-            for s_idx, r in enumerate(flat_rows_to_render):
-                a_m2 = float(r.get("area_m2") or 0.0)
-                if a_m2 <= 0 and float(r.get("area_ping") or 0.0) > 0:
-                    a_m2 = float(r.get("area_ping")) / 0.3025
-                ppl = _resolve_ppl(s_idx, a_m2)
-                b_val = float(basis_map.get(str(s_idx), basis_map.get(s_idx, 30.0)))
-                if s_idx in hrv_sel_set:
-                    total_hrv_airflow += int(ppl * b_val)
+            if hrv_sel_set:
+                for s_idx, r in enumerate(flat_rows_to_render):
+                    a_m2 = float(r.get("area_m2") or 0.0)
+                    if a_m2 <= 0 and float(r.get("area_ping") or 0.0) > 0:
+                        a_m2 = float(r.get("area_ping")) / 0.3025
+                    ppl = _resolve_ppl(s_idx, a_m2)
+                    b_val = float(basis_map.get(str(s_idx), basis_map.get(s_idx, 30.0)))
+                    if s_idx in hrv_sel_set:
+                        total_hrv_airflow += int(ppl * b_val)
 
             matched_hrv = None
             if total_hrv_airflow > 0:
@@ -463,22 +469,23 @@ class ExportService:
                         ws.cell(row=row_idx, column=42).alignment = align_center
 
                 # 🎯 全熱交換器規劃欄位 (Col 43 ~ 53: AQ ~ BA)
-                a_m2_val = float(room.get("area_m2") or 0.0)
-                if a_m2_val <= 0 and float(room.get("area_ping") or 0.0) > 0:
-                    a_m2_val = float(room.get("area_ping")) / 0.3025
-                est_ppl = _resolve_ppl(i, a_m2_val)
-                b_val = float(basis_map.get(str(i), basis_map.get(i, 30.0)))
-                req_airflow = int(est_ppl * b_val)
-                is_this_hrv = i in hrv_sel_set
+                # 只有在使用者選擇啟用全熱且已配對出全熱設備時才填寫
+                if matched_hrv and hrv_sel_set:
+                    a_m2_val = float(room.get("area_m2") or 0.0)
+                    if a_m2_val <= 0 and float(room.get("area_ping") or 0.0) > 0:
+                        a_m2_val = float(room.get("area_ping")) / 0.3025
+                    est_ppl = _resolve_ppl(i, a_m2_val)
+                    b_val = float(basis_map.get(str(i), basis_map.get(i, 30.0)))
+                    req_airflow = int(est_ppl * b_val)
+                    is_this_hrv = i in hrv_sel_set
 
-                ws.cell(row=row_idx, column=43).value = "5m2/人"
-                ws.cell(row=row_idx, column=44).value = est_ppl
-                ws.cell(row=row_idx, column=45).value = "30CMH/人"
-                ws.cell(row=row_idx, column=46).value = req_airflow
+                    ws.cell(row=row_idx, column=43).value = "5m2/人"
+                    ws.cell(row=row_idx, column=44).value = est_ppl
+                    ws.cell(row=row_idx, column=45).value = "30CMH/人"
+                    ws.cell(row=row_idx, column=46).value = req_airflow
 
-                # 僅在首列填入全案全熱交換器規格，後續執行跨列合併 (Merge Cells Col 47 ~ 53)
-                if i == 0:
-                    if matched_hrv:
+                    # 僅在首列填入全案全熱交換器規格，後續執行跨列合併 (Merge Cells Col 47 ~ 53)
+                    if i == 0:
                         ws.cell(row=row_idx, column=47).value = total_hrv_airflow
                         ws.cell(row=row_idx, column=48).value = matched_hrv["model"]
                         ws.cell(row=row_idx, column=49).value = 1
@@ -486,26 +493,32 @@ class ExportService:
                         ws.cell(row=row_idx, column=51).value = matched_hrv["power_supply"]
                         ws.cell(row=row_idx, column=52).value = matched_hrv["dimensions"]
                         ws.cell(row=row_idx, column=53).value = "需要" if has_pm25 else "-"
-                    else:
-                        for c_col in range(47, 54):
-                            ws.cell(row=row_idx, column=c_col).value = "-"
-                elif not matched_hrv:
-                    for c_col in range(47, 54):
-                        ws.cell(row=row_idx, column=c_col).value = "-"
 
-                for c_col in range(43, 54):
-                    ws.cell(row=row_idx, column=c_col).alignment = align_center
+                    for c_col in range(43, 54):
+                        ws.cell(row=row_idx, column=c_col).alignment = align_center
+                else:
+                    # 🎯 未選全熱時，清空儲存格內容
+                    for c_col in range(43, 54):
+                        ws.cell(row=row_idx, column=c_col).value = None
 
-            # 🎯 確保選機表第 8 列表頭 BA 欄位標記為 PM2.5濾網
-            ws.cell(row=8, column=53).value = "PM2.5濾網"
+            # 🎯 確保選機表第 8 列表頭 BA 欄位標記為 PM2.5濾網 (若有全熱)
+            if matched_hrv and hrv_sel_set:
+                ws.cell(row=8, column=53).value = "PM2.5濾網"
 
             # 🎯 全熱交換器跨列合併：Col 47 ~ 53 (AU ~ BA: 加總風量、型號、台數、耗電、電源、尺寸、PM2.5)
-            if len(flat_rows_to_render) > 1 and matched_hrv:
+            if len(flat_rows_to_render) > 1 and matched_hrv and hrv_sel_set:
                 hrv_start_row = start_row
                 hrv_end_row = start_row + len(flat_rows_to_render) - 1
                 for hrv_col in range(47, 54):
                     ws.merge_cells(start_row=hrv_start_row, end_row=hrv_end_row, start_column=hrv_col, end_column=hrv_col)
                     ws.cell(row=hrv_start_row, column=hrv_col).alignment = align_center
+
+            # 🎯 依使用者需求：未選全熱時，於選機表徹底隱藏全熱相關欄位 (Col 43 ~ 53: AQ ~ BA)
+            if not matched_hrv or not hrv_sel_set:
+                from openpyxl.utils import get_column_letter
+                for col_idx in range(43, 54):
+                    col_letter = get_column_letter(col_idx)
+                    ws.column_dimensions[col_letter].hidden = True
 
             # 🎯 執行室外機群組縱向跨列合併與 EQUIPMENT_Data 對應填入 (openpyxl Rowspan Engine)
             for span in group_spans:

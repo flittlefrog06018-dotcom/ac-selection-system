@@ -624,9 +624,10 @@ async def upload_layout(request: Request):
 
 # 🎯 Excel 匯出路由 (完全遵照經理指示，支援室外機群組與縱向跨列合併)
 @router.post("/export-excel")
-async def export_excel(payload: ExportRequest):
+async def export_excel(payload: ExportRequest, request: Request):
     try:
         from app.services.export_service import ExportService
+        from app.services.auth_service import AuthService
         raw_rooms_data = [r.dict() for r in payload.data]
         if payload.control_mode and payload.control_mode != "無":
             for r in raw_rooms_data:
@@ -649,6 +650,20 @@ async def export_excel(payload: ExportRequest):
             case_name = "規劃案"
 
         excel_download_name = f"選機表-{case_name}.xlsx"
+
+        # 🎯 審計日誌：記錄人員匯出行為
+        try:
+            auth_srv = AuthService.get_instance()
+            auth_header = request.headers.get("Authorization", "")
+            token = auth_header.split(" ")[1] if auth_header.startswith("Bearer ") else ""
+            user_info = auth_srv.verify_token(token) if token else None
+            uname = user_info["username"] if user_info else "訪客/本地"
+            dname = user_info["display_name"] if user_info else "未具名人員"
+            ip = get_client_ip(request)
+            ua = request.headers.get("User-Agent", "Unknown")
+            auth_srv.log_action(uname, dname, "EXPORT_EXCEL", ip, ua, f"匯出案場: {case_name} (空間數: {len(raw_rooms_data)})")
+        except Exception as log_err:
+            pass
 
         from urllib.parse import quote
         encoded_filename = quote(excel_download_name)
@@ -705,3 +720,205 @@ async def split_space_endpoint(payload: SplitSpaceRequest):
         return {"status": "success", "spaces": final_spaces}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"開放空間分割失敗：{str(e)}")
+
+
+# ==============================================================================
+# 🎯 5. 帳號密碼登入鑑權、審計日誌 (Audit Log) 與大金 AI Copilot 服務
+# ==============================================================================
+
+class LoginRequest(BaseModel):
+    username: Optional[str] = ""
+    email: Optional[str] = ""
+    password: str
+
+class LogoutRequest(BaseModel):
+    token: Optional[str] = ""
+
+class CopilotChatRequest(BaseModel):
+    question: str
+    history: Optional[List[Dict[str, str]]] = None
+
+class CreateUserRequest(BaseModel):
+    username: Optional[str] = ""
+    email: Optional[str] = ""
+    password: str
+    display_name: Optional[str] = ""
+    full_name: Optional[str] = ""
+    role: str = "engineer"
+
+class ActionLogRequest(BaseModel):
+    action: str
+    details: Optional[str] = ""
+
+def get_client_ip(request: Request) -> str:
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "127.0.0.1"
+
+@router.post("/auth/login")
+async def api_login(payload: LoginRequest, request: Request):
+    from app.services.auth_service import AuthService
+    auth_srv = AuthService.get_instance()
+    ip = get_client_ip(request)
+    ua = request.headers.get("User-Agent", "Unknown")
+    identifier = (payload.email or payload.username or "").strip()
+    res = auth_srv.login(identifier, payload.password, ip, ua)
+    if not res.get("success"):
+        raise HTTPException(status_code=401, detail=res.get("message", "登入失敗"))
+    # 雙向相容 status 與 full_name
+    res["status"] = "success"
+    if "user" in res and "display_name" in res["user"]:
+        res["user"]["full_name"] = res["user"]["display_name"]
+    return res
+
+@router.post("/auth/logout")
+async def api_logout(request: Request, payload: Optional[LogoutRequest] = None):
+    from app.services.auth_service import AuthService
+    auth_srv = AuthService.get_instance()
+    ip = get_client_ip(request)
+    ua = request.headers.get("User-Agent", "Unknown")
+    token = payload.token if payload and payload.token else ""
+    if not token:
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
+    if token:
+        auth_srv.logout(token, ip, ua)
+    return {"success": True, "status": "success", "message": "已成功登出"}
+
+@router.get("/auth/me")
+async def api_get_current_user(request: Request):
+    from app.services.auth_service import AuthService
+    auth_srv = AuthService.get_instance()
+    auth_header = request.headers.get("Authorization", "")
+    token = ""
+    if auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+    user_info = auth_srv.verify_token(token)
+    if not user_info:
+        raise HTTPException(status_code=401, detail="登入憑證已失效或已逾期，請重新登入")
+    if "display_name" in user_info:
+        user_info["full_name"] = user_info["display_name"]
+    return {"success": True, "status": "success", "user": user_info}
+
+@router.get("/admin/audit-logs")
+async def api_get_audit_logs(request: Request, limit: int = 200):
+    from app.services.auth_service import AuthService
+    auth_srv = AuthService.get_instance()
+    auth_header = request.headers.get("Authorization", "")
+    token = ""
+    if auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+    user_info = auth_srv.verify_token(token)
+    if not user_info or user_info.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="權限不足，僅系統管理員具備檢視審計日誌權限")
+    logs = auth_srv.get_audit_logs(limit=limit)
+    return {"success": True, "status": "success", "logs": logs}
+
+@router.get("/admin/users")
+async def api_list_users(request: Request):
+    from app.services.auth_service import AuthService
+    auth_srv = AuthService.get_instance()
+    auth_header = request.headers.get("Authorization", "")
+    token = ""
+    if auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+    user_info = auth_srv.verify_token(token)
+    if not user_info or user_info.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="權限不足，僅系統管理員具備使用者管理權限")
+    users = auth_srv.list_users()
+    return {"success": True, "users": users}
+
+class ApproveUserRequest(BaseModel):
+    user_id: Optional[Any] = None
+    email: Optional[str] = ""
+    action: str = "approve"  # "approve" | "reject"
+
+@router.post("/auth/register")
+async def api_register_user(payload: CreateUserRequest, request: Request):
+    from app.services.auth_service import AuthService
+    auth_srv = AuthService.get_instance()
+    ip = get_client_ip(request)
+    ua = request.headers.get("User-Agent", "Unknown")
+    identifier = (payload.email or payload.username or "").strip()
+    name = (payload.display_name or payload.full_name or identifier).strip()
+    res = auth_srv.register_user(identifier, payload.password, name, payload.role, ip, ua)
+    if not res.get("success"):
+        raise HTTPException(status_code=400, detail=res.get("message", "申請失敗"))
+    return res
+
+@router.get("/admin/pending-users")
+async def api_get_pending_users(request: Request):
+    from app.services.auth_service import AuthService
+    auth_srv = AuthService.get_instance()
+    auth_header = request.headers.get("Authorization", "")
+    token = ""
+    if auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+    user_info = auth_srv.verify_token(token)
+    if not user_info or user_info.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="權限不足，僅系統管理員具備檢視待審核名單權限")
+    pending = auth_srv.get_pending_users()
+    return {"success": True, "pending_users": pending}
+
+@router.post("/admin/approve-user")
+async def api_approve_user(payload: ApproveUserRequest, request: Request):
+    from app.services.auth_service import AuthService
+    auth_srv = AuthService.get_instance()
+    auth_header = request.headers.get("Authorization", "")
+    token = ""
+    if auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+    user_info = auth_srv.verify_token(token)
+    if not user_info or user_info.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="權限不足，僅系統管理員具備核通帳號權限")
+    target = payload.user_id if payload.user_id is not None else payload.email
+    admin_name = user_info.get("display_name") or user_info.get("username")
+    ip = get_client_ip(request)
+    ua = request.headers.get("User-Agent", "Unknown")
+    res = auth_srv.approve_user(target, payload.action, admin_name, ip, ua)
+    if not res.get("success"):
+        raise HTTPException(status_code=400, detail=res.get("message", "操作失敗"))
+    return res
+
+@router.post("/admin/users")
+async def api_create_user(payload: CreateUserRequest, request: Request):
+    from app.services.auth_service import AuthService
+    auth_srv = AuthService.get_instance()
+    auth_header = request.headers.get("Authorization", "")
+    token = ""
+    if auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+    user_info = auth_srv.verify_token(token)
+    if not user_info or user_info.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="權限不足，僅系統管理員具備建立帳號權限")
+    identifier = (payload.email or payload.username or "").strip()
+    name = (payload.display_name or payload.full_name or identifier).strip()
+    res = auth_srv.create_user(identifier, payload.password, name, payload.role)
+    if not res.get("success"):
+        raise HTTPException(status_code=400, detail=res.get("message", "建立失敗"))
+    return res
+
+@router.post("/audit/log-action")
+async def api_log_action(payload: ActionLogRequest, request: Request):
+    from app.services.auth_service import AuthService
+    auth_srv = AuthService.get_instance()
+    auth_header = request.headers.get("Authorization", "")
+    token = ""
+    if auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+    user_info = auth_srv.verify_token(token)
+    uname = user_info["username"] if user_info else "訪客"
+    dname = user_info["display_name"] if user_info else "匿名人員"
+    ip = get_client_ip(request)
+    ua = request.headers.get("User-Agent", "Unknown")
+    auth_srv.log_action(uname, dname, payload.action, ip, ua, payload.details or "")
+    return {"success": True}
+
+@router.post("/copilot/chat")
+async def api_copilot_chat(payload: CopilotChatRequest):
+    from app.services.copilot_service import CopilotService
+    reply = CopilotService.answer_query(payload.question, payload.history)
+    return {"success": True, "status": "success", "reply": reply}
+

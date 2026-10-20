@@ -420,22 +420,361 @@ class GlobalErrorBoundary extends React.Component {
 }
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return !SYSTEM_ACCESS_PASSWORD || sessionStorage.getItem("app_authenticated") === "true";
+  // 🔐 帳號身分驗證與 Session 管理
+  const [authToken, setAuthToken] = useState(() => localStorage.getItem("daikin_token") || "");
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem("daikin_user");
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
   });
-  const [inputPassword, setInputPassword] = useState("");
-  const [passError, setPassError] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return Boolean(localStorage.getItem("daikin_token") && localStorage.getItem("daikin_user"));
+  });
+  const [loginForm, setLoginForm] = useState({ email: "admin@daikin.com.tw", password: "" });
+  const [loginError, setLoginError] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginMode, setLoginMode] = useState("login"); // 'login' | 'register'
+  const [registerForm, setRegisterForm] = useState({ email: "", password: "", fullName: "", role: "engineer" });
+  const [registerLoading, setRegisterLoading] = useState(false);
 
-  const handlePasswordSubmit = (e) => {
+  // 🛡️ 審計日誌與後台管理 State
+  const [showAuditModal, setShowAuditModal] = useState(false);
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [auditFilter, setAuditFilter] = useState("");
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [newUserForm, setNewUserForm] = useState({ email: "", password: "", fullName: "", role: "engineer" });
+  const [userList, setUserList] = useState([]);
+  const [pendingUsers, setPendingUsers] = useState([]);
+
+  // 🤖 大金 AI 顧問 (Copilot) State
+  const [showCopilotDrawer, setShowCopilotDrawer] = useState(false);
+  const [copilotMessages, setCopilotMessages] = useState([
+    {
+      sender: "bot",
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      text: "👋 您好！我是「大金空調選機 AI 顧問」。我可以協助您了解 5 步選機流程、90cm 門寬放樣規範、VRV 配管次分歧頭選型與冷房熱負荷加成。請隨時點選下方常見問題或直接輸入您的疑問！"
+    }
+  ]);
+  const [copilotInput, setCopilotInput] = useState("");
+  const [copilotLoading, setCopilotLoading] = useState(false);
+  const copilotEndRef = useRef(null);
+
+  // 🌟 新手 5 步互動導覽 State
+  const [showTourModal, setShowTourModal] = useState(false);
+  const [tourStepIndex, setTourStepIndex] = useState(0);
+
+  // 初始驗證 Token
+  useEffect(() => {
+    const token = localStorage.getItem("daikin_token");
+    if (token) {
+      fetch("/api/auth/me", {
+        headers: { "Authorization": `Bearer ${token}` }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === "success" && data.user) {
+          setCurrentUser(data.user);
+          setIsAuthenticated(true);
+          localStorage.setItem("daikin_user", JSON.stringify(data.user));
+        } else {
+          localStorage.removeItem("daikin_token");
+          localStorage.removeItem("daikin_user");
+          setAuthToken("");
+          setCurrentUser(null);
+          setIsAuthenticated(false);
+        }
+      })
+      .catch(() => {
+        // 離線時維持既有快取身分
+      });
+    }
+  }, []);
+
+  // 登入處理 (支援 Email 登入)
+  const handleLoginSubmit = async (e) => {
+    if (e) e.preventDefault();
+    setLoginLoading(true);
+    setLoginError("");
+    const inputIdentifier = (loginForm.email || "").trim();
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: inputIdentifier,
+          username: inputIdentifier,
+          password: loginForm.password.trim()
+        })
+      });
+      const data = await res.json();
+      if (res.ok && (data.success || data.status === "success")) {
+        localStorage.setItem("daikin_token", data.token);
+        localStorage.setItem("daikin_user", JSON.stringify(data.user));
+        setAuthToken(data.token);
+        setCurrentUser(data.user);
+        setIsAuthenticated(true);
+        setLoginForm({ email: "", password: "" });
+        toast.success(`👋 歡迎回來，${data.user.email || data.user.full_name}（${data.user.role === 'admin' ? '系統管理員' : data.user.role === 'engineer' ? '空調工程師' : '專案業務'}）！`);
+        
+        const hasSeenTour = localStorage.getItem("daikin_seen_tour");
+        if (!hasSeenTour) {
+          setShowTourModal(true);
+        }
+      } else {
+        setLoginError(data.detail || "Email 或密碼錯誤，請確認！");
+        toast.error(`❌ 登入失敗: ${data.detail || 'Email 或密碼錯誤'}`);
+      }
+    } catch (err) {
+      setLoginError(`伺服器連線失敗: ${err.message}`);
+      toast.error(`❌ 連線錯誤: ${err.message}`);
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  // 登出處理
+  const handleLogout = async () => {
+    const token = authToken || localStorage.getItem("daikin_token");
+    if (token) {
+      try {
+        await fetch("/api/auth/logout", {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+      } catch (e) {}
+    }
+    localStorage.removeItem("daikin_token");
+    localStorage.removeItem("daikin_user");
+    setAuthToken("");
+    setCurrentUser(null);
+    setIsAuthenticated(false);
+    setShowAuditModal(false);
+    setShowCopilotDrawer(false);
+    toast.info("🔒 已安全登出系統。");
+  };
+
+  // 取得審計日誌
+  // 取得審計日誌與待審核清單
+  const fetchAuditLogs = async () => {
+    if (!authToken) return;
+    setAuditLoading(true);
+    try {
+      const res = await fetch("/api/admin/audit-logs?limit=150", {
+        headers: { "Authorization": `Bearer ${authToken}` }
+      });
+      const data = await res.json();
+      if (data.status === "success" || data.success) {
+        setAuditLogs(data.logs || []);
+      }
+      
+      const usersRes = await fetch("/api/admin/users", {
+        headers: { "Authorization": `Bearer ${authToken}` }
+      });
+      const usersData = await usersRes.json();
+      if (usersData.status === "success" || usersData.success) {
+        setUserList(usersData.users || []);
+      }
+
+      // 取得待審核新帳號清單
+      const pendingRes = await fetch("/api/admin/pending-users", {
+        headers: { "Authorization": `Bearer ${authToken}` }
+      });
+      const pendingData = await pendingRes.json();
+      if (pendingData.status === "success" || pendingData.success) {
+        setPendingUsers(pendingData.pending_users || []);
+      }
+    } catch (err) {
+      toast.error(`無法載入審計日誌: ${err.message}`);
+    } finally {
+      setAuditLoading(false);
+    }
+  };
+
+  // 審批帳號 (核通或駁回)
+  const handleApproveUser = async (userIdOrEmail, action) => {
+    try {
+      const res = await fetch("/api/admin/approve-user", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          user_id: userIdOrEmail,
+          action: action
+        })
+      });
+      const data = await res.json();
+      if (res.ok && (data.success || data.status === "success")) {
+        toast.success(data.message || (action === 'approve' ? "✅ 帳號核准開通成功！" : "已駁回該帳號申請。"));
+        fetchAuditLogs();
+      } else {
+        toast.error(`審批失敗: ${data.detail || data.message}`);
+      }
+    } catch (err) {
+      toast.error(`操作失敗: ${err.message}`);
+    }
+  };
+
+  // 外部使用者送出帳號開通申請
+  const handleRegisterSubmit = async (e) => {
     e.preventDefault();
-    if (inputPassword === SYSTEM_ACCESS_PASSWORD) {
-      sessionStorage.setItem("app_authenticated", "true");
-      setIsAuthenticated(true);
-      setPassError(false);
-      toast.success("🔐 身份驗證成功，歡迎存取大金空調選機系統！");
-    } else {
-      setPassError(true);
-      toast.error("❌ 存取密碼錯誤，請重新輸入！");
+    const emailVal = (registerForm.email || "").trim();
+    if (!emailVal || !registerForm.password || !registerForm.fullName) {
+      toast.error("請填寫完整的電子郵件、設定密碼與姓名！");
+      return;
+    }
+    setRegisterLoading(true);
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: emailVal,
+          username: emailVal,
+          password: registerForm.password.trim(),
+          display_name: registerForm.fullName.trim(),
+          role: registerForm.role
+        })
+      });
+      const data = await res.json();
+      if (res.ok && (data.success || data.status === "success")) {
+        toast.success("📨 " + (data.message || "帳號申請已送出！請等待系統管理員審核開通。"));
+        setRegisterForm({ email: "", password: "", fullName: "", role: "engineer" });
+        setLoginMode("login");
+      } else {
+        toast.error(`❌ 申請失敗: ${data.detail || data.message || '未知錯誤'}`);
+      }
+    } catch (err) {
+      toast.error(`連線失敗: ${err.message}`);
+    } finally {
+      setRegisterLoading(false);
+    }
+  };
+
+  // 建立新使用者 (以 Email 為主要識別)
+  const handleCreateUser = async (e) => {
+    e.preventDefault();
+    const emailVal = (newUserForm.email || "").trim();
+    if (!emailVal || !newUserForm.password || !newUserForm.fullName) {
+      toast.error("請填寫完整的電子郵件 (Email)、密碼與使用者姓名！");
+      return;
+    }
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          email: emailVal,
+          username: emailVal,
+          password: newUserForm.password.trim(),
+          display_name: newUserForm.fullName.trim(),
+          role: newUserForm.role
+        })
+      });
+      const data = await res.json();
+      if (res.ok && (data.success || data.status === "success")) {
+        toast.success(`✅ 成功新增帳號「${emailVal}」！`);
+        setNewUserForm({ email: "", password: "", fullName: "", role: "engineer" });
+        fetchAuditLogs();
+      } else {
+        toast.error(`新增失敗: ${data.detail || '未知錯誤'}`);
+      }
+    } catch (err) {
+      toast.error(`建立使用者失敗: ${err.message}`);
+    }
+  };
+
+  // 匯出審計日誌 CSV
+  const handleExportAuditCsv = () => {
+    if (!auditLogs || auditLogs.length === 0) {
+      toast.info("目前尚無日誌記錄可匯出！");
+      return;
+    }
+    const headers = ["ID", "時間", "登入Email", "姓名", "角色", "IP來源", "操作動作", "詳細說明"];
+    const csvRows = [headers.join(",")];
+    auditLogs.forEach(log => {
+      const cleanDesc = (log.details || "").replace(/"/g, '""');
+      csvRows.push([
+        log.id,
+        `"${log.timestamp}"`,
+        `"${log.email || log.username || ''}"`,
+        `"${log.display_name || log.full_name || ''}"`,
+        `"${log.role || ''}"`,
+        `"${log.ip_address || ''}"`,
+        `"${log.action || ''}"`,
+        `"${cleanDesc}"`
+      ].join(","));
+    });
+    const blob = new Blob(["\uFEFF" + csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `DAIKIN_選機系統_審計日誌_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success("📥 審計日誌 CSV 匯出成功！");
+  };
+
+  // 發送 AI 顧問對話
+  const handleSendCopilot = async (questionText) => {
+    const query = (questionText || copilotInput).trim();
+    if (!query || copilotLoading) return;
+    
+    const userMsg = {
+      sender: "user",
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      text: query
+    };
+    setCopilotMessages(prev => [...prev, userMsg]);
+    setCopilotInput("");
+    setCopilotLoading(true);
+
+    try {
+      const res = await fetch("/api/copilot/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: query,
+          context: {
+            spaces_count: rows.length,
+            current_step: currentStep,
+            outdoor_groups_count: outdoorGroups.length,
+            has_project: Boolean(file || rows.length > 0)
+          }
+        })
+      });
+      const data = await res.json();
+      const botReply = {
+        sender: "bot",
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        text: data.reply || "抱歉，目前暫時無法取得答覆，請稍後再試。"
+      };
+      setCopilotMessages(prev => [...prev, botReply]);
+    } catch (err) {
+      setCopilotMessages(prev => [
+        ...prev,
+        {
+          sender: "bot",
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          text: `⚠️ 連線異常: ${err.message}`
+        }
+      ]);
+    } finally {
+      setCopilotLoading(false);
+      setTimeout(() => {
+        if (copilotEndRef.current) {
+          copilotEndRef.current.scrollIntoView({ behavior: "smooth" });
+        }
+      }, 100);
     }
   };
 
@@ -460,6 +799,8 @@ function App() {
     airflowBasisMap: {},
     hasPm25: false
   });
+  const [showHrvTab, setShowHrvTab] = useState(false); // 🎯 平常先隱藏全熱交換器選型欄位與頁籤
+  const [showHrvPromptModal, setShowHrvPromptModal] = useState(false); // 🎯 匯出前全熱交換器選型需求詢問通知彈窗
 
   // 🎯 4 步標準選機流程導引 State (1: 圖面辨識, 2: 室內負荷與室內機選型, 3: 室外機選型, 4: 決定控制需求)
   const [currentStep, setCurrentStep] = useState(1);
@@ -3878,13 +4219,9 @@ function App() {
   const buildClientSideQuotationSheet = (wb, flatRowsToRender, groupSpans, fastSys, fastSer, fastCtrlMode, currentHrvState = null) => {
     try {
       const activeHrv = currentHrvState || hrvState;
+      const isHrvActive = !!showHrvTab && !activeHrv?.hasCleared && (activeHrv?.selectedIndices && activeHrv?.selectedIndices.length > 0);
       const rawSel = activeHrv?.selectedIndices;
-      const shouldDefaultAll = (!rawSel || rawSel.length === 0) && !activeHrv?.hasCleared;
-      const hrvSelectedSet = new Set(
-        shouldDefaultAll
-          ? flatRowsToRender.map((_, idx) => idx)
-          : (rawSel || [])
-      );
+      const hrvSelectedSet = new Set(isHrvActive ? (rawSel || []) : []);
       const isHrvSelected = (idx) => hrvSelectedSet.has(idx);
 
       flatRowsToRender.forEach((r, idx) => {
@@ -4939,13 +5276,9 @@ function App() {
 
       // 🎯 計算全熱交換器選型與各空間規劃數據 (EQUIPMENT_Data HRV 分頁)
       let totalHrvAirflow = 0;
+      const isHrvActive = !!showHrvTab && !hrvState?.hasCleared && (hrvState?.selectedIndices && hrvState?.selectedIndices.length > 0);
       const rawSel = hrvState?.selectedIndices;
-      const shouldDefaultAll = (!rawSel || rawSel.length === 0) && !hrvState?.hasCleared;
-      const hrvSelectedSet = new Set(
-        shouldDefaultAll
-          ? flatRowsToRender.map((_, idx) => idx)
-          : (rawSel || [])
-      );
+      const hrvSelectedSet = new Set(isHrvActive ? (rawSel || []) : []);
       const isHrvSelected = (idx) => hrvSelectedSet.has(idx);
 
       flatRowsToRender.forEach((r, idx) => {
@@ -5151,14 +5484,15 @@ function App() {
         const reqAirflow = estPeople * airflowBasis;
         const isThisSelectedHrv = isHrvSelected(i);
 
-        excelRow.getCell(43).value = "5m2/人";               // Col AQ (43): 人員密度
-        excelRow.getCell(44).value = estPeople;              // Col AR (44): 預計人數
-        excelRow.getCell(45).value = "30CMH/人";             // Col AS (45): 風量規劃基準
-        excelRow.getCell(46).value = reqAirflow;             // Col AT (46): 室內需求風量
+        // 🎯 僅在使用者選擇啟用全熱且已配對全熱設備時才填入 Col 43 ~ 53
+        if (matchedHrv && isHrvActive) {
+          excelRow.getCell(43).value = "5m2/人";               // Col AQ (43): 人員密度
+          excelRow.getCell(44).value = estPeople;              // Col AR (44): 預計人數
+          excelRow.getCell(45).value = "30CMH/人";             // Col AS (45): 風量規劃基準
+          excelRow.getCell(46).value = reqAirflow;             // Col AT (46): 室內需求風量
 
-        // 僅在首列填入全案全熱交換器規格，後續執行跨列合併 (Merge Cells Col 47 ~ 53)
-        if (i === 0) {
-          if (matchedHrv) {
+          // 僅在首列填入全案全熱交換器規格，後續執行跨列合併 (Merge Cells Col 47 ~ 53)
+          if (i === 0) {
             excelRow.getCell(47).value = totalHrvAirflow;      // Col AU (47): 加總風量 (m³/hr)
             excelRow.getCell(48).value = matchedHrv.model;     // Col AV (48): 全熱型號
             excelRow.getCell(49).value = 1;                    // Col AW (49): 全熱台數
@@ -5166,27 +5500,34 @@ function App() {
             excelRow.getCell(51).value = matchedHrv.power_supply; // Col AY (51): 電源
             excelRow.getCell(52).value = matchedHrv.dimensions; // Col AZ (52): 尺寸 mm
             excelRow.getCell(53).value = hrvState.hasPm25 ? "需要" : "-"; // Col BA (53): PM2.5濾網
-          } else {
-            for (let c = 47; c <= 53; c++) excelRow.getCell(c).value = "-";
           }
-        } else if (!matchedHrv) {
-          for (let c = 47; c <= 53; c++) excelRow.getCell(c).value = "-";
+        } else {
+          for (let c = 43; c <= 53; c++) excelRow.getCell(c).value = null;
         }
 
         excelRow.commit();
       });
 
-      // 🎯 確保選機表第 8 列表頭 BA 欄位標記為 PM2.5濾網
-      ws.getRow(8).getCell(53).value = "PM2.5濾網";
+      // 🎯 確保選機表第 8 列表頭 BA 欄位標記為 PM2.5濾網 (若有全熱)
+      if (matchedHrv && isHrvActive) {
+        ws.getRow(8).getCell(53).value = "PM2.5濾網";
+      }
 
       // 🎯 全熱交換器跨列合併：Col 47 ~ 53 (AU ~ BA: 加總風量、型號、台數、耗電、電源、尺寸、PM2.5)
-      if (flatRowsToRender.length > 1 && matchedHrv) {
+      if (flatRowsToRender.length > 1 && matchedHrv && isHrvActive) {
         const hrvStartRow = startRow;
         const hrvEndRow = startRow + flatRowsToRender.length - 1;
         for (let col = 47; col <= 53; col++) {
           ws.mergeCells(hrvStartRow, col, hrvEndRow, col);
           const cell = ws.getCell(hrvStartRow, col);
           cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+        }
+      }
+
+      // 🎯 依使用者需求：未選全熱時，徹底隱藏選機表中 Col 43 ~ 53 (AQ ~ BA) 全熱相關資訊欄位
+      if (!matchedHrv || !isHrvActive) {
+        for (let col = 43; col <= 53; col++) {
+          ws.getColumn(col).hidden = true;
         }
       }
 
@@ -5332,6 +5673,7 @@ function App() {
       outdoorGroups: outdoorGroups || [],
       customPipingTrees: customPipingTrees || {},
       customPipingDiagramImages: customPipingDiagramImages || {},
+      showHrvTab: !!showHrvTab,
       hrvState: {
         selectedIndices: hrvState?.selectedIndices || [],
         airflowBasisMap: hrvState?.airflowBasisMap || {},
@@ -5377,6 +5719,12 @@ function App() {
       if (snapshot.outdoorGroups) setOutdoorGroups(snapshot.outdoorGroups);
       if (snapshot.customPipingTrees) setCustomPipingTrees(snapshot.customPipingTrees);
       if (snapshot.customPipingDiagramImages) setCustomPipingDiagramImages(snapshot.customPipingDiagramImages);
+
+      if (snapshot.showHrvTab !== undefined) {
+        setShowHrvTab(!!snapshot.showHrvTab);
+      } else if (snapshot.hrvState && snapshot.hrvState.selectedIndices && snapshot.hrvState.selectedIndices.length > 0) {
+        setShowHrvTab(true);
+      }
 
       if (snapshot.hrvState) {
         setHrvState({
@@ -5476,13 +5824,8 @@ function App() {
     }
   };
 
-  // 🎯 點擊匯出按鈕：彈出匯出確認彈窗（包含空間範圍與儲存專案選項）
-  const handleExportExcel = () => {
-    if (!rows || rows.length === 0) {
-      toast.error("❌ 目前尚無空間數據可供匯出！");
-      return;
-    }
-
+  // 🎯 開啟正式匯出確認彈窗（包含空間範圍與儲存專案選項）
+  const openActualExportModal = () => {
     const selectedRows = rows.filter(r => r.selected);
     const totalCount = rows.length;
     const selectedCount = selectedRows.length;
@@ -5498,6 +5841,23 @@ function App() {
       saveToIndexedDB: true,       // 🎯 預設勾選存入本機案場庫
       exportScope: (selectedCount > 0 && selectedCount < totalCount) ? 'selected' : 'all'
     });
+  };
+
+  // 🎯 點擊匯出按鈕：匯出選機表前，提供詢問通知（全熱交換器選型需求）
+  const handleExportExcel = () => {
+    if (!rows || rows.length === 0) {
+      toast.error("❌ 目前尚無空間數據可供匯出！");
+      return;
+    }
+
+    // 🎯 依使用者需求：若全熱選型欄位尚未啟用（平常先隱藏），在匯出前彈窗詢問需求
+    if (!showHrvTab) {
+      setShowHrvPromptModal(true);
+      return;
+    }
+
+    // 若已開啟過全熱交換器欄位，則直接開啟匯出確認彈窗
+    openActualExportModal();
   };
 
   // 🎯 實際執行匯出選機表與報價表之核心邏輯
@@ -5583,13 +5943,14 @@ function App() {
         custom_piping_trees: customPipingTrees,
         custom_piping_diagram_images: customPipingDiagramImages,
         hrv_config: {
-          selected_indices: (hrvState.selectedIndices && hrvState.selectedIndices.length > 0)
+          enabled: !!showHrvTab && !hrvState.hasCleared && (hrvState.selectedIndices && hrvState.selectedIndices.length > 0),
+          selected_indices: (showHrvTab && !hrvState.hasCleared && hrvState.selectedIndices && hrvState.selectedIndices.length > 0)
             ? hrvState.selectedIndices
-            : filteredRows.map((_, i) => i),
+            : [],
           airflow_basis_map: hrvState.airflowBasisMap || {},
           people_map: hrvState.peopleMap || {},
           has_pm25: !!hrvState.hasPm25,
-          has_cleared: !!hrvState.hasCleared
+          has_cleared: !showHrvTab || !!hrvState.hasCleared
         }
       };
 
@@ -5605,7 +5966,10 @@ function App() {
 
       const res = await fetch("/api/export-excel", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(authToken ? { "Authorization": `Bearer ${authToken}` } : {})
+        },
         body: JSON.stringify(payload),
         signal: controller.signal
       });
@@ -5662,63 +6026,328 @@ function App() {
         alignItems: 'center',
         justifyContent: 'center',
         minHeight: '100vh',
-        backgroundColor: '#0f172a',
-        fontFamily: "'Segoe UI', Roboto, sans-serif"
+        background: 'radial-gradient(circle at 50% 30%, #0f172a 0%, #020617 100%)',
+        fontFamily: "'Outfit', 'Noto Sans TC', sans-serif",
+        padding: '20px'
       }}>
-        <ToastContainer theme="dark" position="top-right" autoClose={4000} />
+        <ToastContainer theme="dark" position="top-right" autoClose={3000} />
         <div style={{
-          backgroundColor: '#1e293b',
-          padding: '40px 30px',
-          borderRadius: '16px',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-          border: '1px solid #334155',
+          backgroundColor: '#0f172a',
+          padding: '40px 32px',
+          borderRadius: '20px',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.75), 0 0 30px rgba(2, 132, 199, 0.25)',
+          border: '1.5px solid #1e293b',
           textAlign: 'center',
-          maxWidth: '380px',
-          width: '90%'
+          maxWidth: '430px',
+          width: '100%',
+          position: 'relative',
+          overflow: 'hidden'
         }}>
-          <div style={{ fontSize: '48px', marginBottom: '15px' }}>🔒</div>
-          <h2 style={{ color: '#f8fafc', margin: '0 0 10px 0', fontSize: '20px' }}>大金空調選機系統存取保護</h2>
-          <p style={{ color: '#94a3b8', fontSize: '13px', marginBottom: '25px', lineHeight: '1.5' }}>
-            本系統設有測試存取限制，請輸入存取密碼以解鎖進入頁面。
+          {/* 頂部發光線條裝飾 */}
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '4px',
+            background: 'linear-gradient(90deg, #0284c7, #38bdf8, #059669)'
+          }} />
+
+          {/* Logo 與標題 */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginBottom: '8px' }}>
+            <span style={{
+              backgroundColor: '#0284c7',
+              color: '#ffffff',
+              fontWeight: '900',
+              fontSize: '15px',
+              padding: '3px 10px',
+              borderRadius: '6px',
+              letterSpacing: '1.5px'
+            }}>DAIKIN</span>
+            <span style={{ fontSize: '13px', color: '#38bdf8', fontWeight: 'bold', letterSpacing: '1px' }}>
+              選機自動化系統
+            </span>
+          </div>
+
+          <h2 style={{ color: '#f8fafc', margin: '10px 0 6px 0', fontSize: '22px', fontWeight: 'bold' }}>
+            {loginMode === 'login' ? '工程師安全認證登入' : '申請系統授權開通'}
+          </h2>
+          <p style={{ color: '#94a3b8', fontSize: '12.5px', marginBottom: '24px', lineHeight: '1.6' }}>
+            {loginMode === 'login'
+              ? '本系統受存取審計保護，請輸入授權帳號密碼。所有操作皆會記錄於審計日誌。'
+              : '填寫您的公司電子郵件與真實姓名，提交申請後需由管理員後台核通方可啟用。'}
           </p>
-          <form onSubmit={handlePasswordSubmit}>
-            <input
-              type="password"
-              placeholder="請輸入測試存取密碼"
-              value={inputPassword}
-              onChange={(e) => setInputPassword(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '12px 15px',
-                borderRadius: '8px',
-                border: passError ? '2px solid #ef4444' : '1px solid #475569',
-                backgroundColor: '#0f172a',
-                color: '#fff',
-                fontSize: '15px',
-                textAlign: 'center',
-                boxSizing: 'border-box',
-                marginBottom: '15px',
-                outline: 'none'
-              }}
-            />
-            <button
-              type="submit"
-              style={{
-                width: '100%',
-                padding: '12px',
-                borderRadius: '8px',
-                border: 'none',
-                backgroundColor: '#3b82f6',
-                color: '#fff',
-                fontWeight: 'bold',
-                fontSize: '15px',
-                cursor: 'pointer',
-                transition: 'background-color 0.2s'
-              }}
-            >
-              🚀 解鎖進入系統
-            </button>
-          </form>
+
+          {loginError && loginMode === 'login' && (
+            <div style={{
+              backgroundColor: 'rgba(239, 68, 68, 0.15)',
+              border: '1px solid #ef4444',
+              color: '#fca5a5',
+              padding: '10px 14px',
+              borderRadius: '8px',
+              fontSize: '12.5px',
+              marginBottom: '18px',
+              textAlign: 'left'
+            }}>
+              ⚠️ {loginError}
+            </div>
+          )}
+
+          {loginMode === 'login' ? (
+            <form onSubmit={handleLoginSubmit}>
+              <div style={{ marginBottom: '14px', textAlign: 'left' }}>
+                <label style={{ display: 'block', fontSize: '12px', color: '#cbd5e1', fontWeight: '600', marginBottom: '6px' }}>
+                  電子郵件 (Email)
+                </label>
+                <input
+                  type="email"
+                  placeholder="請輸入公司 Email (例如: user@daikin.com.tw)"
+                  value={loginForm.email}
+                  onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '11px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid #334155',
+                    backgroundColor: '#1e293b',
+                    color: '#ffffff',
+                    fontSize: '14px',
+                    boxSizing: 'border-box',
+                    outline: 'none',
+                    transition: 'border-color 0.2s'
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '20px', textAlign: 'left' }}>
+                <label style={{ display: 'block', fontSize: '12px', color: '#cbd5e1', fontWeight: '600', marginBottom: '6px' }}>
+                  存取密碼 (Password)
+                </label>
+                <input
+                  type="password"
+                  placeholder="請輸入密碼"
+                  value={loginForm.password}
+                  onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '11px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid #334155',
+                    backgroundColor: '#1e293b',
+                    color: '#ffffff',
+                    fontSize: '14px',
+                    boxSizing: 'border-box',
+                    outline: 'none',
+                    transition: 'border-color 0.2s'
+                  }}
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loginLoading}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                  color: '#ffffff',
+                  fontWeight: 'bold',
+                  fontSize: '14.5px',
+                  cursor: loginLoading ? 'not-allowed' : 'pointer',
+                  boxShadow: '0 4px 14px rgba(2, 132, 199, 0.4)',
+                  transition: 'all 0.2s ease',
+                  opacity: loginLoading ? 0.7 : 1
+                }}
+              >
+                {loginLoading ? '🔄 驗證授權中...' : '🚀 安全登入並開啟選機系統'}
+              </button>
+
+              {/* 切換至申請開通 */}
+              <div style={{
+                marginTop: '22px',
+                paddingTop: '16px',
+                borderTop: '1px solid #1e293b',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLoginError("");
+                    setLoginMode('register');
+                  }}
+                  style={{
+                    backgroundColor: 'transparent',
+                    border: 'none',
+                    color: '#38bdf8',
+                    fontSize: '12.5px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  <span>📝</span>
+                  <span>新進人員申請？點此提交開通申請</span>
+                </button>
+              </div>
+            </form>
+          ) : (
+            <form onSubmit={handleRegisterSubmit}>
+              <div style={{ marginBottom: '12px', textAlign: 'left' }}>
+                <label style={{ display: 'block', fontSize: '12px', color: '#cbd5e1', fontWeight: '600', marginBottom: '6px' }}>
+                  電子郵件 (Email)
+                </label>
+                <input
+                  type="email"
+                  placeholder="請輸入公司 Email (例如: name@daikin.com.tw)"
+                  value={registerForm.email}
+                  onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #334155',
+                    backgroundColor: '#1e293b',
+                    color: '#ffffff',
+                    fontSize: '13.5px',
+                    boxSizing: 'border-box',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '12px', textAlign: 'left' }}>
+                <label style={{ display: 'block', fontSize: '12px', color: '#cbd5e1', fontWeight: '600', marginBottom: '6px' }}>
+                  使用者真實姓名
+                </label>
+                <input
+                  type="text"
+                  placeholder="例: 林志豪 技師"
+                  value={registerForm.fullName}
+                  onChange={(e) => setRegisterForm({ ...registerForm, fullName: e.target.value })}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #334155',
+                    backgroundColor: '#1e293b',
+                    color: '#ffffff',
+                    fontSize: '13.5px',
+                    boxSizing: 'border-box',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '12px', textAlign: 'left' }}>
+                <label style={{ display: 'block', fontSize: '12px', color: '#cbd5e1', fontWeight: '600', marginBottom: '6px' }}>
+                  設定存取密碼
+                </label>
+                <input
+                  type="password"
+                  placeholder="請設定登入密碼"
+                  value={registerForm.password}
+                  onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #334155',
+                    backgroundColor: '#1e293b',
+                    color: '#ffffff',
+                    fontSize: '13.5px',
+                    boxSizing: 'border-box',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '18px', textAlign: 'left' }}>
+                <label style={{ display: 'block', fontSize: '12px', color: '#cbd5e1', fontWeight: '600', marginBottom: '6px' }}>
+                  申請職務角色
+                </label>
+                <select
+                  value={registerForm.role}
+                  onChange={(e) => setRegisterForm({ ...registerForm, role: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #334155',
+                    backgroundColor: '#1e293b',
+                    color: '#ffffff',
+                    fontSize: '13.5px',
+                    boxSizing: 'border-box',
+                    outline: 'none'
+                  }}
+                >
+                  <option value="engineer">空調選機工程師 (Engineer)</option>
+                  <option value="sales">專案業務專員 (Sales)</option>
+                </select>
+              </div>
+
+              <button
+                type="submit"
+                disabled={registerLoading}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                  color: '#ffffff',
+                  fontWeight: 'bold',
+                  fontSize: '14.5px',
+                  cursor: registerLoading ? 'not-allowed' : 'pointer',
+                  boxShadow: '0 4px 14px rgba(5, 150, 105, 0.4)',
+                  transition: 'all 0.2s ease',
+                  opacity: registerLoading ? 0.7 : 1
+                }}
+              >
+                {registerLoading ? '📨 送出申請中...' : '📨 送出開通申請'}
+              </button>
+
+              {/* 切換回登入 */}
+              <div style={{
+                marginTop: '18px',
+                paddingTop: '14px',
+                borderTop: '1px solid #1e293b',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setLoginMode('login')}
+                  style={{
+                    backgroundColor: 'transparent',
+                    border: 'none',
+                    color: '#94a3b8',
+                    fontSize: '12.5px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  <span>⬅️ 返回帳號登入</span>
+                </button>
+              </div>
+            </form>
+          )}
         </div>
       </div>
     );
@@ -5887,6 +6516,117 @@ function App() {
             <span>📂 專案庫 / 匯入</span>
           </button>
 
+          {/* 🌟 5 步新手導覽按鈕 */}
+          <button
+            type="button"
+            onClick={() => {
+              setTourStepIndex(0);
+              setShowTourModal(true);
+            }}
+            style={{
+              backgroundColor: '#1e293b',
+              color: '#facc15',
+              border: '1px solid #ca8a04',
+              padding: '4px 10px',
+              borderRadius: '6px',
+              fontSize: '11.5px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+              transition: 'all 0.2s ease'
+            }}
+            title="開啟 5 步標準選機新手導覽操作說明"
+          >
+            <span>💡 新手引導</span>
+          </button>
+
+          {/* 🛡️ 管理員專屬：審計日誌與安全後台 */}
+          {currentUser?.role === 'admin' && (
+            <button
+              type="button"
+              onClick={() => {
+                fetchAuditLogs();
+                setShowAuditModal(true);
+              }}
+              style={{
+                backgroundColor: '#1e293b',
+                color: '#ec4899',
+                border: '1px solid #db2777',
+                padding: '4px 10px',
+                borderRadius: '6px',
+                fontSize: '11.5px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+                transition: 'all 0.2s ease'
+              }}
+              title="查看所有工程師登入、IP 紀錄與選機日誌"
+            >
+              <span>🛡️ 審計與帳號審批</span>
+              {pendingUsers.length > 0 && (
+                <span style={{
+                  backgroundColor: '#ef4444',
+                  color: '#ffffff',
+                  borderRadius: '10px',
+                  padding: '1px 6px',
+                  fontSize: '10px',
+                  fontWeight: 'bold',
+                  marginLeft: '2px'
+                }}>
+                  🔔 {pendingUsers.length} 待核
+                </span>
+              )}
+            </button>
+          )}
+
+          {/* 👤 登入者身分標籤與登出 */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            backgroundColor: '#0f172a',
+            border: '1px solid #334155',
+            padding: '2px 8px',
+            borderRadius: '6px'
+          }}>
+            <span style={{ fontSize: '11.5px', color: '#cbd5e1' }}>
+              👤 {currentUser?.email || currentUser?.full_name || currentUser?.username || '工程師'}
+            </span>
+            <span style={{
+              fontSize: '10px',
+              padding: '1px 5px',
+              borderRadius: '4px',
+              backgroundColor: currentUser?.role === 'admin' ? '#991b1b' : currentUser?.role === 'engineer' ? '#065f46' : '#92400e',
+              color: '#ffffff',
+              fontWeight: 'bold'
+            }}>
+              {currentUser?.role === 'admin' ? '管理員' : currentUser?.role === 'engineer' ? '工程師' : '業務'}
+            </span>
+            <button
+              type="button"
+              onClick={handleLogout}
+              style={{
+                backgroundColor: 'transparent',
+                border: 'none',
+                color: '#ef4444',
+                fontSize: '11px',
+                cursor: 'pointer',
+                padding: '2px 4px',
+                marginLeft: '2px',
+                fontWeight: 'bold'
+              }}
+              title="安全登出系統"
+            >
+              🚪 登出
+            </button>
+          </div>
+
           <span style={{
             fontSize: '11px',
             backgroundColor: '#1e293b',
@@ -5896,7 +6636,7 @@ function App() {
             borderRadius: '4px',
             fontWeight: 'bold'
           }}>
-            v2.26.0 (2026/10/18 22:50)
+            v2.27.0 (2026/10/19)
           </span>
           <span style={{ fontSize: '12px', color: '#64748b' }}>Backend: Connected</span>
         </div>
@@ -7116,28 +7856,84 @@ function App() {
                 </button>
               )}
 
-              {/* 🎯 依使用者需求：當 1~5 步驟都結束後 (currentStep >= 5) 時跳出全熱交換器選型 */}
-              {currentStep >= 5 && (
-                <button
-                  type="button"
-                  onClick={() => setActiveTableTab('hrv')}
-                  style={{
-                    padding: '6px 14px',
-                    borderRadius: '6px',
-                    fontSize: '13px',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                    border: activeTableTab === 'hrv' ? '1px solid #0284c7' : '1px solid transparent',
-                    backgroundColor: activeTableTab === 'hrv' ? '#0284c7' : 'transparent',
-                    color: activeTableTab === 'hrv' ? '#ffffff' : '#94a3b8',
-                    transition: 'all 0.15s ease',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px'
-                  }}
-                >
-                  <span>🌀 全熱交換器選型</span>
-                </button>
+              {/* 🎯 依使用者需求：全熱交換器選型平常先隱藏，當使用者選擇需要或手動開啟時才顯示 */}
+              {showHrvTab ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTableTab('hrv')}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: '6px',
+                      fontSize: '13px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      border: activeTableTab === 'hrv' ? '1px solid #0284c7' : '1px solid transparent',
+                      backgroundColor: activeTableTab === 'hrv' ? '#0284c7' : 'transparent',
+                      color: activeTableTab === 'hrv' ? '#ffffff' : '#94a3b8',
+                      transition: 'all 0.15s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    <span>🌀 全熱交換器選型</span>
+                  </button>
+                  <button
+                    type="button"
+                    title="隱藏全熱交換器選型"
+                    onClick={() => {
+                      setShowHrvTab(false);
+                      if (activeTableTab === 'hrv') setActiveTableTab('selection');
+                    }}
+                    style={{
+                      padding: '4px 6px',
+                      borderRadius: '4px',
+                      fontSize: '11px',
+                      cursor: 'pointer',
+                      border: 'none',
+                      backgroundColor: 'transparent',
+                      color: '#64748b',
+                      transition: 'color 0.15s ease'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+                    onMouseLeave={e => e.currentTarget.style.color = '#64748b'}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                currentStep >= 5 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowHrvTab(true);
+                      setActiveTableTab('hrv');
+                      setHrvState(prev => ({
+                        ...prev,
+                        hasCleared: false,
+                        selectedIndices: (prev.selectedIndices && prev.selectedIndices.length > 0) ? prev.selectedIndices : rows.map((_, i) => i)
+                      }));
+                      toast.info("🌀 已開啟全熱交換器選型！", { autoClose: 2000 });
+                    }}
+                    style={{
+                      padding: '5px 10px',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      border: '1px dashed #334155',
+                      backgroundColor: 'rgba(30, 41, 59, 0.3)',
+                      color: '#64748b',
+                      transition: 'all 0.15s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                    title="若本案有全熱換氣需求，可點此提前開啟"
+                  >
+                    <span>+ 全熱選型 (選配)</span>
+                  </button>
+                )
               )}
             </div>
 
@@ -9776,6 +10572,203 @@ function App() {
         </div>
       )}
 
+      {/* 🎯 匯出選機表前：全熱交換器選型需求確認詢問通知彈窗 */}
+      {showHrvPromptModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.78)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10001
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowHrvPromptModal(false);
+            }
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#0f172a',
+              borderRadius: '18px',
+              border: '1.5px solid rgba(14, 165, 233, 0.4)',
+              boxShadow: '0 25px 60px rgba(0, 0, 0, 0.9), 0 0 35px rgba(14, 165, 233, 0.25)',
+              width: '92%',
+              maxWidth: '540px',
+              padding: '28px 26px',
+              color: '#f8fafc',
+              animation: 'fadeInScale 0.2s ease',
+              boxSizing: 'border-box'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <div style={{
+                  width: '46px',
+                  height: '46px',
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(14, 165, 233, 0.15)',
+                  border: '1px solid rgba(14, 165, 233, 0.4)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '24px'
+                }}>
+                  🌀
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h3 style={{ margin: 0, fontSize: '18px', color: '#38bdf8', fontWeight: 'bold' }}>
+                      全熱交換器選型需求確認
+                    </h3>
+                    <span style={{
+                      fontSize: '11px',
+                      backgroundColor: 'rgba(14, 165, 233, 0.2)',
+                      color: '#38bdf8',
+                      padding: '2px 8px',
+                      borderRadius: '10px',
+                      border: '1px solid rgba(14, 165, 233, 0.4)'
+                    }}>
+                      換氣選配
+                    </span>
+                  </div>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '12.5px', color: '#94a3b8' }}>
+                    在匯出選機表與報價單前，請確認本案是否需要搭配換氣設備
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowHrvPromptModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#64748b',
+                  fontSize: '18px',
+                  cursor: 'pointer',
+                  padding: '4px'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* 說明內容卡片 */}
+            <div style={{
+              backgroundColor: '#1e293b',
+              borderRadius: '12px',
+              padding: '16px 18px',
+              border: '1px solid #334155',
+              marginBottom: '22px',
+              fontSize: '13.5px',
+              lineHeight: '1.6',
+              color: '#cbd5e1'
+            }}>
+              <div style={{ marginBottom: '10px', fontWeight: '500', color: '#f1f5f9' }}>
+                本規劃案是否有引進室外新鮮空氣與<span style={{ color: '#38bdf8', fontWeight: 'bold' }}>【大金全熱交換器 (HRV)】</span>換氣選型需求？
+              </div>
+              <ul style={{ margin: 0, paddingLeft: '20px', color: '#94a3b8', fontSize: '12.5px' }}>
+                <li style={{ marginBottom: '6px' }}>
+                  <strong style={{ color: '#38bdf8' }}>需要規劃</strong>：系統將立即為您展開全熱交換器選型分頁，支援依面積與人員自動試算風量（CMH）並匹配專用機型與液晶遙控器。
+                </li>
+                <li>
+                  <strong style={{ color: '#e2e8f0' }}>不需要規劃</strong>：全熱欄位將保持隱藏，直接匯出空調室內外機選機清單與正式報價表。
+                </li>
+              </ul>
+            </div>
+
+            {/* 按鈕群 */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => setShowHrvPromptModal(false)}
+                style={{
+                  padding: '9px 16px',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  backgroundColor: 'transparent',
+                  color: '#94a3b8',
+                  border: '1px solid #334155',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                取消
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowHrvPromptModal(false);
+                  setHrvState(prev => ({
+                    ...prev,
+                    hasCleared: true,
+                    selectedIndices: []
+                  }));
+                  openActualExportModal();
+                }}
+                style={{
+                  padding: '9px 16px',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  backgroundColor: '#334155',
+                  color: '#e2e8f0',
+                  border: '1px solid #475569',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={e => e.currentTarget.style.backgroundColor = '#475569'}
+                onMouseLeave={e => e.currentTarget.style.backgroundColor = '#334155'}
+              >
+                ⏭️ 不需要，直接匯出選機表
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowHrvPromptModal(false);
+                  setShowHrvTab(true);
+                  setActiveTableTab('hrv');
+                  setHrvState(prev => ({
+                    ...prev,
+                    hasCleared: false,
+                    selectedIndices: (prev.selectedIndices && prev.selectedIndices.length > 0) ? prev.selectedIndices : rows.map((_, i) => i)
+                  }));
+                  toast.info("🌀 已為您開啟【全熱交換器選型】頁籤，請確認空間配置！", { autoClose: 3000 });
+                }}
+                style={{
+                  padding: '9px 20px',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                  color: '#ffffff',
+                  border: 'none',
+                  boxShadow: '0 4px 14px rgba(2, 132, 199, 0.4)',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={e => e.currentTarget.style.opacity = '0.92'}
+                onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+              >
+                🌀 需要，前往全熱選型
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 🎯 匯出選機表與專案存檔整合確認視窗 */}
       {exportConfirmModal.show && (
         <div
@@ -10813,6 +11806,812 @@ function App() {
               </div>
             </button>
           )}
+        </div>
+      )}
+
+      {/* 🛡️ 審計日誌與安全後台管理 Modal */}
+      {showAuditModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.75)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 999999,
+          padding: '20px'
+        }}>
+          <div style={{
+            backgroundColor: '#0f172a',
+            border: '1.5px solid #334155',
+            borderRadius: '16px',
+            width: '95%',
+            maxWidth: '1000px',
+            maxHeight: '85vh',
+            display: 'flex',
+            flexDirection: 'column',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 25px rgba(219, 39, 119, 0.25)',
+            overflow: 'hidden'
+          }}>
+            {/* Modal Header */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '16px 20px',
+              borderBottom: '1px solid #1e293b',
+              backgroundColor: '#1e293b'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '20px' }}>🛡️</span>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '16px', color: '#f8fafc', fontWeight: 'bold' }}>
+                    大金空調選機系統 - 安全審計與使用者日誌管理
+                  </h3>
+                  <div style={{ fontSize: '11.5px', color: '#94a3b8', marginTop: '2px' }}>
+                    即時監控工程師登入、來源 IP 與報價單匯出紀錄（共 {auditLogs.length} 筆）
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={handleExportAuditCsv}
+                  style={{
+                    backgroundColor: '#059669',
+                    color: '#ffffff',
+                    border: 'none',
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                  title="將審計日誌轉存為 CSV 格式"
+                >
+                  📥 匯出 CSV 日誌
+                </button>
+                <button
+                  type="button"
+                  onClick={fetchAuditLogs}
+                  style={{
+                    backgroundColor: '#1e293b',
+                    color: '#38bdf8',
+                    border: '1px solid #0284c7',
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer'
+                  }}
+                >
+                  🔄 重新整理
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAuditModal(false)}
+                  style={{
+                    backgroundColor: 'transparent',
+                    border: 'none',
+                    color: '#94a3b8',
+                    fontSize: '20px',
+                    cursor: 'pointer',
+                    padding: '0 6px'
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: '16px 20px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* 搜尋過濾列 */}
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <span style={{ fontSize: '13px', color: '#cbd5e1', fontWeight: '600' }}>🔍 篩選日誌：</span>
+                <input
+                  type="text"
+                  placeholder="輸入帳號、姓名、動作或 IP 進行過濾..."
+                  value={auditFilter}
+                  onChange={(e) => setAuditFilter(e.target.value)}
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid #334155',
+                    backgroundColor: '#1e293b',
+                    color: '#ffffff',
+                    fontSize: '13px',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
+              {/* 🔔 待核准新帳號申請專區 (核通機制) */}
+              {pendingUsers.length > 0 ? (
+                <div style={{
+                  backgroundColor: 'rgba(234, 179, 8, 0.1)',
+                  border: '1.5px solid #eab308',
+                  borderRadius: '10px',
+                  padding: '12px 16px',
+                  boxShadow: '0 4px 16px rgba(234, 179, 8, 0.15)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '18px' }}>🔔</span>
+                      <span style={{ fontSize: '13.5px', color: '#fef08a', fontWeight: 'bold' }}>
+                        新帳號開通審批通知（目前有 {pendingUsers.length} 位人員待核通）
+                      </span>
+                    </div>
+                    <span style={{ fontSize: '11px', color: '#fde047' }}>
+                      需經管理員核通後，該人員方可登入使用選機系統
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {pendingUsers.map((pUser) => (
+                      <div
+                        key={pUser.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          backgroundColor: '#1e293b',
+                          border: '1px solid #334155',
+                          borderRadius: '8px',
+                          padding: '8px 12px'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <span style={{ fontSize: '13px', color: '#38bdf8', fontWeight: 'bold' }}>
+                            {pUser.email || pUser.username}
+                          </span>
+                          <span style={{ fontSize: '12px', color: '#f8fafc' }}>
+                            {pUser.display_name}
+                          </span>
+                          <span style={{
+                            padding: '1px 6px',
+                            borderRadius: '4px',
+                            fontSize: '10.5px',
+                            backgroundColor: pUser.role === 'admin' ? '#991b1b' : pUser.role === 'engineer' ? '#065f46' : '#92400e',
+                            color: '#ffffff'
+                          }}>
+                            {pUser.role === 'engineer' ? '空調工程師' : pUser.role === 'sales' ? '專案業務' : '管理員'}
+                          </span>
+                          <span style={{ fontSize: '11px', color: '#64748b' }}>
+                            申請時間: {pUser.created_at}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleApproveUser(pUser.id, 'approve')}
+                            style={{
+                              backgroundColor: '#059669',
+                              color: '#ffffff',
+                              border: 'none',
+                              padding: '5px 12px',
+                              borderRadius: '5px',
+                              fontSize: '12px',
+                              fontWeight: 'bold',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              boxShadow: '0 2px 6px rgba(5, 150, 105, 0.4)'
+                            }}
+                          >
+                            ✅ 核准開通
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleApproveUser(pUser.id, 'reject')}
+                            style={{
+                              backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                              color: '#ef4444',
+                              border: '1px solid #ef4444',
+                              padding: '5px 10px',
+                              borderRadius: '5px',
+                              fontSize: '12px',
+                              fontWeight: 'bold',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            ❌ 駁回
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div style={{
+                  backgroundColor: 'rgba(30, 41, 59, 0.6)',
+                  border: '1px solid #334155',
+                  borderRadius: '8px',
+                  padding: '8px 14px',
+                  fontSize: '12px',
+                  color: '#94a3b8',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}>
+                  <span>✅ 目前無待核准的帳號申請，所有人員皆已開通。</span>
+                </div>
+              )}
+
+              {/* 日誌表格 */}
+              <div style={{
+                border: '1px solid #1e293b',
+                borderRadius: '8px',
+                overflow: 'hidden',
+                maxHeight: '340px',
+                overflowY: 'auto'
+              }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                  <thead style={{ position: 'sticky', top: 0, backgroundColor: '#1e293b', zIndex: 1 }}>
+                    <tr>
+                      <th style={{ padding: '8px 10px', textAlign: 'left', color: '#cbd5e1', borderBottom: '1px solid #334155' }}>時間</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'left', color: '#cbd5e1', borderBottom: '1px solid #334155' }}>登入 Email</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'left', color: '#cbd5e1', borderBottom: '1px solid #334155' }}>角色</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'left', color: '#cbd5e1', borderBottom: '1px solid #334155' }}>來源 IP</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'left', color: '#cbd5e1', borderBottom: '1px solid #334155' }}>操作動作</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'left', color: '#cbd5e1', borderBottom: '1px solid #334155' }}>詳情說明</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {auditLoading ? (
+                      <tr>
+                        <td colSpan="6" style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>
+                          載入日誌中...
+                        </td>
+                      </tr>
+                    ) : auditLogs.length === 0 ? (
+                      <tr>
+                        <td colSpan="6" style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>
+                          目前尚無審計日誌記錄
+                        </td>
+                      </tr>
+                    ) : (
+                      auditLogs
+                        .filter(l => {
+                          if (!auditFilter) return true;
+                          const q = auditFilter.toLowerCase();
+                          return (
+                            (l.email || '').toLowerCase().includes(q) ||
+                            (l.username || '').toLowerCase().includes(q) ||
+                            (l.display_name || l.full_name || '').toLowerCase().includes(q) ||
+                            (l.action || '').toLowerCase().includes(q) ||
+                            (l.ip_address || '').toLowerCase().includes(q) ||
+                            (l.details || '').toLowerCase().includes(q)
+                          );
+                        })
+                        .map((log) => (
+                          <tr key={log.id} style={{ borderBottom: '1px solid #1e293b' }}>
+                            <td style={{ padding: '7px 10px', color: '#94a3b8', whiteSpace: 'nowrap' }}>{log.timestamp}</td>
+                            <td style={{ padding: '7px 10px', color: '#38bdf8', fontWeight: 'bold' }}>
+                              <div>{log.email || log.username}</div>
+                              {(log.full_name || log.display_name) && (log.full_name !== (log.email || log.username)) && (
+                                <div style={{ fontSize: '10.5px', color: '#94a3b8', fontWeight: 'normal', marginTop: '1px' }}>
+                                  {log.full_name || log.display_name}
+                                </div>
+                              )}
+                            </td>
+                            <td style={{ padding: '7px 10px' }}>
+                              <span style={{
+                                padding: '1px 5px',
+                                borderRadius: '4px',
+                                fontSize: '10.5px',
+                                backgroundColor: log.role === 'admin' ? '#991b1b' : log.role === 'engineer' ? '#065f46' : '#92400e',
+                                color: '#ffffff'
+                              }}>
+                                {log.role}
+                              </span>
+                            </td>
+                            <td style={{ padding: '7px 10px', color: '#cbd5e1', fontFamily: 'monospace' }}>{log.ip_address}</td>
+                            <td style={{ padding: '7px 10px', color: '#f8fafc', fontWeight: 'bold' }}>{log.action}</td>
+                            <td style={{ padding: '7px 10px', color: '#94a3b8' }}>{log.details}</td>
+                          </tr>
+                        ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* 新增使用者帳號專區 */}
+              <div style={{
+                backgroundColor: '#1e293b',
+                padding: '14px 18px',
+                borderRadius: '8px',
+                border: '1px solid #334155'
+              }}>
+                <div style={{ fontSize: '13px', color: '#38bdf8', fontWeight: 'bold', marginBottom: '10px' }}>
+                  ➕ 快速新增系統授權帳號 (以 Email 登入)
+                </div>
+                <form onSubmit={handleCreateUser} style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <input
+                    type="email"
+                    placeholder="電子郵件 (Email，例如: alice@daikin.com.tw)"
+                    value={newUserForm.email}
+                    onChange={(e) => setNewUserForm({ ...newUserForm, email: e.target.value })}
+                    required
+                    style={{ flex: 1.5, minWidth: '180px', padding: '6px 10px', borderRadius: '4px', border: '1px solid #475569', backgroundColor: '#0f172a', color: '#fff', fontSize: '12px' }}
+                  />
+                  <input
+                    type="password"
+                    placeholder="密碼"
+                    value={newUserForm.password}
+                    onChange={(e) => setNewUserForm({ ...newUserForm, password: e.target.value })}
+                    style={{ flex: 1, minWidth: '110px', padding: '6px 10px', borderRadius: '4px', border: '1px solid #475569', backgroundColor: '#0f172a', color: '#fff', fontSize: '12px' }}
+                  />
+                  <input
+                    type="text"
+                    placeholder="姓名 (例: 陳技師)"
+                    value={newUserForm.fullName}
+                    onChange={(e) => setNewUserForm({ ...newUserForm, fullName: e.target.value })}
+                    style={{ flex: 1, minWidth: '120px', padding: '6px 10px', borderRadius: '4px', border: '1px solid #475569', backgroundColor: '#0f172a', color: '#fff', fontSize: '12px' }}
+                  />
+                  <select
+                    value={newUserForm.role}
+                    onChange={(e) => setNewUserForm({ ...newUserForm, role: e.target.value })}
+                    style={{ padding: '6px 10px', borderRadius: '4px', border: '1px solid #475569', backgroundColor: '#0f172a', color: '#fff', fontSize: '12px' }}
+                  >
+                    <option value="engineer">空調工程師 (engineer)</option>
+                    <option value="sales">專案業務 (sales)</option>
+                    <option value="admin">系統管理員 (admin)</option>
+                  </select>
+                  <button
+                    type="submit"
+                    style={{
+                      backgroundColor: '#0284c7',
+                      color: '#ffffff',
+                      border: 'none',
+                      padding: '6px 14px',
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    建立帳號
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🌟 新手 5 步標準選機互動導覽 Modal */}
+      {showTourModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 999999,
+          padding: '20px'
+        }}>
+          <div style={{
+            backgroundColor: '#0f172a',
+            border: '2px solid #0284c7',
+            borderRadius: '16px',
+            width: '90%',
+            maxWidth: '560px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.9), 0 0 30px rgba(2, 132, 199, 0.35)',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            {/* Header */}
+            <div style={{
+              padding: '16px 20px',
+              backgroundColor: '#1e293b',
+              borderBottom: '1px solid #334155',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '20px' }}>🌟</span>
+                <span style={{ fontSize: '15px', color: '#38bdf8', fontWeight: 'bold' }}>
+                  大金空調選機系統 - 新手 30 秒快速上手指南
+                </span>
+              </div>
+              <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 'bold' }}>
+                步驟 {tourStepIndex + 1} / 5
+              </span>
+            </div>
+
+            {/* Content Body */}
+            <div style={{ padding: '24px 20px', minHeight: '200px' }}>
+              {tourStepIndex === 0 && (
+                <div>
+                  <div style={{ fontSize: '32px', marginBottom: '8px' }}>📐 步驟一：匯入工程底圖</div>
+                  <h4 style={{ color: '#f8fafc', margin: '0 0 8px 0', fontSize: '16px' }}>匯入圖面或啟用空白工程畫布</h4>
+                  <p style={{ color: '#cbd5e1', fontSize: '13px', lineHeight: '1.7' }}>
+                    點選頂部「<b>匯入平面圖</b>」上傳建案之 CAD 轉出圖（PNG/JPG/PDF），系統將自動啟動圖面預覽。<br/>
+                    若暫無圖檔，可點選「<b>使用空白放樣畫布</b>」，直接以標準比例尺進行空間規劃與選機！
+                  </p>
+                  <div style={{ marginTop: '12px', padding: '8px 12px', backgroundColor: '#1e293b', borderRadius: '6px', fontSize: '12px', color: '#38bdf8' }}>
+                    💡 提示：支援拖曳圖檔至瀏覽器快速載入。
+                  </div>
+                </div>
+              )}
+
+              {tourStepIndex === 1 && (
+                <div>
+                  <div style={{ fontSize: '32px', marginBottom: '8px' }}>🚪 步驟二：門寬 90cm 放樣標定</div>
+                  <h4 style={{ color: '#f8fafc', margin: '0 0 8px 0', fontSize: '16px' }}>精準建立空間像素與坪數比例尺</h4>
+                  <p style={{ color: '#cbd5e1', fontSize: '13px', lineHeight: '1.7' }}>
+                    建築圖面中房門一般為 <b>90cm</b>（或大門 100cm）。在圖面上點擊門口兩端，系統將以此距離換算整張圖面的物理比例，確保所有圈選空間的坪數與面積 100% 精確！
+                  </p>
+                  <div style={{ marginTop: '12px', padding: '8px 12px', backgroundColor: '#1e293b', borderRadius: '6px', fontSize: '12px', color: '#34d399' }}>
+                    🚪 提示：亦可開啟「智慧閉合門縫」功能，自動封閉房門開口！
+                  </div>
+                </div>
+              )}
+
+              {tourStepIndex === 2 && (
+                <div>
+                  <div style={{ fontSize: '32px', marginBottom: '8px' }}>✏️ 步驟三：空間圈選與熱負荷設定</div>
+                  <h4 style={{ color: '#f8fafc', margin: '0 0 8px 0', fontSize: '16px' }}>框選房間並設定頂樓、西曬等加乘</h4>
+                  <p style={{ color: '#cbd5e1', fontSize: '13px', lineHeight: '1.7' }}>
+                    使用滑鼠在圖面上框選客廳、主臥、次臥等空間。表格中可點擊勾選 <b>頂樓 (+15%)</b>、<b>西曬 (+15%)</b> 或挑高等特殊負荷條件，系統將自動演算冷房需求能力 (kW)。
+                  </p>
+                  <div style={{ marginTop: '12px', padding: '8px 12px', backgroundColor: '#1e293b', borderRadius: '6px', fontSize: '12px', color: '#facc15' }}>
+                    ⚡ 提示：支援右鍵批次勾選與自訂負荷係數。
+                  </div>
+                </div>
+              )}
+
+              {tourStepIndex === 3 && (
+                <div>
+                  <div style={{ fontSize: '32px', marginBottom: '8px' }}>❄️ 步驟四：智慧設備選型與分組</div>
+                  <h4 style={{ color: '#f8fafc', margin: '0 0 8px 0', fontSize: '16px' }}>自動推薦最佳室內機與室外機組合</h4>
+                  <p style={{ color: '#cbd5e1', fontSize: '13px', lineHeight: '1.7' }}>
+                    系統依照計算所得能力自動匹配大金 VRV / 家用多聯最適室內機型號（如 FXDP/FXFP）。在室外機分組頁面中，可查看超配比率、電源電壓規格與原廠次分歧管選型！
+                  </p>
+                  <div style={{ marginTop: '12px', padding: '8px 12px', backgroundColor: '#1e293b', borderRadius: '6px', fontSize: '12px', color: '#38bdf8' }}>
+                    🌟 提示：系統會自動驗證冷媒管徑（如 KHRP26A22T）與總連接率！
+                  </div>
+                </div>
+              )}
+
+              {tourStepIndex === 4 && (
+                <div>
+                  <div style={{ fontSize: '32px', marginBottom: '8px' }}>📊 步驟五：匯出大金原廠 Excel 報價單</div>
+                  <h4 style={{ color: '#f8fafc', margin: '0 0 8px 0', fontSize: '16px' }}>一鍵產出正式工程報價與冷媒系統圖</h4>
+                  <p style={{ color: '#cbd5e1', fontSize: '13px', lineHeight: '1.7' }}>
+                    點選頂部「<b>📥 匯出選機表 Excel</b>」，即可產出包含【封面】、【設備明細表】、【系統套數表】與【集中控制器規劃】的完整工程試算表，直接提供業務與業主報價！
+                  </p>
+                  <div style={{ marginTop: '12px', padding: '8px 12px', backgroundColor: '#1e293b', borderRadius: '6px', fontSize: '12px', color: '#34d399' }}>
+                    🎉 恭喜！您已掌握選機系統的核心精髓，立即開始規劃您的案場吧！
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer Buttons */}
+            <div style={{
+              padding: '14px 20px',
+              backgroundColor: '#1e293b',
+              borderTop: '1px solid #334155',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <button
+                type="button"
+                onClick={() => {
+                  localStorage.setItem("daikin_seen_tour", "true");
+                  setShowTourModal(false);
+                }}
+                style={{
+                  backgroundColor: 'transparent',
+                  border: 'none',
+                  color: '#94a3b8',
+                  fontSize: '12.5px',
+                  cursor: 'pointer'
+                }}
+              >
+                跳過導覽
+              </button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {tourStepIndex > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setTourStepIndex(tourStepIndex - 1)}
+                    style={{
+                      backgroundColor: '#334155',
+                      color: '#ffffff',
+                      border: 'none',
+                      padding: '7px 14px',
+                      borderRadius: '6px',
+                      fontSize: '12.5px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    ⬅️ 上一步
+                  </button>
+                )}
+                {tourStepIndex < 4 ? (
+                  <button
+                    type="button"
+                    onClick={() => setTourStepIndex(tourStepIndex + 1)}
+                    style={{
+                      backgroundColor: '#0284c7',
+                      color: '#ffffff',
+                      border: 'none',
+                      padding: '7px 16px',
+                      borderRadius: '6px',
+                      fontSize: '12.5px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    下一步 ➡️
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      localStorage.setItem("daikin_seen_tour", "true");
+                      setShowTourModal(false);
+                      toast.success("🚀 導覽完成，祝您選機順利！");
+                    }}
+                    style={{
+                      backgroundColor: '#059669',
+                      color: '#ffffff',
+                      border: 'none',
+                      padding: '7px 18px',
+                      borderRadius: '6px',
+                      fontSize: '12.5px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    🎉 開始選機
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🤖 大金 AI 顧問懸浮按鈕與對話視窗 (目前先隱藏待模型訓練完成後開放) */}
+      {false && !showCopilotDrawer && (
+        <button
+          type="button"
+          onClick={() => setShowCopilotDrawer(true)}
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            right: '24px',
+            zIndex: 99999,
+            backgroundColor: '#0284c7',
+            color: '#ffffff',
+            border: '2px solid #38bdf8',
+            borderRadius: '30px',
+            padding: '10px 18px',
+            fontSize: '13px',
+            fontWeight: 'bold',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            boxShadow: '0 8px 24px rgba(2, 132, 199, 0.6), 0 0 15px rgba(56, 189, 248, 0.4)',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            animation: 'pulse 2s infinite'
+          }}
+          title="點擊展開大金 AI 顧問，即時回答選機與系統疑問"
+        >
+          <span style={{ fontSize: '18px' }}>🤖</span>
+          <span>大金 AI 顧問</span>
+        </button>
+      )}
+
+      {/* 🤖 大金 AI 顧問抽屜對話面板 (目前先隱藏待模型訓練完成後開放) */}
+      {false && showCopilotDrawer && (
+        <div style={{
+          position: 'fixed',
+          bottom: '20px',
+          right: '20px',
+          width: '380px',
+          height: '520px',
+          maxHeight: '85vh',
+          backgroundColor: '#0f172a',
+          border: '1.5px solid #0284c7',
+          borderRadius: '16px',
+          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.8), 0 0 25px rgba(2, 132, 199, 0.35)',
+          zIndex: 999999,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          fontFamily: "'Outfit', 'Noto Sans TC', sans-serif"
+        }}>
+          {/* Header */}
+          <div style={{
+            padding: '12px 16px',
+            backgroundColor: '#1e293b',
+            borderBottom: '1px solid #334155',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '18px' }}>🤖</span>
+              <div>
+                <div style={{ fontSize: '13.5px', color: '#f8fafc', fontWeight: 'bold' }}>
+                  大金 AI 選機專家顧問
+                </div>
+                <div style={{ fontSize: '10.5px', color: '#38bdf8' }}>
+                  ● 意圖辨識 (NLP) 智慧即時諮詢
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowCopilotDrawer(false)}
+              style={{
+                backgroundColor: 'transparent',
+                border: 'none',
+                color: '#94a3b8',
+                fontSize: '18px',
+                cursor: 'pointer',
+                padding: '2px 6px'
+              }}
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* 熱門快捷提問按鈕區 */}
+          <div style={{
+            padding: '8px 12px',
+            backgroundColor: '#090d16',
+            borderBottom: '1px solid #1e293b',
+            display: 'flex',
+            gap: '6px',
+            overflowX: 'auto',
+            whiteSpace: 'nowrap'
+          }}>
+            {[
+              { label: '🚪 門寬放樣', q: '如何設定 90cm 門寬比例尺？' },
+              { label: '🌿 VRV分歧頭', q: 'VRV 次分歧管規格如何選配？' },
+              { label: '☀️ 頂樓西曬', q: '西曬與頂樓如何加乘熱負荷？' },
+              { label: '📥 匯出報價', q: '如何匯出大金原廠格式 Excel 報價單？' }
+            ].map((btn, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => handleSendCopilot(btn.q)}
+                style={{
+                  padding: '4px 8px',
+                  borderRadius: '12px',
+                  backgroundColor: '#1e293b',
+                  border: '1px solid #334155',
+                  color: '#cbd5e1',
+                  fontSize: '11px',
+                  cursor: 'pointer',
+                  flexShrink: 0
+                }}
+              >
+                {btn.label}
+              </button>
+            ))}
+          </div>
+
+          {/* 對話訊息列表 */}
+          <div style={{
+            flex: 1,
+            padding: '12px 14px',
+            overflowY: 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px'
+          }}>
+            {copilotMessages.map((msg, index) => (
+              <div
+                key={index}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: msg.sender === 'user' ? 'flex-end' : 'flex-start'
+                }}
+              >
+                <div style={{
+                  maxWidth: '85%',
+                  padding: '9px 12px',
+                  borderRadius: '12px',
+                  fontSize: '12.5px',
+                  lineHeight: '1.5',
+                  backgroundColor: msg.sender === 'user' ? '#0284c7' : '#1e293b',
+                  color: '#ffffff',
+                  border: msg.sender === 'user' ? 'none' : '1px solid #334155',
+                  borderBottomRightRadius: msg.sender === 'user' ? '2px' : '12px',
+                  borderBottomLeftRadius: msg.sender === 'bot' ? '2px' : '12px',
+                  whiteSpace: 'pre-wrap'
+                }}>
+                  {msg.text}
+                </div>
+                <span style={{ fontSize: '10px', color: '#64748b', marginTop: '3px', padding: '0 4px' }}>
+                  {msg.time}
+                </span>
+              </div>
+            ))}
+            {copilotLoading && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#38bdf8', fontSize: '12px', padding: '4px' }}>
+                <span style={{ animation: 'spin 1s linear infinite' }}>🔄</span> AI 顧問思考分析中...
+              </div>
+            )}
+            <div ref={copilotEndRef} />
+          </div>
+
+          {/* 底部輸入列 */}
+          <div style={{
+            padding: '10px 12px',
+            backgroundColor: '#1e293b',
+            borderTop: '1px solid #334155',
+            display: 'flex',
+            gap: '8px'
+          }}>
+            <input
+              type="text"
+              placeholder="請輸入選機或配管疑問..."
+              value={copilotInput}
+              onChange={(e) => setCopilotInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleSendCopilot();
+                }
+              }}
+              style={{
+                flex: 1,
+                padding: '8px 12px',
+                borderRadius: '6px',
+                border: '1px solid #475569',
+                backgroundColor: '#0f172a',
+                color: '#ffffff',
+                fontSize: '12.5px',
+                outline: 'none'
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => handleSendCopilot()}
+              disabled={copilotLoading || !copilotInput.trim()}
+              style={{
+                backgroundColor: '#0284c7',
+                color: '#ffffff',
+                border: 'none',
+                padding: '8px 14px',
+                borderRadius: '6px',
+                fontSize: '12.5px',
+                fontWeight: 'bold',
+                cursor: (copilotLoading || !copilotInput.trim()) ? 'not-allowed' : 'pointer',
+                opacity: (copilotLoading || !copilotInput.trim()) ? 0.6 : 1
+              }}
+            >
+              發送
+            </button>
+          </div>
         </div>
       )}
     </div>

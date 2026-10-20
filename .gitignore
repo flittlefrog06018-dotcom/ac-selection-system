@@ -14,6 +14,8 @@ temp/
 scratch/
 ~$*
 *.env
+*.db
+backend/data/*.db
 config.env
 backend/config.env
 backend/temp_merged_selection_report.xlsx
