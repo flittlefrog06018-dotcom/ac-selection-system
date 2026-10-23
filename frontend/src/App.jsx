@@ -3901,9 +3901,21 @@ function App() {
       }
     } else if (field === 'best_match_model') {
       row.best_match_model = value;
-      row.cap_kw = lookupModelCapKw(value);
+      const singleCap = parseFloat(lookupModelCapKw(value)) || 0;
+      row.cap_kw = singleCap;
       row.indoor_price = lookupIndoorPrice(value);
       row.price = row.indoor_price;
+
+      // 🎯 核心連動：手動調整/變更室內機型號時，自動依據該空間總冷房需求 (kW) 計算並調整室內機台數
+      const demandKcal = parseFloat(row.total_cooling_demand) || (parseFloat(row.area_ping || 0) * (parseFloat(row.calc_basis) || 500));
+      const totalLoadKw = demandKcal / 860.0;
+      if (singleCap > 0 && totalLoadKw > 0) {
+        const neededQty = Math.max(1, Math.ceil((totalLoadKw - 0.05) / singleCap));
+        row.unit_count = neededQty;
+        if (row.system_type === 'SA' || row.system_type === 'RA') {
+          row.outdoor_unit_count = neededQty;
+        }
+      }
     } else if (field === 'outdoor_model') {
       row.outdoor_model = value;
       const matched = OUTDOOR_UNITS_DB.find(m => m.model === value);
