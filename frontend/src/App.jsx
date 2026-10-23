@@ -1513,6 +1513,7 @@ function App() {
 
       const firstVrvRow = finalRows[vrvIndices[0]];
       const vrvOutType = activeOutType || firstVrvRow.outdoor_type || '冷暖上吹型';
+      const vrvOutPower = activeOutPower || firstVrvRow.power_supply || '3φ, 4P, 380V, 60Hz';
       let candidates = getOutdoorModelsForSystem('VRV', '', vrvOutType, vrvOutPower);
       if (!candidates || candidates.length === 0) {
         candidates = OUTDOOR_UNITS_DB.filter(m => m.system === 'VRV' && (!vrvOutType || m.outdoor_type === vrvOutType) && (!vrvOutPower || m.power_supply === vrvOutPower));
