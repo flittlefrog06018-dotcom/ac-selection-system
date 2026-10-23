@@ -8062,17 +8062,6 @@ function App() {
                             </span>
                           )}
                         </span>
-                        <input
-                          type="checkbox"
-                          checked={isChecked && !isDisabled}
-                          disabled={isDisabled}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            if (isDisabled) return;
-                            handleToggleControlMode(opt.mode);
-                          }}
-                          style={{ cursor: isDisabled ? 'not-allowed' : 'pointer', width: '15px', height: '15px', accentColor: opt.color }}
-                        />
                       </div>
                       <div style={{ fontSize: '11.5px', color: isDisabled ? '#64748b' : '#94a3b8', lineHeight: '1.3' }}>
                         {opt.desc}

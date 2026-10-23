@@ -9,7 +9,7 @@ import { OUTDOOR_UNITS_DB } from '../constants/acConstants';
 function getCapIndexFromModel(modelName = '') {
   if (!modelName) return 20.0;
   const clean = String(modelName).trim().toUpperCase();
-  const match = clean.match(/(?:FXDQ|FXSQ|FTXV|FTXM|FTX|FCQ|FHA|FXYP|FXAQ|FXNQ|FXMQ|FXEQ|FXHQ)(\d{2,3})/i);
+  const match = clean.match(/(?:FXDQ|FXSQ|FTXV|FTXM|FTX|FCQ|FHA|FXYP|FXAQ|FXNQ|FXMQ|FXEQ|FXHQ|FXFQ|FXFSQ|FXZQ|FXCQ)(\d{2,3})/i);
   if (match) {
     const num = parseInt(match[1], 10);
     if (num === 63) return 62.5;
@@ -18,7 +18,11 @@ function getCapIndexFromModel(modelName = '') {
   const anyNum = clean.match(/(\d+)/);
   if (anyNum) {
     const n = parseInt(anyNum[1], 10);
-    if (n in [20, 22, 25, 28, 32, 36, 40, 50, 60, 63, 71, 80, 90, 100, 112, 125, 140]) return n;
+    const validIndices = [20, 22, 25, 28, 32, 36, 40, 50, 60, 63, 71, 80, 90, 100, 112, 125, 140];
+    if (validIndices.includes(n)) {
+      if (n === 63) return 62.5;
+      return n;
+    }
   }
   return 20.0;
 }
@@ -155,7 +159,8 @@ export default function RefrigerantPipingDiagram({ rows = [], outdoorGroups = []
         outdoor_model: g.outdoor_model || 'RXYQ8AYLT',
         outdoor_cap_kw: g.outdoor_cap_kw || 22.4,
         outdoor_count: g.outdoor_count || 1,
-        system_type: 'VRV'
+        system_type: 'VRV',
+        space_indices: g.space_indices
       }));
     } else {
       systems = [{
@@ -173,26 +178,106 @@ export default function RefrigerantPipingDiagram({ rows = [], outdoorGroups = []
         ? prevTrees
         : ((initialTrees && Object.keys(initialTrees).length > 0) ? initialTrees : {});
       const nextTrees = { ...baseTrees };
+      let hasChanges = false;
+
       systems.forEach(sys => {
-        // 如果該系統已存在自訂拓撲，保留其結構，否則由 rows 自動建構單層預設
-        if (!nextTrees[sys.id]) {
-          const sysSpaces = rows.filter(r => (r.outdoorGroupId === sys.id) || (!r.outdoorGroupId && systems.length === 1 && (r.system_type === 'VRV' || r.best_match_model?.startsWith('FX'))));
-          const initialItems = sysSpaces.map((r, idx) => ({
-            id: `indoor-${sys.id}-${idx}-${Date.now()}`,
-            type: 'indoor',
-            space_name: r.space_name || `空間 ${idx + 1}`,
-            model: r.best_match_model || 'FXDQ20PDNVT',
-            cap_index: getCapIndexFromModel(r.best_match_model),
-            cap_kw: r.cap_kw || 2.2,
-            qty: r.unit_count || 1
-          }));
-          nextTrees[sys.id] = initialItems;
+        const sysSpaces = rows.filter((r, idx) => {
+          if (r.outdoorGroupId) {
+            return r.outdoorGroupId === sys.id;
+          }
+          if (sys.space_indices && Array.isArray(sys.space_indices)) {
+            return sys.space_indices.includes(idx);
+          }
+          if (systems.length === 1 && (r.system_type === 'VRV' || r.best_match_model?.startsWith('FX') || !r.system_type)) {
+            return true;
+          }
+          return false;
+        });
+
+        // 依據 sysSpaces 展開實體室內機清單 (台數 unit_count 展開為個別實體機，每台對應獨立末端配管)
+        const expectedItems = [];
+        sysSpaces.forEach((r, sIdx) => {
+          const count = Math.max(1, parseInt(r.unit_count, 10) || 1);
+          const model = r.best_match_model || 'FXDQ20PDNVT';
+          const cap_index = getCapIndexFromModel(model);
+          const cap_kw = parseFloat(r.cap_kw) || 2.2;
+          const spaceBaseName = r.space_name || `空間 ${sIdx + 1}`;
+
+          for (let u = 0; u < count; u++) {
+            const spaceLabel = count > 1 ? `${spaceBaseName} (${u + 1})` : spaceBaseName;
+            expectedItems.push({
+              id: `indoor-${sys.id}-${sIdx}-${u}`,
+              type: 'indoor',
+              space_name: spaceLabel,
+              original_space_name: spaceBaseName,
+              space_index: sIdx,
+              unit_index: u,
+              model: model,
+              cap_index: cap_index,
+              cap_kw: cap_kw,
+              qty: 1
+            });
+          }
+        });
+
+        const currentTree = nextTrees[sys.id];
+
+        // 判斷是否需要自動同步更新
+        if (!currentTree || currentTree.length === 0) {
+          nextTrees[sys.id] = expectedItems;
+          hasChanges = true;
+        } else {
+          // 檢查現有樹狀結構中是否有次分歧網絡 (sub_branch)
+          const hasSubBranches = currentTree.some(it => it.type === 'sub_branch');
+
+          if (!hasSubBranches) {
+            // 單層主幹結構：若數量、空間名稱、型號、或能力指數不一致，立即自動同步
+            const isDifferent = currentTree.length !== expectedItems.length ||
+              currentTree.some((it, i) => {
+                const exp = expectedItems[i];
+                return !exp || it.model !== exp.model || it.space_name !== exp.space_name || it.cap_index !== exp.cap_index;
+              });
+
+            if (isDifferent) {
+              nextTrees[sys.id] = expectedItems;
+              hasChanges = true;
+            }
+          } else {
+            // 包含次分歧網絡的結構：保留樹狀結構，但同步更新各空間的型號 (model) 與能力指數 (cap_index)
+            let treeChanged = false;
+            const updatedTree = currentTree.map(it => {
+              if (it.type === 'indoor') {
+                const matchedExp = expectedItems.find(exp => exp.space_name === it.space_name || exp.original_space_name === it.space_name);
+                if (matchedExp && (it.model !== matchedExp.model || it.cap_index !== matchedExp.cap_index)) {
+                  treeChanged = true;
+                  return { ...it, model: matchedExp.model, cap_index: matchedExp.cap_index, cap_kw: matchedExp.cap_kw };
+                }
+              } else if (it.type === 'sub_branch') {
+                const nextChildren = (it.children || []).map(child => {
+                  const matchedExp = expectedItems.find(exp => exp.space_name === child.space_name || exp.original_space_name === child.space_name);
+                  if (matchedExp && (child.model !== matchedExp.model || child.cap_index !== matchedExp.cap_index)) {
+                    treeChanged = true;
+                    return { ...child, model: matchedExp.model, cap_index: matchedExp.cap_index, cap_kw: matchedExp.cap_kw };
+                  }
+                  return child;
+                });
+                return { ...it, children: nextChildren };
+              }
+              return it;
+            });
+
+            if (treeChanged) {
+              nextTrees[sys.id] = updatedTree;
+              hasChanges = true;
+            }
+          }
         }
       });
-      if (onSavePipingTree) {
+
+      if (hasChanges && onSavePipingTree) {
         onSavePipingTree(nextTrees);
       }
-      return nextTrees;
+      return hasChanges ? nextTrees : prevTrees;
     });
 
     if (systems.length > 0 && (!selectedSysId || !systems.some(s => s.id === selectedSysId))) {
@@ -526,19 +611,39 @@ export default function RefrigerantPipingDiagram({ rows = [], outdoorGroups = []
     return () => clearTimeout(timer);
   }, [topologyCalculations, currentItems, selectedSysId, onSavePipingDiagramImage]);
 
-  // 可選室內機型號清單
-  const indoorModelOptions = [
-    { label: 'VRV 20 型 (2.2kW)', value: 'FXDQ20PDNVT' },
-    { label: 'VRV 25 型 (2.8kW)', value: 'FXDQ25PDNVT' },
-    { label: 'VRV 32 型 (3.6kW)', value: 'FXDQ32PDNVT' },
-    { label: 'VRV 40 型 (4.5kW)', value: 'FXDQ40PDNVT' },
-    { label: 'VRV 50 型 (5.6kW)', value: 'FXDQ50NDNVT' },
-    { label: 'VRV 63 型 (7.1kW)', value: 'FXDQ63NDNVT' },
-    { label: 'VRV 80 型 (9.0kW)', value: 'FXMQ80PVMT' },
-    { label: 'VRV 100 型 (11.2kW)', value: 'FXMQ100PVMT' },
-    { label: 'VRV 125 型 (14.0kW)', value: 'FXMQ125PVMT' },
-    { label: 'VRV 140 型 (16.0kW)', value: 'FXMQ140PVMT' }
-  ];
+  // 可選室內機型號清單 (支援低靜壓 NDNVT、有排水泵 PDNVT、中靜壓 FXMQ 等，並動態補齊當前項目型號)
+  const indoorModelOptions = useMemo(() => {
+    const defaultList = [
+      { label: 'VRV 20 型 (2.2kW)', value: 'FXDQ20PDNVT' },
+      { label: 'VRV 25 型 (2.8kW)', value: 'FXDQ25PDNVT' },
+      { label: 'VRV 32 型 (3.6kW)', value: 'FXDQ32PDNVT' },
+      { label: 'VRV 40 型 (4.5kW)', value: 'FXDQ40NDNVT' },
+      { label: 'VRV 40 型 (有排水泵 4.5kW)', value: 'FXDQ40PDNVT' },
+      { label: 'VRV 50 型 (5.6kW)', value: 'FXDQ50NDNVT' },
+      { label: 'VRV 63 型 (7.1kW)', value: 'FXDQ63NDNVT' },
+      { label: 'VRV 80 型 (9.0kW)', value: 'FXMQ80PVMT' },
+      { label: 'VRV 100 型 (11.2kW)', value: 'FXMQ100PVMT' },
+      { label: 'VRV 125 型 (14.0kW)', value: 'FXMQ125PVMT' },
+      { label: 'VRV 140 型 (16.0kW)', value: 'FXMQ140PVMT' }
+    ];
+    const valSet = new Set(defaultList.map(o => o.value));
+    const extraOptions = [];
+    const checkItem = (it) => {
+      if (it && it.model && !valSet.has(it.model)) {
+        valSet.add(it.model);
+        const idx = it.cap_index || getCapIndexFromModel(it.model);
+        extraOptions.push({
+          label: `${it.model} (${idx}型)`,
+          value: it.model
+        });
+      }
+      if (it && it.children) {
+        it.children.forEach(checkItem);
+      }
+    };
+    (currentItems || []).forEach(checkItem);
+    return [...defaultList, ...extraOptions];
+  }, [currentItems]);
 
   // ---------------------------------------------------------
   // 操作：調整上下順序
