@@ -420,27 +420,52 @@ class GlobalErrorBoundary extends React.Component {
 }
 
 function App() {
-  // 🔐 帳號身分驗證與 Session 管理
-  const [authToken, setAuthToken] = useState(() => localStorage.getItem("daikin_token") || "");
-  const [currentUser, setCurrentUser] = useState(() => {
-    try {
-      const saved = localStorage.getItem("daikin_user");
-      return saved ? JSON.parse(saved) : null;
-    } catch (e) {
-      return null;
-    }
-  });
+  // 🔐 系統存取密碼驗證 (預設密碼為 daikin2026)
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return Boolean(localStorage.getItem("daikin_token") && localStorage.getItem("daikin_user"));
+    return !SYSTEM_ACCESS_PASSWORD || sessionStorage.getItem("app_authenticated") === "true";
   });
-  const [loginForm, setLoginForm] = useState({ email: "admin@daikin.com.tw", password: "" });
+  const [inputPassword, setInputPassword] = useState("");
+  const [passError, setPassError] = useState(false);
+
+  // 登入處理 (驗證 daikin2026)
+  const handlePasswordSubmit = (e) => {
+    if (e) e.preventDefault();
+    if (inputPassword === SYSTEM_ACCESS_PASSWORD) {
+      sessionStorage.setItem("app_authenticated", "true");
+      setIsAuthenticated(true);
+      setPassError(false);
+      toast.success("🎉 身份驗證成功，歡迎使用大金空調選機系統！");
+      const hasSeenTour = localStorage.getItem("daikin_seen_tour");
+      if (!hasSeenTour) {
+        setShowTourModal(true);
+      }
+    } else {
+      setPassError(true);
+      toast.error("❌ 存取密碼錯誤，請重新輸入！");
+    }
+  };
+
+  // 登出/鎖定處理
+  const handleLogout = () => {
+    sessionStorage.removeItem("app_authenticated");
+    setIsAuthenticated(false);
+    setInputPassword("");
+    setPassError(false);
+    setShowAuditModal(false);
+    setShowCopilotDrawer(false);
+    toast.info("🔒 已安全鎖定系統。");
+  };
+
+  const [authToken] = useState("");
+  const [currentUser] = useState(null);
+  const [loginForm, setLoginForm] = useState({ email: "", password: "" });
   const [loginError, setLoginError] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
-  const [loginMode, setLoginMode] = useState("login"); // 'login' | 'register'
+  const [loginMode, setLoginMode] = useState("login");
   const [registerForm, setRegisterForm] = useState({ email: "", password: "", fullName: "", role: "engineer" });
   const [registerLoading, setRegisterLoading] = useState(false);
 
-  // 🛡️ 審計日誌與後台管理 State
+  // 🛡️ 審計日誌與後台管理 State (備用)
   const [showAuditModal, setShowAuditModal] = useState(false);
   const [auditLogs, setAuditLogs] = useState([]);
   const [auditFilter, setAuditFilter] = useState("");
@@ -465,96 +490,6 @@ function App() {
   // 🌟 新手 5 步互動導覽 State
   const [showTourModal, setShowTourModal] = useState(false);
   const [tourStepIndex, setTourStepIndex] = useState(0);
-
-  // 初始驗證 Token
-  useEffect(() => {
-    const token = localStorage.getItem("daikin_token");
-    if (token) {
-      fetch("/api/auth/me", {
-        headers: { "Authorization": `Bearer ${token}` }
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.status === "success" && data.user) {
-          setCurrentUser(data.user);
-          setIsAuthenticated(true);
-          localStorage.setItem("daikin_user", JSON.stringify(data.user));
-        } else {
-          localStorage.removeItem("daikin_token");
-          localStorage.removeItem("daikin_user");
-          setAuthToken("");
-          setCurrentUser(null);
-          setIsAuthenticated(false);
-        }
-      })
-      .catch(() => {
-        // 離線時維持既有快取身分
-      });
-    }
-  }, []);
-
-  // 登入處理 (支援 Email 登入)
-  const handleLoginSubmit = async (e) => {
-    if (e) e.preventDefault();
-    setLoginLoading(true);
-    setLoginError("");
-    const inputIdentifier = (loginForm.email || "").trim();
-    try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: inputIdentifier,
-          username: inputIdentifier,
-          password: loginForm.password.trim()
-        })
-      });
-      const data = await res.json();
-      if (res.ok && (data.success || data.status === "success")) {
-        localStorage.setItem("daikin_token", data.token);
-        localStorage.setItem("daikin_user", JSON.stringify(data.user));
-        setAuthToken(data.token);
-        setCurrentUser(data.user);
-        setIsAuthenticated(true);
-        setLoginForm({ email: "", password: "" });
-        toast.success(`👋 歡迎回來，${data.user.email || data.user.full_name}（${data.user.role === 'admin' ? '系統管理員' : data.user.role === 'engineer' ? '空調工程師' : '專案業務'}）！`);
-        
-        const hasSeenTour = localStorage.getItem("daikin_seen_tour");
-        if (!hasSeenTour) {
-          setShowTourModal(true);
-        }
-      } else {
-        setLoginError(data.detail || "Email 或密碼錯誤，請確認！");
-        toast.error(`❌ 登入失敗: ${data.detail || 'Email 或密碼錯誤'}`);
-      }
-    } catch (err) {
-      setLoginError(`伺服器連線失敗: ${err.message}`);
-      toast.error(`❌ 連線錯誤: ${err.message}`);
-    } finally {
-      setLoginLoading(false);
-    }
-  };
-
-  // 登出處理
-  const handleLogout = async () => {
-    const token = authToken || localStorage.getItem("daikin_token");
-    if (token) {
-      try {
-        await fetch("/api/auth/logout", {
-          method: "POST",
-          headers: { "Authorization": `Bearer ${token}` }
-        });
-      } catch (e) {}
-    }
-    localStorage.removeItem("daikin_token");
-    localStorage.removeItem("daikin_user");
-    setAuthToken("");
-    setCurrentUser(null);
-    setIsAuthenticated(false);
-    setShowAuditModal(false);
-    setShowCopilotDrawer(false);
-    toast.info("🔒 已安全登出系統。");
-  };
 
   // 取得審計日誌
   // 取得審計日誌與待審核清單
@@ -6026,328 +5961,63 @@ function App() {
         alignItems: 'center',
         justifyContent: 'center',
         minHeight: '100vh',
-        background: 'radial-gradient(circle at 50% 30%, #0f172a 0%, #020617 100%)',
-        fontFamily: "'Outfit', 'Noto Sans TC', sans-serif",
-        padding: '20px'
+        backgroundColor: '#0f172a',
+        fontFamily: "'Outfit', 'Noto Sans TC', sans-serif"
       }}>
-        <ToastContainer theme="dark" position="top-right" autoClose={3000} />
+        <ToastContainer theme="dark" position="top-right" autoClose={4000} />
         <div style={{
-          backgroundColor: '#0f172a',
-          padding: '40px 32px',
-          borderRadius: '20px',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.75), 0 0 30px rgba(2, 132, 199, 0.25)',
-          border: '1.5px solid #1e293b',
+          backgroundColor: '#1e293b',
+          padding: '40px 30px',
+          borderRadius: '16px',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+          border: '1px solid #334155',
           textAlign: 'center',
-          maxWidth: '430px',
-          width: '100%',
-          position: 'relative',
-          overflow: 'hidden'
+          maxWidth: '380px',
+          width: '90%'
         }}>
-          {/* 頂部發光線條裝飾 */}
-          <div style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: '4px',
-            background: 'linear-gradient(90deg, #0284c7, #38bdf8, #059669)'
-          }} />
-
-          {/* Logo 與標題 */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginBottom: '8px' }}>
-            <span style={{
-              backgroundColor: '#0284c7',
-              color: '#ffffff',
-              fontWeight: '900',
-              fontSize: '15px',
-              padding: '3px 10px',
-              borderRadius: '6px',
-              letterSpacing: '1.5px'
-            }}>DAIKIN</span>
-            <span style={{ fontSize: '13px', color: '#38bdf8', fontWeight: 'bold', letterSpacing: '1px' }}>
-              選機自動化系統
-            </span>
-          </div>
-
-          <h2 style={{ color: '#f8fafc', margin: '10px 0 6px 0', fontSize: '22px', fontWeight: 'bold' }}>
-            {loginMode === 'login' ? '工程師安全認證登入' : '申請系統授權開通'}
-          </h2>
-          <p style={{ color: '#94a3b8', fontSize: '12.5px', marginBottom: '24px', lineHeight: '1.6' }}>
-            {loginMode === 'login'
-              ? '本系統受存取審計保護，請輸入授權帳號密碼。所有操作皆會記錄於審計日誌。'
-              : '填寫您的公司電子郵件與真實姓名，提交申請後需由管理員後台核通方可啟用。'}
+          <div style={{ fontSize: '48px', marginBottom: '15px' }}>🔒</div>
+          <h2 style={{ color: '#f8fafc', margin: '0 0 10px 0', fontSize: '20px' }}>大金空調選機系統存取保護</h2>
+          <p style={{ color: '#94a3b8', fontSize: '13px', marginBottom: '25px', lineHeight: '1.5' }}>
+            本系統設有測試存取限制，請輸入存取密碼以解鎖進入頁面。
           </p>
-
-          {loginError && loginMode === 'login' && (
-            <div style={{
-              backgroundColor: 'rgba(239, 68, 68, 0.15)',
-              border: '1px solid #ef4444',
-              color: '#fca5a5',
-              padding: '10px 14px',
-              borderRadius: '8px',
-              fontSize: '12.5px',
-              marginBottom: '18px',
-              textAlign: 'left'
-            }}>
-              ⚠️ {loginError}
-            </div>
-          )}
-
-          {loginMode === 'login' ? (
-            <form onSubmit={handleLoginSubmit}>
-              <div style={{ marginBottom: '14px', textAlign: 'left' }}>
-                <label style={{ display: 'block', fontSize: '12px', color: '#cbd5e1', fontWeight: '600', marginBottom: '6px' }}>
-                  電子郵件 (Email)
-                </label>
-                <input
-                  type="email"
-                  placeholder="請輸入公司 Email (例如: user@daikin.com.tw)"
-                  value={loginForm.email}
-                  onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '11px 14px',
-                    borderRadius: '8px',
-                    border: '1px solid #334155',
-                    backgroundColor: '#1e293b',
-                    color: '#ffffff',
-                    fontSize: '14px',
-                    boxSizing: 'border-box',
-                    outline: 'none',
-                    transition: 'border-color 0.2s'
-                  }}
-                />
-              </div>
-
-              <div style={{ marginBottom: '20px', textAlign: 'left' }}>
-                <label style={{ display: 'block', fontSize: '12px', color: '#cbd5e1', fontWeight: '600', marginBottom: '6px' }}>
-                  存取密碼 (Password)
-                </label>
-                <input
-                  type="password"
-                  placeholder="請輸入密碼"
-                  value={loginForm.password}
-                  onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '11px 14px',
-                    borderRadius: '8px',
-                    border: '1px solid #334155',
-                    backgroundColor: '#1e293b',
-                    color: '#ffffff',
-                    fontSize: '14px',
-                    boxSizing: 'border-box',
-                    outline: 'none',
-                    transition: 'border-color 0.2s'
-                  }}
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={loginLoading}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
-                  color: '#ffffff',
-                  fontWeight: 'bold',
-                  fontSize: '14.5px',
-                  cursor: loginLoading ? 'not-allowed' : 'pointer',
-                  boxShadow: '0 4px 14px rgba(2, 132, 199, 0.4)',
-                  transition: 'all 0.2s ease',
-                  opacity: loginLoading ? 0.7 : 1
-                }}
-              >
-                {loginLoading ? '🔄 驗證授權中...' : '🚀 安全登入並開啟選機系統'}
-              </button>
-
-              {/* 切換至申請開通 */}
-              <div style={{
-                marginTop: '22px',
-                paddingTop: '16px',
-                borderTop: '1px solid #1e293b',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLoginError("");
-                    setLoginMode('register');
-                  }}
-                  style={{
-                    backgroundColor: 'transparent',
-                    border: 'none',
-                    color: '#38bdf8',
-                    fontSize: '12.5px',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '6px 12px',
-                    borderRadius: '6px',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  <span>📝</span>
-                  <span>新進人員申請？點此提交開通申請</span>
-                </button>
-              </div>
-            </form>
-          ) : (
-            <form onSubmit={handleRegisterSubmit}>
-              <div style={{ marginBottom: '12px', textAlign: 'left' }}>
-                <label style={{ display: 'block', fontSize: '12px', color: '#cbd5e1', fontWeight: '600', marginBottom: '6px' }}>
-                  電子郵件 (Email)
-                </label>
-                <input
-                  type="email"
-                  placeholder="請輸入公司 Email (例如: name@daikin.com.tw)"
-                  value={registerForm.email}
-                  onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })}
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid #334155',
-                    backgroundColor: '#1e293b',
-                    color: '#ffffff',
-                    fontSize: '13.5px',
-                    boxSizing: 'border-box',
-                    outline: 'none'
-                  }}
-                />
-              </div>
-
-              <div style={{ marginBottom: '12px', textAlign: 'left' }}>
-                <label style={{ display: 'block', fontSize: '12px', color: '#cbd5e1', fontWeight: '600', marginBottom: '6px' }}>
-                  使用者真實姓名
-                </label>
-                <input
-                  type="text"
-                  placeholder="例: 林志豪 技師"
-                  value={registerForm.fullName}
-                  onChange={(e) => setRegisterForm({ ...registerForm, fullName: e.target.value })}
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid #334155',
-                    backgroundColor: '#1e293b',
-                    color: '#ffffff',
-                    fontSize: '13.5px',
-                    boxSizing: 'border-box',
-                    outline: 'none'
-                  }}
-                />
-              </div>
-
-              <div style={{ marginBottom: '12px', textAlign: 'left' }}>
-                <label style={{ display: 'block', fontSize: '12px', color: '#cbd5e1', fontWeight: '600', marginBottom: '6px' }}>
-                  設定存取密碼
-                </label>
-                <input
-                  type="password"
-                  placeholder="請設定登入密碼"
-                  value={registerForm.password}
-                  onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })}
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid #334155',
-                    backgroundColor: '#1e293b',
-                    color: '#ffffff',
-                    fontSize: '13.5px',
-                    boxSizing: 'border-box',
-                    outline: 'none'
-                  }}
-                />
-              </div>
-
-              <div style={{ marginBottom: '18px', textAlign: 'left' }}>
-                <label style={{ display: 'block', fontSize: '12px', color: '#cbd5e1', fontWeight: '600', marginBottom: '6px' }}>
-                  申請職務角色
-                </label>
-                <select
-                  value={registerForm.role}
-                  onChange={(e) => setRegisterForm({ ...registerForm, role: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid #334155',
-                    backgroundColor: '#1e293b',
-                    color: '#ffffff',
-                    fontSize: '13.5px',
-                    boxSizing: 'border-box',
-                    outline: 'none'
-                  }}
-                >
-                  <option value="engineer">空調選機工程師 (Engineer)</option>
-                  <option value="sales">專案業務專員 (Sales)</option>
-                </select>
-              </div>
-
-              <button
-                type="submit"
-                disabled={registerLoading}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
-                  color: '#ffffff',
-                  fontWeight: 'bold',
-                  fontSize: '14.5px',
-                  cursor: registerLoading ? 'not-allowed' : 'pointer',
-                  boxShadow: '0 4px 14px rgba(5, 150, 105, 0.4)',
-                  transition: 'all 0.2s ease',
-                  opacity: registerLoading ? 0.7 : 1
-                }}
-              >
-                {registerLoading ? '📨 送出申請中...' : '📨 送出開通申請'}
-              </button>
-
-              {/* 切換回登入 */}
-              <div style={{
-                marginTop: '18px',
-                paddingTop: '14px',
-                borderTop: '1px solid #1e293b',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <button
-                  type="button"
-                  onClick={() => setLoginMode('login')}
-                  style={{
-                    backgroundColor: 'transparent',
-                    border: 'none',
-                    color: '#94a3b8',
-                    fontSize: '12.5px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}
-                >
-                  <span>⬅️ 返回帳號登入</span>
-                </button>
-              </div>
-            </form>
-          )}
+          <form onSubmit={handlePasswordSubmit}>
+            <input
+              type="password"
+              placeholder="請輸入測試存取密碼"
+              value={inputPassword}
+              onChange={(e) => setInputPassword(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '12px 15px',
+                borderRadius: '8px',
+                border: passError ? '2px solid #ef4444' : '1px solid #475569',
+                backgroundColor: '#0f172a',
+                color: '#fff',
+                fontSize: '15px',
+                textAlign: 'center',
+                boxSizing: 'border-box',
+                marginBottom: '15px',
+                outline: 'none'
+              }}
+            />
+            <button
+              type="submit"
+              style={{
+                width: '100%',
+                padding: '12px',
+                borderRadius: '8px',
+                border: 'none',
+                backgroundColor: '#0284c7',
+                color: '#fff',
+                fontWeight: 'bold',
+                fontSize: '15px',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s'
+              }}
+            >
+              🚀 解鎖進入系統
+            </button>
+          </form>
         </div>
       </div>
     );
@@ -6543,89 +6213,26 @@ function App() {
             <span>💡 新手引導</span>
           </button>
 
-          {/* 🛡️ 管理員專屬：審計日誌與安全後台 */}
-          {currentUser?.role === 'admin' && (
-            <button
-              type="button"
-              onClick={() => {
-                fetchAuditLogs();
-                setShowAuditModal(true);
-              }}
-              style={{
-                backgroundColor: '#1e293b',
-                color: '#ec4899',
-                border: '1px solid #db2777',
-                padding: '4px 10px',
-                borderRadius: '6px',
-                fontSize: '11.5px',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-                transition: 'all 0.2s ease'
-              }}
-              title="查看所有工程師登入、IP 紀錄與選機日誌"
-            >
-              <span>🛡️ 審計與帳號審批</span>
-              {pendingUsers.length > 0 && (
-                <span style={{
-                  backgroundColor: '#ef4444',
-                  color: '#ffffff',
-                  borderRadius: '10px',
-                  padding: '1px 6px',
-                  fontSize: '10px',
-                  fontWeight: 'bold',
-                  marginLeft: '2px'
-                }}>
-                  🔔 {pendingUsers.length} 待核
-                </span>
-              )}
-            </button>
-          )}
-
-          {/* 👤 登入者身分標籤與登出 */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            backgroundColor: '#0f172a',
-            border: '1px solid #334155',
-            padding: '2px 8px',
-            borderRadius: '6px'
-          }}>
-            <span style={{ fontSize: '11.5px', color: '#cbd5e1' }}>
-              👤 {currentUser?.email || currentUser?.full_name || currentUser?.username || '工程師'}
-            </span>
-            <span style={{
-              fontSize: '10px',
-              padding: '1px 5px',
-              borderRadius: '4px',
-              backgroundColor: currentUser?.role === 'admin' ? '#991b1b' : currentUser?.role === 'engineer' ? '#065f46' : '#92400e',
-              color: '#ffffff',
-              fontWeight: 'bold'
-            }}>
-              {currentUser?.role === 'admin' ? '管理員' : currentUser?.role === 'engineer' ? '工程師' : '業務'}
-            </span>
-            <button
-              type="button"
-              onClick={handleLogout}
-              style={{
-                backgroundColor: 'transparent',
-                border: 'none',
-                color: '#ef4444',
-                fontSize: '11px',
-                cursor: 'pointer',
-                padding: '2px 4px',
-                marginLeft: '2px',
-                fontWeight: 'bold'
-              }}
-              title="安全登出系統"
-            >
-              🚪 登出
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={handleLogout}
+            style={{
+              backgroundColor: '#1e293b',
+              border: '1px solid #334155',
+              color: '#94a3b8',
+              fontSize: '11.5px',
+              padding: '4px 8px',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}
+            title="鎖定系統並返回密碼驗證畫面"
+          >
+            <span>🔒 鎖定</span>
+          </button>
 
           <span style={{
             fontSize: '11px',
