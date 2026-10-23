@@ -1513,10 +1513,9 @@ function App() {
 
       const firstVrvRow = finalRows[vrvIndices[0]];
       const vrvOutType = activeOutType || firstVrvRow.outdoor_type || '冷暖上吹型';
-      const vrvOutPower = activeOutPower || firstVrvRow.power_supply || '3φ, 4P, 380V, 60Hz';
-      let candidates = getOutdoorModelsForSystem('VRV', firstVrvRow.series, vrvOutType, vrvOutPower);
+      let candidates = getOutdoorModelsForSystem('VRV', '', vrvOutType, vrvOutPower);
       if (!candidates || candidates.length === 0) {
-        candidates = getOutdoorModelsForSystem('VRV', '', '', vrvOutPower);
+        candidates = OUTDOOR_UNITS_DB.filter(m => m.system === 'VRV' && (!vrvOutType || m.outdoor_type === vrvOutType) && (!vrvOutPower || m.power_supply === vrvOutPower));
       }
       if (!candidates || candidates.length === 0) {
         candidates = OUTDOOR_UNITS_DB.filter(m => m.system === 'VRV' && (!vrvOutPower || m.power_supply === vrvOutPower));
@@ -2306,6 +2305,9 @@ function App() {
         // 🎯 核心連動：下方調整室外機電源時，室外機型號同步根據變動的室外機電源重新智慧匹配
         let matched = autoMatchOutdoorForSpaces(gSpaces, gSys, gSeries, gOutType, powerVal);
         if (!matched || matched.model === '無此機型') {
+          matched = autoMatchOutdoorForSpaces(gSpaces, gSys, '', gOutType, powerVal);
+        }
+        if (!matched || matched.model === '無此機型') {
           matched = autoMatchOutdoorForSpaces(gSpaces, gSys, '', '', powerVal);
         }
 
@@ -2343,6 +2345,9 @@ function App() {
         const gOutType = r.outdoor_type || (gSys === 'VRV' ? fastOutdoorType : '側吹單風扇');
 
         let matched = autoMatchOutdoorForSpaces(gSpaces, gSys, gSeries, gOutType, powerVal);
+        if (!matched || matched.model === '無此機型') {
+          matched = autoMatchOutdoorForSpaces(gSpaces, gSys, '', gOutType, powerVal);
+        }
         if (!matched || matched.model === '無此機型') {
           matched = autoMatchOutdoorForSpaces(gSpaces, gSys, '', '', powerVal);
         }
@@ -8256,13 +8261,18 @@ function App() {
                       const vrvSpaces = defaultVrvIndices.map(i => rows[i]);
                       const sumIndoorIndex = vrvSpaces.reduce((acc, sp) => acc + (lookupIndoorCapIndex(sp.best_match_model) * (sp.unit_count || 1)), 0);
                       const targetPwr = fastOutdoorPower || '3φ, 4P, 380V, 60Hz';
-                      const targetType = fastOutdoorType || '冷暖上吹型';
-                      const candidates = getOutdoorModelsForSystem('VRV', fastSeries || '低靜壓(無排水泵)', targetType, targetPwr);
+                      let candidates = getOutdoorModelsForSystem('VRV', fastSeries || '低靜壓(無排水泵)', targetType, targetPwr);
+                      if (!candidates || candidates.length === 0) {
+                        candidates = getOutdoorModelsForSystem('VRV', '', targetType, targetPwr);
+                      }
+                      if (!candidates || candidates.length === 0) {
+                        candidates = OUTDOOR_UNITS_DB.filter(m => m.system === 'VRV' && (!targetType || m.outdoor_type === targetType) && (!targetPwr || m.power_supply === targetPwr));
+                      }
                       const sortedCandidates = [...candidates].sort((a, b) => (a.cap_index || a.cap_kw * 10) - (b.cap_index || b.cap_kw * 10));
                       const matchedOutdoor = sortedCandidates.find(m => {
                         const outCapIdx = m.cap_index || (m.cap_kw * 10);
-                        return ((sumIndoorIndex / outCapIdx) * 100.0) <= 115.0;
-                      }) || sortedCandidates[sortedCandidates.length - 1] || { model: 'RXYQ8AYLT', cap_kw: 22.4, cap_index: 200.0 };
+                        return ((sumIndoorIndex / outCapIdx) * 100.0) <= 130.0;
+                      }) || sortedCandidates[sortedCandidates.length - 1] || { model: 'RXYMQ8TYLT', cap_kw: 20.0, cap_index: 180.0 };
 
                       fallbackVrvCard = {
                         id: '__fallback_vrv_system__',
@@ -8834,8 +8844,21 @@ function App() {
                                 }
                               });
                             }
+
+                            // 🎯 確保 VRV 候選機型在同型式 (如側吹雙風扇) 下完整呈現在下拉選單中，即使電源不同亦可自由切換 (選定時自動同步室外機電源)
+                            if (gCard.system_type === 'VRV') {
+                              const vrvSameTypeOutdoors = OUTDOOR_UNITS_DB.filter(m => m.system === 'VRV' && (!fastOutdoorType || m.outdoor_type === fastOutdoorType));
+                              const existingModels = new Set(validCandidateList.map(m => m.model));
+                              vrvSameTypeOutdoors.forEach(m => {
+                                if (!existingModels.has(m.model)) {
+                                  validCandidateList.push(m);
+                                  existingModels.add(m.model);
+                                }
+                              });
+                            }
+
                             if (curOutModel && !validCandidateList.some(m => m.model === curOutModel)) {
-                              const objToAdd = outObj || OUTDOOR_UNITS_DB.find(m => m.model === curOutModel) || { model: curOutModel, cap_kw: gCard.outdoor_cap_kw || 22.4, cap_index: gCard.outdoor_cap_index || 200.0 };
+                              const objToAdd = outObj || OUTDOOR_UNITS_DB.find(m => m.model === curOutModel) || { model: curOutModel, cap_kw: gCard.outdoor_cap_kw || 20.0, cap_index: gCard.outdoor_cap_index || 180.0 };
                               validCandidateList.unshift(objToAdd);
                             }
                             validCandidateList.sort((a, b) => (a.cap_kw || 0) - (b.cap_kw || 0));
