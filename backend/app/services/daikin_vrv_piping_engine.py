@@ -497,7 +497,9 @@ class DaikinVRVPipingEngine:
                         else cls.extract_capacity_index(post_it.get("model", "")) * post_it.get("qty", 1)
                         for post_it in custom_items[idx:]
                     )
-                    joint_model = cls.get_first_joint(outdoor_model) if idx == 0 else cls.get_secondary_joint(downstream_x)
+                    first_joint_model = cls.get_first_joint(outdoor_model)
+                    sub_model = cls.get_secondary_joint(downstream_x)
+                    joint_model = sub_model if (idx == 0 and "33T" in sub_model and "22T" in first_joint_model) else (first_joint_model if idx == 0 else sub_model)
                     joint_title = "第一分歧頭" if idx == 0 else "次分歧頭"
                     joint_label = f"├─ [{joint_title} {joint_model}]"
                     rows.append({"結構": joint_label, "數量": 1, "is_main": False, "node_type": "joint"})
@@ -525,9 +527,12 @@ class DaikinVRVPipingEngine:
                 )
                 main_sub_joint = cls.get_secondary_joint(remaining_x)
 
-                # 🎯 1. 主幹次幹管分歧頭 (將主幹分歧至次分歧網絡與後續空間，數量: 1)
+                # 🎯 1. 主幹分歧頭 (首個主幹分歧點一律為第一分歧頭，後續為次分歧頭，數量: 1)
                 if not is_last or idx > 0:
-                    trunk_sub_label = f"├─ [次分歧頭 {main_sub_joint}] (次幹管分歧點)"
+                    first_joint_model = cls.get_first_joint(outdoor_model)
+                    first_or_sub_model = main_sub_joint if (idx == 0 and "33T" in main_sub_joint and "22T" in first_joint_model) else (first_joint_model if idx == 0 else main_sub_joint)
+                    trunk_title = "第一分歧頭" if idx == 0 else "次分歧頭"
+                    trunk_sub_label = f"├─ [{trunk_title} {first_or_sub_model}]"
                     rows.append({"結構": trunk_sub_label, "數量": 1, "is_main": False, "node_type": "joint"})
 
                 # 🎯 2. 次分歧網絡內部次分歧頭 (分歧至該網絡內部各室內機，數量: 1)
@@ -579,7 +584,9 @@ class DaikinVRVPipingEngine:
                     cls.extract_capacity_index(it.get("model") or it.get("best_match_model") or "") * it.get("qty", 1)
                     for it in indoor_items[idx:]
                 )
-                joint_model = cls.get_first_joint(outdoor_model) if idx == 0 else cls.get_secondary_joint(downstream_x)
+                first_joint_model = cls.get_first_joint(outdoor_model)
+                sub_model = cls.get_secondary_joint(downstream_x)
+                joint_model = sub_model if (idx == 0 and "33T" in sub_model and "22T" in first_joint_model) else (first_joint_model if idx == 0 else sub_model)
                 joint_title = "第一分歧頭" if idx == 0 else "次分歧頭"
                 joint_label = f"├─ [{joint_title} {joint_model}]"
                 rows.append({"結構": joint_label, "數量": 1, "is_main": False, "node_type": "joint"})
