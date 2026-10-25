@@ -6332,7 +6332,7 @@ function App() {
             borderRadius: '4px',
             fontWeight: 'bold'
           }}>
-            v2.27.0 (2026/10/19)
+            v2.28.0 (2026/10/25)
           </span>
           <span style={{ fontSize: '12px', color: '#64748b' }}>Backend: Connected</span>
         </div>
