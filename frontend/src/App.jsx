@@ -5074,7 +5074,8 @@ function App() {
         }
         sysGroupMap[gId].indoor_items.push({
           model: r.best_match_model || r.recommended_model || "室內機",
-          qty: parseInt(r.unit_count) || 1
+          qty: parseInt(r.unit_count) || 1,
+          space_name: r.space_name || r.room_name || r.name || ""
         });
       });
 
@@ -5082,6 +5083,7 @@ function App() {
         const outM = gData.outdoor_model;
         const outQ = gData.outdoor_qty;
         const sysLbl = gData.system_type;
+        const isVrv = String(sysLbl).toUpperCase().includes("VRV") || outM.startsWith("RX") || outM.startsWith("RSUY");
 
         const cellNode = ws2.getCell(currR2, 2);
         cellNode.value = `${sysCount}. [${sysLbl}] ${outM}`;
@@ -5090,21 +5092,54 @@ function App() {
         cellQ.value = outQ; cellQ.font = fontBold; cellQ.fill = fillSubtotal; cellQ.border = borderThin; cellQ.alignment = { horizontal: "center" };
         currR2++;
 
-        // 聚合室內機型號
-        const inAgg = {};
-        gData.indoor_items.forEach((it) => {
-          inAgg[it.model] = (inAgg[it.model] || 0) + it.qty;
-        });
+        if (isVrv && gData.indoor_items.length >= 2) {
+          const totalUnits = gData.indoor_items.length;
+          gData.indoor_items.forEach((it, j) => {
+            const isLast = (j === totalUnits - 1);
+            const pref = isLast ? "    └─ " : "    ├─ ";
+            const sName = it.space_name ? `${it.space_name}: ` : '';
+            const pipeSize = getIndoorBranchPipeSize(it.model, 'VRV');
+            const pipeLabel = pipeSize ? ` (配管: ${pipeSize})` : '';
 
-        const inEntries = Object.entries(inAgg);
-        inEntries.forEach(([m, q], j) => {
-          const pref = j === inEntries.length - 1 ? "    └─ " : "    ├─ ";
-          const pipeSize = getIndoorBranchPipeSize(m, sysLbl);
-          const pipeLabel = pipeSize ? ` (液氣管: ${pipeSize})` : '';
-          const cTree = ws2.getCell(currR2, 2); cTree.value = `${pref}${m}${pipeLabel}`; cTree.font = fontData; cTree.border = borderThin;
-          const cTreeQ = ws2.getCell(currR2, 3); cTreeQ.value = q; cTreeQ.font = fontData; cTreeQ.border = borderThin; cTreeQ.alignment = { horizontal: "center" };
-          currR2++;
-        });
+            // 🎯 若後續還有室內機，在分出此室內機前加入分歧頭
+            if (!isLast) {
+              const remainingUnits = gData.indoor_items.slice(j);
+              const remainingCap = remainingUnits.reduce((acc, curr) => acc + (lookupIndoorCapIndex(curr.model) * curr.qty), 0);
+              const jointModel = (j === 0) ? (remainingCap < 200 ? "KHRP26A22T" : (remainingCap <= 250 ? "KHRP26A33T" : "KHRP26A72T")) : (remainingCap < 200 ? "KHRP26A22T" : "KHRP26A33T");
+              const jointTitle = (j === 0) ? "第一分歧頭" : "次分歧頭";
+
+              const cJoint = ws2.getCell(currR2, 2);
+              cJoint.value = `    ├─ [${jointTitle} ${jointModel}]`;
+              cJoint.font = fontData; cJoint.border = borderThin;
+              const cJointQ = ws2.getCell(currR2, 3);
+              cJointQ.value = 1; cJointQ.font = fontData; cJointQ.border = borderThin; cJointQ.alignment = { horizontal: "center" };
+              currR2++;
+            }
+
+            const cTree = ws2.getCell(currR2, 2);
+            cTree.value = `${pref}${sName}[VRV] ${it.model}${pipeLabel}`;
+            cTree.font = fontData; cTree.border = borderThin;
+            const cTreeQ = ws2.getCell(currR2, 3);
+            cTreeQ.value = it.qty; cTreeQ.font = fontData; cTreeQ.border = borderThin; cTreeQ.alignment = { horizontal: "center" };
+            currR2++;
+          });
+        } else {
+          // 聚合室內機型號
+          const inAgg = {};
+          gData.indoor_items.forEach((it) => {
+            inAgg[it.model] = (inAgg[it.model] || 0) + it.qty;
+          });
+
+          const inEntries = Object.entries(inAgg);
+          inEntries.forEach(([m, q], j) => {
+            const pref = j === inEntries.length - 1 ? "    └─ " : "    ├─ ";
+            const pipeSize = getIndoorBranchPipeSize(m, sysLbl);
+            const pipeLabel = pipeSize ? ` (液氣管: ${pipeSize})` : '';
+            const cTree = ws2.getCell(currR2, 2); cTree.value = `${pref}${m}${pipeLabel}`; cTree.font = fontData; cTree.border = borderThin;
+            const cTreeQ = ws2.getCell(currR2, 3); cTreeQ.value = q; cTreeQ.font = fontData; cTreeQ.border = borderThin; cTreeQ.alignment = { horizontal: "center" };
+            currR2++;
+          });
+        }
 
         currR2++; // 空行
         sysCount++;
@@ -5363,19 +5398,20 @@ function App() {
 
         let powerConsumption = "-";
         if (!isRa) {
-          powerConsumption = saPair ? (saPair.indoor.power_consumption_kw || "-") : ((indoorInfo && indoorInfo.power_consumption_kw !== "-") ? indoorInfo.power_consumption_kw : (row.power_consumption_kw || "-"));
+          powerConsumption = saPair ? (saPair.indoor.power_consumption_kw || "-") : (indoorInfo ? (indoorInfo.power_consumption_kw || "-") : (row.power_consumption_kw || "-"));
         }
 
         let maxCurrent = "-";
         if (!isRa) {
-          maxCurrent = saPair ? (saPair.indoor.rated_current_a || "-") : ((indoorInfo && indoorInfo.mca !== "-") ? indoorInfo.mca : (row.max_current_a || "-"));
+          maxCurrent = saPair ? (saPair.indoor.rated_current_a || "-") : (indoorInfo ? (indoorInfo.rated_current_a || indoorInfo.mca || "-") : (row.max_current_a || "-"));
         }
 
         const dimensions = saPair ? (saPair.indoor.dimensions_mm || "-") : ((indoorInfo && indoorInfo.dimensions !== "-") ? indoorInfo.dimensions : (row.dimensions || "-"));
 
+        const nomNum = parseFloat(nominalCapVal);
         let nominalSubtotal = "-";
-        if (sysUpper.includes("VRV") && typeof nominalCapVal === "number" && !isNaN(nominalCapVal)) {
-          nominalSubtotal = parseFloat((qty * nominalCapVal).toFixed(1));
+        if (isVrv && !isNaN(nomNum)) {
+          nominalSubtotal = parseFloat((qty * nomNum).toFixed(1));
         }
 
         let pwrConSubtotal = "-";
