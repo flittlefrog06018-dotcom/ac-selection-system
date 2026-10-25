@@ -149,13 +149,19 @@ export default function RefrigerantPipingDiagram({ rows = [], outdoorGroups = []
     });
   }, [outdoorGroups]);
 
+  const getSysDisplayName = (g, idx) => {
+    const model = g.outdoor_model || '';
+    const base = (g.name || `VRV 系統 #${(idx !== undefined ? idx + 1 : 1)}`).replace(/\s*\([^)]*\)\s*$/, '');
+    return model ? `${base} (${model})` : base;
+  };
+
   useEffect(() => {
     // 找出所有 VRV 系統
     let systems = [];
     if (vrvOutdoorGroups.length > 0) {
-      systems = vrvOutdoorGroups.map(g => ({
+      systems = vrvOutdoorGroups.map((g, idx) => ({
         id: g.id,
-        name: g.name || `VRV 系統 (${g.outdoor_model})`,
+        name: getSysDisplayName(g, idx),
         outdoor_model: g.outdoor_model || 'RXYQ8AYLT',
         outdoor_cap_kw: g.outdoor_cap_kw || 22.4,
         outdoor_count: g.outdoor_count || 1,
@@ -714,7 +720,7 @@ export default function RefrigerantPipingDiagram({ rows = [], outdoorGroups = []
               style={{ backgroundColor: '#1e293b', color: '#38bdf8', border: '1px solid #38bdf8', borderRadius: '6px', padding: '4px 8px', fontSize: '12px', fontWeight: 'bold' }}
             >
               {vrvOutdoorGroups.map((g, idx) => (
-                <option key={g.id || idx} value={g.id}>{g.name || `VRV 系統 ${idx + 1}`}</option>
+                <option key={g.id || idx} value={g.id}>{getSysDisplayName(g, idx)}</option>
               ))}
             </select>
           )}

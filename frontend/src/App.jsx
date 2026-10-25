@@ -1732,8 +1732,10 @@ function App() {
             const matchedObj = OUTDOOR_UNITS_DB.find(m => m.model === existing.outdoor_model);
             const cKw = matchedObj ? matchedObj.cap_kw : existing.outdoor_cap_kw;
             const cIdx = matchedObj ? (matchedObj.cap_index || cKw * 10) : existing.outdoor_cap_index;
+            const updatedName = existing.name ? (existing.name.includes('(') ? existing.name.replace(/\([^)]*\)/, `(${existing.outdoor_model})`) : `${existing.name} (${existing.outdoor_model})`) : (newG.name ? (newG.name.includes('(') ? newG.name.replace(/\([^)]*\)/, `(${existing.outdoor_model})`) : `${newG.name} (${existing.outdoor_model})`) : `VRV 系統 (${existing.outdoor_model})`);
             return {
               ...newG,
+              name: updatedName,
               isCustomModel: true,
               outdoor_model: existing.outdoor_model,
               outdoor_cap_kw: cKw,
@@ -2360,8 +2362,10 @@ function App() {
           newPrice = lookupOutdoorPrice(matched.model);
         }
 
+        const updatedGroupName = g.name ? (g.name.includes('(') ? g.name.replace(/\([^)]*\)/, `(${newModel})`) : `${g.name} (${newModel})`) : `VRV 系統 (${newModel})`;
         return {
           ...g,
+          name: updatedGroupName,
           power_supply: powerVal,
           outdoor_model: newModel,
           outdoor_cap_kw: newCap,
@@ -4232,15 +4236,27 @@ function App() {
           name: matchedHrv.model,
           qty: 1,
           unit: "台",
-          unit_price: matchedHrv.price || 50000,
+          unit_price: matchedHrv.price || 34600,
           notes: `全熱交換器 (風量 ${matchedHrv.airflow} CMH${activeHrv?.hasPm25 ? "，內建PM2.5濾網" : ""})`
         });
+        if (activeHrv?.hasPm25) {
+          const fModel = matchedHrv.pm25_filter_model || "PM2.5濾網";
+          const fPrice = matchedHrv.pm25_filter_price || 2500;
+          hrvItems.push({
+            sys_cat: "HRV",
+            name: `PM2.5高效濾網 (${fModel})`,
+            qty: 1,
+            unit: "組",
+            unit_price: fPrice,
+            notes: "全熱交換器專用PM2.5濾網 (EQUIPMENT_Data第10列)"
+          });
+        }
         hrvItems.push({
           sys_cat: "HRV",
           name: "全熱交換器專用有線遙控器 (BRC1H63W)",
           qty: 1,
           unit: "個",
-          unit_price: 1500,
+          unit_price: 4000,
           notes: "全熱交換器專用有線液晶遙控器"
         });
       }
@@ -5328,10 +5344,15 @@ function App() {
           powerSupply = "1φ, 220V, 60Hz";
         }
 
-        const isRa = (sysUpper === 'RA');
+        const isRa = (sysUpper === 'RA') && !mUpper.startsWith("FX");
+        const isVrv = sysUpper.includes("VRV") || mUpper.startsWith("FX");
         let nominalCapVal = "-";
-        if (sysUpper.includes("VRV")) {
+        if (isVrv) {
           let rawNominal = indoorInfo ? indoorInfo.nominal_cap : row.nominal_cap;
+          if (!rawNominal || String(rawNominal).trim() === "-" || String(rawNominal).trim() === "None") {
+            const match = mUpper.match(/FX[A-Z]+(\d+)/);
+            rawNominal = match ? match[1] : singleCapKw;
+          }
           if (rawNominal && String(rawNominal).trim() !== "-" && String(rawNominal).trim() !== "None") {
             const parsed = parseFloat(rawNominal);
             nominalCapVal = isNaN(parsed) ? String(rawNominal).trim() : parsed;

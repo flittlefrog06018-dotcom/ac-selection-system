@@ -1131,18 +1131,29 @@ class EquipmentSummaryService:
                     "name": hrv_info["model"],
                     "qty": 1,
                     "unit": "台",
-                    "unit_price": hrv_info.get("price") or 50000.0,
+                    "unit_price": hrv_info.get("price") or 34600.0,
                     "notes": f"全熱交換器 (風量 {hrv_info.get('airflow', 0)} CMH{'，內建PM2.5濾網' if hrv_info.get('has_pm25') else ''})"
-                },
-                {
-                    "sys_cat": "HRV",
-                    "name": "全熱交換器專用有線遙控器 (BRC1H63W)",
-                    "qty": 1,
-                    "unit": "個",
-                    "unit_price": 1500.0,
-                    "notes": "全熱交換器專用有線液晶遙控器"
                 }
             ]
+            if hrv_info.get("has_pm25"):
+                filter_model = hrv_info.get("pm25_filter_model") or "PM2.5濾網"
+                filter_price = float(hrv_info.get("pm25_filter_price") or 2500.0)
+                hrv_items_list.append({
+                    "sys_cat": "HRV",
+                    "name": f"PM2.5高效濾網 ({filter_model})",
+                    "qty": 1,
+                    "unit": "組",
+                    "unit_price": filter_price,
+                    "notes": "全熱交換器專用PM2.5濾網 (EQUIPMENT_Data第10列)"
+                })
+            hrv_items_list.append({
+                "sys_cat": "HRV",
+                "name": "全熱交換器專用有線遙控器 (BRC1H63W)",
+                "qty": 1,
+                "unit": "個",
+                "unit_price": 4000.0,
+                "notes": "全熱交換器專用有線液晶遙控器"
+            })
 
             sec_hrv_cell = ws_quote.cell(row=curr_row, column=2, value="二、換氣設備")
             sec_hrv_cell.font = font_section

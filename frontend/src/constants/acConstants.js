@@ -4077,15 +4077,15 @@ export const VRV_PIPE_BRANCHES_DB = [
 
 // 🎯 大金全熱交換器規格資料庫 (來自 EQUIPMENT_Data 的 HRV 分頁)
 export const HRV_UNITS_DB = [
-  { model: 'VAM150HVLT', airflow: 150, power_supply: '1φ, 220V, 60Hz', power_kw: 0.06, dimensions: '278×551×810', price: 50000, pm25: '內建' },
-  { model: 'VAM250HVLT', airflow: 250, power_supply: '1φ, 220V, 60Hz', power_kw: 0.06, dimensions: '278×551×810', price: 60000, pm25: '內建' },
-  { model: 'VAM350HVLT', airflow: 350, power_supply: '1φ, 220V, 60Hz', power_kw: 0.12, dimensions: '306×800×879', price: 70000, pm25: '內建' },
-  { model: 'VAM500HVLT', airflow: 500, power_supply: '1φ, 220V, 60Hz', power_kw: 0.20, dimensions: '338×832×973', price: 80000, pm25: '內建' },
-  { model: 'VAM650HVLT', airflow: 650, power_supply: '1φ, 220V, 60Hz', power_kw: 0.34, dimensions: '338×832×973', price: 50000, pm25: '內建' },
-  { model: 'VAM800HVLT', airflow: 800, power_supply: '1φ, 220V, 60Hz', power_kw: 0.38, dimensions: '387×1,012×1,110', price: 50000, pm25: '內建' },
-  { model: 'VAM1000HVLT', airflow: 1000, power_supply: '1φ, 220V, 60Hz', power_kw: 0.38, dimensions: '387×1,012×1,110', price: 50000, pm25: '內建' },
-  { model: 'VAM1500HVLT', airflow: 1500, power_supply: '1φ, 220V, 60Hz', power_kw: 0.76, dimensions: '785×1,012×1,110', price: 50000, pm25: '內建' },
-  { model: 'VAM2000HVLT', airflow: 2000, power_supply: '1φ, 220V, 60Hz', power_kw: 0.76, dimensions: '785×1,012×1,110', price: 50000, pm25: '內建' },
+  { model: 'VAM150HVLT', airflow: 150, power_supply: '1φ, 220V, 60Hz', power_kw: 0.06, dimensions: '278×551×810', price: 34600, pm25_filter_model: 'BAFH510A250', pm25_filter_price: 2500 },
+  { model: 'VAM250HVLT', airflow: 250, power_supply: '1φ, 220V, 60Hz', power_kw: 0.06, dimensions: '278×551×810', price: 36800, pm25_filter_model: 'BAFH510A250', pm25_filter_price: 2500 },
+  { model: 'VAM350HVLT', airflow: 350, power_supply: '1φ, 220V, 60Hz', power_kw: 0.12, dimensions: '306×800×879', price: 42700, pm25_filter_model: 'BAFH510A350', pm25_filter_price: 3200 },
+  { model: 'VAM500HVLT', airflow: 500, power_supply: '1φ, 220V, 60Hz', power_kw: 0.20, dimensions: '338×832×973', price: 45800, pm25_filter_model: 'BAFH510A650', pm25_filter_price: 5500 },
+  { model: 'VAM650HVLT', airflow: 650, power_supply: '1φ, 220V, 60Hz', power_kw: 0.34, dimensions: '338×832×973', price: 51800, pm25_filter_model: 'BAFH510A650', pm25_filter_price: 5500 },
+  { model: 'VAM800HVLT', airflow: 800, power_supply: '1φ, 220V, 60Hz', power_kw: 0.38, dimensions: '387×1,012×1,110', price: 69100, pm25_filter_model: 'BAFH510A2000', pm25_filter_price: 6500 },
+  { model: 'VAM1000HVLT', airflow: 1000, power_supply: '1φ, 220V, 60Hz', power_kw: 0.38, dimensions: '387×1,012×1,110', price: 81300, pm25_filter_model: 'BAFH510A2000', pm25_filter_price: 6500 },
+  { model: 'VAM1500HVLT', airflow: 1500, power_supply: '1φ, 220V, 60Hz', power_kw: 0.76, dimensions: '785×1,012×1,110', price: 122700, pm25_filter_model: 'BAFH510A2000+BAFH510A2000', pm25_filter_price: 13000 },
+  { model: 'VAM2000HVLT', airflow: 2000, power_supply: '1φ, 220V, 60Hz', power_kw: 0.76, dimensions: '785×1,012×1,110', price: 150000, pm25_filter_model: 'BAFH510A2000+BAFH510A2000', pm25_filter_price: 13000 },
 ];
 
 export const matchHrvUnit = (totalAirflow) => {

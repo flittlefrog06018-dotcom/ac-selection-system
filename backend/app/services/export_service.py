@@ -8,17 +8,17 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-# 🎯 大金全熱交換器規格資料庫 (參照 EQUIPMENT_Data 之 HRV 分頁第 3~9 行)
+# 🎯 大金全熱交換器規格資料庫 (參照 EQUIPMENT_Data 之 HRV 分頁)
 HRV_UNITS_DB = [
-    {"model": "VAM150HVLT", "airflow": 150, "power_supply": "1φ, 220V, 60Hz", "power_kw": 0.06, "dimensions": "278×551×810", "price": 50000.0},
-    {"model": "VAM250HVLT", "airflow": 250, "power_supply": "1φ, 220V, 60Hz", "power_kw": 0.06, "dimensions": "278×551×810", "price": 60000.0},
-    {"model": "VAM350HVLT", "airflow": 350, "power_supply": "1φ, 220V, 60Hz", "power_kw": 0.12, "dimensions": "306×800×879", "price": 70000.0},
-    {"model": "VAM500HVLT", "airflow": 500, "power_supply": "1φ, 220V, 60Hz", "power_kw": 0.20, "dimensions": "338×832×973", "price": 80000.0},
-    {"model": "VAM650HVLT", "airflow": 650, "power_supply": "1φ, 220V, 60Hz", "power_kw": 0.34, "dimensions": "338×832×973", "price": 50000.0},
-    {"model": "VAM800HVLT", "airflow": 800, "power_supply": "1φ, 220V, 60Hz", "power_kw": 0.38, "dimensions": "387×1,012×1,110", "price": 50000.0},
-    {"model": "VAM1000HVLT", "airflow": 1000, "power_supply": "1φ, 220V, 60Hz", "power_kw": 0.38, "dimensions": "387×1,012×1,110", "price": 50000.0},
-    {"model": "VAM1500HVLT", "airflow": 1500, "power_supply": "1φ, 220V, 60Hz", "power_kw": 0.76, "dimensions": "785×1,012×1,110", "price": 50000.0},
-    {"model": "VAM2000HVLT", "airflow": 2000, "power_supply": "1φ, 220V, 60Hz", "power_kw": 0.76, "dimensions": "785×1,012×1,110", "price": 50000.0},
+    {"model": "VAM150HVLT", "airflow": 150, "power_supply": "1φ, 220V, 60Hz", "power_kw": 0.06, "dimensions": "278×551×810", "price": 34600.0, "pm25_filter_model": "BAFH510A250", "pm25_filter_price": 2500.0},
+    {"model": "VAM250HVLT", "airflow": 250, "power_supply": "1φ, 220V, 60Hz", "power_kw": 0.06, "dimensions": "278×551×810", "price": 36800.0, "pm25_filter_model": "BAFH510A250", "pm25_filter_price": 2500.0},
+    {"model": "VAM350HVLT", "airflow": 350, "power_supply": "1φ, 220V, 60Hz", "power_kw": 0.12, "dimensions": "306×800×879", "price": 42700.0, "pm25_filter_model": "BAFH510A350", "pm25_filter_price": 3200.0},
+    {"model": "VAM500HVLT", "airflow": 500, "power_supply": "1φ, 220V, 60Hz", "power_kw": 0.20, "dimensions": "338×832×973", "price": 45800.0, "pm25_filter_model": "BAFH510A650", "pm25_filter_price": 5500.0},
+    {"model": "VAM650HVLT", "airflow": 650, "power_supply": "1φ, 220V, 60Hz", "power_kw": 0.34, "dimensions": "338×832×973", "price": 51800.0, "pm25_filter_model": "BAFH510A650", "pm25_filter_price": 5500.0},
+    {"model": "VAM800HVLT", "airflow": 800, "power_supply": "1φ, 220V, 60Hz", "power_kw": 0.38, "dimensions": "387×1,012×1,110", "price": 69100.0, "pm25_filter_model": "BAFH510A2000", "pm25_filter_price": 6500.0},
+    {"model": "VAM1000HVLT", "airflow": 1000, "power_supply": "1φ, 220V, 60Hz", "power_kw": 0.38, "dimensions": "387×1,012×1,110", "price": 81300.0, "pm25_filter_model": "BAFH510A2000", "pm25_filter_price": 6500.0},
+    {"model": "VAM1500HVLT", "airflow": 1500, "power_supply": "1φ, 220V, 60Hz", "power_kw": 0.76, "dimensions": "785×1,012×1,110", "price": 122700.0, "pm25_filter_model": "BAFH510A2000+BAFH510A2000", "pm25_filter_price": 13000.0},
+    {"model": "VAM2000HVLT", "airflow": 2000, "power_supply": "1φ, 220V, 60Hz", "power_kw": 0.76, "dimensions": "785×1,012×1,110", "price": 150000.0, "pm25_filter_model": "BAFH510A2000+BAFH510A2000", "pm25_filter_price": 13000.0},
 ]
 
 class ExportService:
@@ -233,15 +233,21 @@ class ExportService:
                 sys_raw = str(room.get("system_type", room.get("system", ""))).strip().upper()
                 
                 # 🎯 嚴謹判斷是否為 RA 系統 (家用壁掛/家用多聯)
-                is_ra = (
+                # 絕對防護：凡室內機為大金 VRV (FX 開頭) 或系統/系列為 VRV 者，絕不可誤判為 RA！
+                is_vrv_in = matched_upper.startswith("FX") or ("VRV" in sys_raw) or (series_val == "VRV")
+                out_m_upper = str(room.get("outdoor_model", "")).upper()
+                is_ra_outdoor = (
+                    out_m_upper.startswith(("2MX", "3MX", "4MX", "5MX"))
+                    or (out_m_upper.startswith("RX") and not out_m_upper.startswith(("RXYQ", "RXQ", "RXYMQ", "RXMQ", "RWEYQ")))
+                )
+                is_ra = (not is_vrv_in) and (
                     series_val == "RA"
                     or "RA" in sys_raw
-                    or matched_upper.startswith("FTX")
-                    or matched_upper.startswith("CTX")
+                    or matched_upper.startswith(("FTX", "FTK", "FTV", "CTK", "CTX", "FDX", "CDX", "FVX", "FLX"))
                     or str(room.get("indoor_type", "")).find("壁掛") != -1
-                    or str(room.get("outdoor_model", "")).upper().startswith(("RX", "2MX", "3MX", "4MX", "5MX"))
+                    or is_ra_outdoor
                 )
-                system_type = "RA" if is_ra else ("VRV" if ("VRV" in sys_raw or series_val == "VRV" or matched_upper.startswith("FX")) else ("SA" if ("SA" in sys_raw or matched_upper.startswith(("FBA", "FCQ", "FHQ"))) else "VRV"))
+                system_type = "RA" if is_ra else ("VRV" if (is_vrv_in or matched_upper.startswith("FX")) else ("SA" if ("SA" in sys_raw or matched_upper.startswith(("FBA", "FCQ", "FHQ"))) else "VRV"))
                 
                 # 🎯 台數
                 qty = int(room.get("qty") or room.get("unit_count") or 1)
@@ -265,8 +271,13 @@ class ExportService:
                     power_supply = "-"
                     
                 # 🎯 標稱能力 (能力指數)：僅在 VRV 系統時存在與填寫，RA (家用) / SA (商用) 系統統一為 "-"
-                if not is_ra and "VRV" in system_type:
+                if not is_ra and ("VRV" in system_type or is_vrv_in):
                     raw_nom = indoor_info.get("nominal_cap") if indoor_info else None
+                    if not raw_nom or str(raw_nom).strip() in ["-", "None", ""]:
+                        import re
+                        m_cap = re.search(r"FX[A-Z]+(\d+)", matched_upper)
+                        if m_cap:
+                            raw_nom = int(m_cap.group(1))
                     if raw_nom is not None and str(raw_nom).strip() not in ["-", "None", ""]:
                         try:
                             if "." in str(raw_nom):
@@ -591,6 +602,8 @@ class ExportService:
                         "airflow": matched_hrv["airflow"],
                         "price": matched_hrv["price"],
                         "has_pm25": has_pm25,
+                        "pm25_filter_model": matched_hrv.get("pm25_filter_model", ""),
+                        "pm25_filter_price": matched_hrv.get("pm25_filter_price", 0.0),
                         "total_airflow": total_hrv_airflow
                     }
 

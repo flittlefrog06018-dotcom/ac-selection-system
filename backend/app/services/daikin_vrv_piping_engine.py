@@ -489,6 +489,19 @@ class DaikinVRVPipingEngine:
             it_type = item.get("type", "indoor")
             
             if it_type == "indoor":
+                # 🎯 若主幹後續還有節點 (包含室內機或次分歧)，則在此處主幹分流需配置分歧頭
+                if not is_last and is_vrv:
+                    downstream_x = sum(
+                        sum(cls.extract_capacity_index(c.get("model", "")) * c.get("qty", 1) for c in post_it.get("children", []))
+                        if post_it.get("type") == "sub_branch"
+                        else cls.extract_capacity_index(post_it.get("model", "")) * post_it.get("qty", 1)
+                        for post_it in custom_items[idx:]
+                    )
+                    joint_model = cls.get_first_joint(outdoor_model) if idx == 0 else cls.get_secondary_joint(downstream_x)
+                    joint_title = "第一分歧頭" if idx == 0 else "次分歧頭"
+                    joint_label = f"├─ [{joint_title} {joint_model}]"
+                    rows.append({"結構": joint_label, "數量": 1, "is_main": False, "node_type": "joint"})
+
                 m = item.get("model", "")
                 c = cls.extract_capacity_index(m)
                 is_in_vrv = m.upper().startswith("FX") or cls.check_is_vrv(outdoor_model)
@@ -514,11 +527,11 @@ class DaikinVRVPipingEngine:
 
                 # 🎯 1. 主幹次幹管分歧頭 (將主幹分歧至次分歧網絡與後續空間，數量: 1)
                 if not is_last or idx > 0:
-                    trunk_sub_label = f"{pref1}[次分歧頭 {main_sub_joint}] (次幹管分歧點)"
+                    trunk_sub_label = f"├─ [次分歧頭 {main_sub_joint}] (次幹管分歧點)"
                     rows.append({"結構": trunk_sub_label, "數量": 1, "is_main": False, "node_type": "joint"})
 
                 # 🎯 2. 次分歧網絡內部次分歧頭 (分歧至該網絡內部各室內機，數量: 1)
-                branch_label = f"{pref1}[次分歧頭 {sub_joint}] (次分歧網絡 - 共 {len(children)} 台)"
+                branch_label = f"├─ [次分歧頭 {sub_joint}] (次分歧網絡 - 共 {len(children)} 台)"
                 rows.append({"結構": branch_label, "數量": 1, "is_main": False, "node_type": "joint"})
                 
                 c_num = len(children)
@@ -559,6 +572,18 @@ class DaikinVRVPipingEngine:
             tag = "[VRV]" if is_in_vrv else ("[商用]" if is_in_sa else "[家用]")
             s_name = item.get("space_name") or item.get("room_name") or item.get("space") or item.get("name") or ""
             name_part = f"{s_name}: " if s_name else ""
+
+            # 🎯 若為 VRV 多聯且後續還有室內機，在分出此室內機前加入分歧頭
+            if is_vrv and num_units >= 2 and not is_last:
+                downstream_x = sum(
+                    cls.extract_capacity_index(it.get("model") or it.get("best_match_model") or "") * it.get("qty", 1)
+                    for it in indoor_items[idx:]
+                )
+                joint_model = cls.get_first_joint(outdoor_model) if idx == 0 else cls.get_secondary_joint(downstream_x)
+                joint_title = "第一分歧頭" if idx == 0 else "次分歧頭"
+                joint_label = f"├─ [{joint_title} {joint_model}]"
+                rows.append({"結構": joint_label, "數量": 1, "is_main": False, "node_type": "joint"})
+
             label = f"{pref}{name_part}{tag} {m} (配管: {p['l']}/{p['g']})"
             rows.append({"結構": label, "數量": item.get("qty", 1), "is_main": False, "node_type": n_type})
 
