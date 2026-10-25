@@ -1676,14 +1676,12 @@ function App() {
           const gOutType = (gSys === 'VRV')
             ? (activeOutType || g.outdoor_type || gSample.outdoor_type || '側吹單風扇')
             : (gSample.outdoor_type || '側吹單風扇');
-          const gPower = (gSys === 'VRV')
-            ? (activeOutPower || g.power_supply || gSample.power_supply || '1φ, 220V, 60Hz')
-            : (g.power_supply || gSample.power_supply || (gSys === 'RA' ? '1φ, 220V, 60Hz' : activeOutPower));
+          const gPower = g.power_supply || gSample.power_supply || (gSys === 'RA' ? '1φ, 220V, 60Hz' : activeOutPower);
 
           // 🎯 核心：若該群組使用者已手動選定室外機型號，且該型號符合當前電源規格，才保留；否則若電源不符，必須以新電源重新智慧選型！
           if (g.isCustomModel) {
             const isPowerValid = isValidOutdoorPower(g.outdoor_model, gPower);
-            if (isPowerValid && (!fastOutdoorPower || g.power_supply === fastOutdoorPower)) {
+            if (isPowerValid) {
               return g;
             }
           }
@@ -2294,7 +2292,45 @@ function App() {
 
   const handleGroupPowerChange = (groupId, powerVal) => {
     setUserHasCustomGroups(true);
-    if (powerVal && powerVal !== fastOutdoorPower) setFastOutdoorPower(powerVal);
+
+    if (groupId === '__fallback_vrv_system__') {
+      const newGId = 'group-vrv-1';
+      const isVrv = r => (r.system_type === 'VRV' || (!r.system_type && fastSystem === 'VRV'));
+      const vIndices = rows.map((r, i) => isVrv(r) && !r.outdoorGroupId ? i : null).filter(i => i !== null);
+      const gSpaces = vIndices.map(i => rows[i]);
+      const gSys = 'VRV';
+      const gOutType = fastOutdoorType || '側吹雙風扇';
+      let matched = autoMatchOutdoorForSpaces(gSpaces, gSys, '', gOutType, powerVal)
+        || autoMatchOutdoorForSpaces(gSpaces, gSys, '', '', powerVal)
+        || { model: 'RXYMQ8TYLT', cap_kw: 20.0, cap_index: 180.0 };
+      const newGroup = {
+        id: newGId,
+        name: `VRV 系統 (${matched.model})`,
+        system_type: 'VRV',
+        outdoor_model: matched.model,
+        outdoor_cap_kw: matched.cap_kw,
+        outdoor_cap_index: matched.cap_index || (matched.cap_kw * 10),
+        outdoor_count: 1,
+        outdoor_price: lookupOutdoorPrice(matched.model),
+        power_supply: powerVal,
+        color: GROUP_COLOR_PALETTE[0],
+        space_indices: vIndices,
+        isCustomModel: true
+      };
+      setOutdoorGroups(prev => [...prev.filter(g => g.id !== newGId), newGroup]);
+      setRows(prev => prev.map(r => (isVrv(r) && !r.outdoorGroupId) ? {
+        ...r,
+        outdoorGroupId: newGId,
+        outdoor_model: matched.model,
+        outdoor_cap_kw: matched.cap_kw,
+        outdoor_price: lookupOutdoorPrice(matched.model),
+        outdoor_type: gOutType,
+        power_supply: powerVal
+      } : r));
+      toast.success(`⚡ 已選定室外機電源為【${powerVal}】，室外機型號已同步更新！`);
+      return;
+    }
+
     setOutdoorGroups(prev => prev.map(g => {
       if (g.id === groupId) {
         const gSpaces = rows.filter(r => r.outdoorGroupId === groupId);
@@ -2385,9 +2421,11 @@ function App() {
     // 🎯 標記使用者已有自訂設定，避免被預設全場自動配對衝掉
     setUserHasCustomGroups(true);
 
-    // 🎯 核心雙向同步：當表格手動選擇室外機型號時，上方工具列之型式與電源規格即刻對應同步！
-    if (modelOutType && modelOutType !== fastOutdoorType) setFastOutdoorType(modelOutType);
-    if (modelPower && modelPower !== fastOutdoorPower) setFastOutdoorPower(modelPower);
+    // 🎯 核心雙向同步：若場上僅有單一系統，才同步上方全域快捷列；若為多群組，維持個別群組獨立選定
+    if (outdoorGroups.length <= 1) {
+      if (modelOutType && modelOutType !== fastOutdoorType) setFastOutdoorType(modelOutType);
+      if (modelPower && modelPower !== fastOutdoorPower) setFastOutdoorPower(modelPower);
+    }
 
     if (groupId === '__fallback_vrv_system__') {
       const newGId = 'group-vrv-1';
@@ -6117,32 +6155,8 @@ function App() {
   );
   const splitColWidth = hasSplitEligibleSpace ? 62 : 0;
 
-  // 🎯 判斷建議表下方室外機電源欄位顯示規則：
-  // 若下方所有室外機電源與上方頂部室外機電源內容完全一致，自動隱藏；
-  // 僅在「系統混搭」條件下（出現不同電源規格、或某群組電源與頂部不一致），才顯示下方電源欄位，並具備下拉修改功能
-  const hasMultipleOutdoorPowers = (() => {
-    const powerSet = new Set();
-    outdoorGroups.forEach(g => {
-      const gSpaces = rows.filter(r => r.outdoorGroupId === g.id);
-      const targetPwr = g.power_supply || gSpaces[0]?.power_supply || (g.system_type === 'RA' ? '1φ, 220V, 60Hz' : fastOutdoorPower);
-      if (targetPwr) powerSet.add(targetPwr);
-    });
-    rows.forEach(r => {
-      if (!r.outdoorGroupId) {
-        const pwr = r.power_supply || (r.system_type === 'RA' ? '1φ, 220V, 60Hz' : fastOutdoorPower);
-        if (pwr) powerSet.add(pwr);
-      }
-    });
-
-    // 1. 若場上實際存在超過 1 種以上室外機電源 -> 必然為混搭，需顯示
-    if (powerSet.size > 1) return true;
-
-    // 2. 若場上電源與上方紅框 fastOutdoorPower 不一致 -> 需顯示供調整
-    if (fastOutdoorPower && powerSet.size === 1 && !powerSet.has(fastOutdoorPower)) return true;
-
-    // 3. 所有群組電源皆與上方紅框一致 -> 自動隱藏
-    return false;
-  })();
+  // 🎯 建議表下方室外機電源欄位：自第四步室外機選用起全時顯示，支援各室外機群組/單機個別選定電源
+  const hasMultipleOutdoorPowers = true;
 
   return (
     <div className="app-root-container" style={styles.container}>
@@ -8220,9 +8234,7 @@ function App() {
                   {currentStep >= 4 && (
                     <>
                       <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#38bdf8', backgroundColor: '#1e293b', minWidth: '130px' }}>室外機型號</th>
-                      {hasMultipleOutdoorPowers && (
-                        <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#eab308', backgroundColor: '#1e293b', minWidth: '135px', textAlign: 'center' }}>室外機電源</th>
-                      )}
+                      <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#eab308', backgroundColor: '#1e293b', minWidth: '135px', textAlign: 'center' }}>室外機電源</th>
                       <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#34d399', backgroundColor: '#1e293b', minWidth: '50px', textAlign: 'center' }}>室外機台數</th>
                       <th style={{ ...styles.th, position: 'sticky', top: 0, zIndex: 20, color: '#a855f7', backgroundColor: '#1e293b', minWidth: '75px', textAlign: 'center' }}>室外機冷房能力</th>
                       {(fastSystem === 'VRV' || rows.some(r => r.system_type === 'VRV')) && (
@@ -8234,9 +8246,9 @@ function App() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={currentStep === 2 ? 6 : (currentStep === 3 ? 11 : ((fastSystem === "VRV" || rows.some(r => r.system_type === "VRV")) ? 12 : 11))} style={{ textAlign: 'center', padding: '50px', color: '#94a3b8' }}>🔄 正在啟用雙軌影像引擎分析，請稍候...</td></tr>
+                  <tr><td colSpan={currentStep === 2 ? 6 : (currentStep === 3 ? 11 : ((fastSystem === "VRV" || rows.some(r => r.system_type === "VRV")) ? 13 : 12))} style={{ textAlign: 'center', padding: '50px', color: '#94a3b8' }}>🔄 正在啟用雙軌影像引擎分析，請稍候...</td></tr>
                 ) : rows.length === 0 ? (
-                  <tr><td colSpan={currentStep === 2 ? 6 : (currentStep === 3 ? 11 : ((fastSystem === "VRV" || rows.some(r => r.system_type === "VRV")) ? 12 : 11))} style={{ textAlign: 'center', padding: '30px', color: '#475569' }}>暫無數據。請上傳圖面並執行解析。</td></tr>
+                  <tr><td colSpan={currentStep === 2 ? 6 : (currentStep === 3 ? 11 : ((fastSystem === "VRV" || rows.some(r => r.system_type === "VRV")) ? 13 : 12))} style={{ textAlign: 'center', padding: '30px', color: '#475569' }}>暫無數據。請上傳圖面並執行解析。</td></tr>
                 ) : (
                   (() => {
                     // 🎯 預先歸納未分配群組的 VRV 空間（確保 VRV 系統預設必定屬於同一套系統，避免被拆散為多台 1對1）
