@@ -5752,7 +5752,7 @@ function App() {
     }
 
     return {
-      version: "2.25.0",
+      version: "2.29.0",
       id: `proj_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
       projectName: projName,
       savedAt: new Date().toISOString(),
@@ -6406,7 +6406,7 @@ function App() {
             borderRadius: '4px',
             fontWeight: 'bold'
           }}>
-            v2.28.0 (2026/10/25)
+            v2.29.0 (2026/10/26)
           </span>
           <span style={{ fontSize: '12px', color: '#64748b' }}>Backend: Connected</span>
         </div>
