@@ -122,6 +122,10 @@ class ExportRequest(BaseModel):
     outdoor_groups: Optional[List[Dict[str, Any]]] = None
     control_mode: Optional[str] = "無"
     selected_controllers: Optional[List[str]] = None
+    dcs301_qty: Optional[int] = 1
+    dcs301_option: Optional[str] = None
+    controller_quantities: Optional[Dict[str, int]] = None
+    controller_notes: Optional[Dict[str, str]] = None
     custom_piping_trees: Optional[Dict[str, Any]] = None
     custom_piping_diagram_images: Optional[Dict[str, str]] = None
     hrv_config: Optional[Dict[str, Any]] = None
@@ -640,7 +644,11 @@ async def export_excel(payload: ExportRequest, request: Request):
             selected_controllers=payload.selected_controllers,
             custom_piping_trees=payload.custom_piping_trees,
             custom_piping_diagram_images=payload.custom_piping_diagram_images,
-            hrv_config=payload.hrv_config
+            hrv_config=payload.hrv_config,
+            dcs301_qty=payload.dcs301_qty,
+            dcs301_option=payload.dcs301_option,
+            controller_quantities=payload.controller_quantities,
+            controller_notes=payload.controller_notes
         )
 
         raw_case_name = payload.filename.strip() if payload.filename else ""

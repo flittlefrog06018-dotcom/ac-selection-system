@@ -41,7 +41,7 @@ class ExportService:
         return candidates[0]
 
     @classmethod
-    def generate_excel_report(cls, rooms_data: List[Dict[str, Any]], outdoor_groups: List[Dict[str, Any]] = None, selected_controllers: List[str] = None, custom_piping_trees: Dict[str, Any] = None, custom_piping_diagram_images: Dict[str, str] = None, hrv_config: Dict[str, Any] = None) -> io.BytesIO:
+    def generate_excel_report(cls, rooms_data: List[Dict[str, Any]], outdoor_groups: List[Dict[str, Any]] = None, selected_controllers: List[str] = None, custom_piping_trees: Dict[str, Any] = None, custom_piping_diagram_images: Dict[str, str] = None, hrv_config: Dict[str, Any] = None, dcs301_qty: int = 1, dcs301_option: str = None, controller_quantities: Dict[str, int] = None, controller_notes: Dict[str, str] = None) -> io.BytesIO:
         """
         Loads the template Excel sheet '選機表-.xlsx', maps properties,
         and performs vertical cell merging (rowspan) for outdoor unit cards.
@@ -614,7 +614,11 @@ class ExportService:
                     selected_controllers=selected_controllers,
                     custom_piping_trees=custom_piping_trees,
                     custom_piping_diagram_images=custom_piping_diagram_images,
-                    hrv_info=hrv_summary_info
+                    hrv_info=hrv_summary_info,
+                    dcs301_qty=dcs301_qty,
+                    dcs301_option=dcs301_option,
+                    controller_quantities=controller_quantities,
+                    controller_notes=controller_notes
                 )
             except Exception as summary_err:
                 logger.error(f"Failed to generate summary sheets: {summary_err}")

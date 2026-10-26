@@ -4605,12 +4605,15 @@ function App() {
           selectedControllers.forEach(ctrlModel => {
             const item = CONTROLLER_CANDIDATES.find(c => c.model === ctrlModel);
             if (item) {
-              const qty = (ctrlModel === 'DCS301BA61') ? (dcs301Qty || 1) : 1;
+              const totalIndoorCount = flatRowsToRender.reduce((s, r) => s + (parseInt(r.unit_count, 10) || 1), 0);
+              let qty = (ctrlModel === 'DCS301BA61') ? (dcs301Qty || 1) : 1;
               let ctrlNote = `大金原廠集中控制器【${item.note || item.tier}】`;
               if (ctrlModel === 'DCS301BA61') {
-                if (dcs301Option === 'split' || (dcs301Qty && dcs301Qty > 1)) {
+                if (dcs301Option === 'split' || (dcs301Qty && dcs301Qty > 1) || (totalIndoorCount > 16 && dcs301Option !== 'shared')) {
+                  qty = (dcs301Qty && dcs301Qty > 1) ? dcs301Qty : Math.ceil(totalIndoorCount / 16);
                   ctrlNote = `大金原廠集中控制器【低階 (拆 ${qty} 顆控制各區室內機)】`;
                 } else if (dcs301Option === 'shared') {
+                  qty = 1;
                   ctrlNote = `大金原廠集中控制器【低階 (部分空間共用線控，維持16台線控控制)】`;
                 }
               }

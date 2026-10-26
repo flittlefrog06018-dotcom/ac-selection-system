@@ -134,7 +134,7 @@ class EquipmentSummaryService:
         return records
 
     @classmethod
-    def append_summary_sheets(cls, wb, rooms_data: List[Dict[str, Any]], outdoor_groups: List[Dict[str, Any]] = None, selected_controllers: List[str] = None, custom_piping_trees: Dict[str, Any] = None, custom_piping_diagram_images: Dict[str, str] = None, hrv_info: Dict[str, Any] = None):
+    def append_summary_sheets(cls, wb, rooms_data: List[Dict[str, Any]], outdoor_groups: List[Dict[str, Any]] = None, selected_controllers: List[str] = None, custom_piping_trees: Dict[str, Any] = None, custom_piping_diagram_images: Dict[str, str] = None, hrv_info: Dict[str, Any] = None, dcs301_qty: int = 1, dcs301_option: str = None, controller_quantities: Dict[str, int] = None, controller_notes: Dict[str, str] = None):
         """
         在現有的 workbook 之後附加三個專業統計分頁：
         1. 設備統計總表
@@ -323,7 +323,21 @@ class EquipmentSummaryService:
         # ========================================================
         # 0. 建立分頁【設備報價單】 (依據經理指示之報價清冊格式，緊接在主選機表之後)
         # ========================================================
-        ws_quote = cls._build_quotation_sheet(wb, rooms_data, grouped_by_outdoor, hrv_items, joint_items, adapter_board_items, db_srv, selected_controllers=selected_controllers, hrv_info=hrv_info)
+        ws_quote = cls._build_quotation_sheet(
+            wb,
+            rooms_data,
+            grouped_by_outdoor,
+            hrv_items,
+            joint_items,
+            adapter_board_items,
+            db_srv,
+            selected_controllers=selected_controllers,
+            hrv_info=hrv_info,
+            dcs301_qty=dcs301_qty,
+            dcs301_option=dcs301_option,
+            controller_quantities=controller_quantities,
+            controller_notes=controller_notes
+        )
 
         # ========================================================
         # 1. 建立分頁【設備統計總表】
@@ -652,7 +666,7 @@ class EquipmentSummaryService:
                 ws.column_dimensions[col_letter].width = max(max_len + 4, 12)
 
     @classmethod
-    def _build_quotation_sheet(cls, wb, rooms_data, grouped_by_outdoor, hrv_items, joint_items, adapter_board_items, db_srv, selected_controllers=None, hrv_info=None):
+    def _build_quotation_sheet(cls, wb, rooms_data, grouped_by_outdoor, hrv_items, joint_items, adapter_board_items, db_srv, selected_controllers=None, hrv_info=None, dcs301_qty=1, dcs301_option=None, controller_quantities=None, controller_notes=None):
         font_header = Font(name="微軟正黑體", size=11, bold=True, color="FFFFFF")
         font_data = Font(name="微軟正黑體", size=10)
         font_bold = Font(name="微軟正黑體", size=10, bold=True)
@@ -999,19 +1013,42 @@ class EquipmentSummaryService:
                 # 🎯 計算集中控制器數量與備註 (DCS301BA61 支援拆顆與共用線控雙方案)
                 c_qty = 1
                 c_notes = f"大金原廠{dev_prefix}【{c_info['note']}】"
+
+                if controller_quantities and ctrl_m in controller_quantities:
+                    try:
+                        c_qty = int(controller_quantities[ctrl_m])
+                    except (ValueError, TypeError):
+                        pass
+                if controller_notes and ctrl_m in controller_notes:
+                    c_notes = str(controller_notes[ctrl_m])
+
                 if ctrl_m == 'DCS301BA61':
                     import math
-                    total_in_qty = sum(int(r.get("unit_count") or r.get("qty") or 1) for r in rooms_data)
-                    dcs_opt = (hrv_info.get('dcs301_option') if isinstance(hrv_info, dict) else None)
-                    dcs_q = (hrv_info.get('dcs301_qty') if isinstance(hrv_info, dict) else None)
-                    if dcs_opt == 'split' or (dcs_q and int(dcs_q) > 1):
-                        c_qty = int(dcs_q) if dcs_q else max(math.ceil(total_in_qty / 16), 2)
+                    # 準確統計室內機總台數 (排查全熱機)
+                    total_in_qty = 0
+                    for r in rooms_data:
+                        m_str = str(r.get("recommended_model") or r.get("indoor_model") or r.get("best_match_model") or "").upper()
+                        if not any(k in m_str for k in ["VAM", "VKM"]):
+                            total_in_qty += int(r.get("qty") or r.get("unit_count") or 1)
+                    if vrv_sa_count > total_in_qty:
+                        total_in_qty = vrv_sa_count
+
+                    opt = dcs301_option or (hrv_info.get('dcs301_option') if isinstance(hrv_info, dict) else None)
+                    q_val = dcs301_qty or (hrv_info.get('dcs301_qty') if isinstance(hrv_info, dict) else None)
+                    try:
+                        q_val = int(q_val)
+                    except (ValueError, TypeError):
+                        q_val = 1
+
+                    if opt == 'split' or q_val > 1:
+                        c_qty = q_val if q_val > 1 else max(math.ceil(total_in_qty / 16), 2)
                         c_notes = f"大金原廠集中控制器【低階 (拆 {c_qty} 顆控制各區室內機)】"
-                    elif dcs_opt == 'shared':
+                    elif opt == 'shared':
                         c_qty = 1
                         c_notes = "大金原廠集中控制器【低階 (部分空間共用線控，維持16台線控控制)】"
                     elif total_in_qty > 16:
-                        c_qty = max(math.ceil(total_in_qty / 16), 2)
+                        # 案場室內機超過 16 台但未特別勾選共用線控時，預設拆顆
+                        c_qty = q_val if q_val > 1 else max(math.ceil(total_in_qty / 16), 2)
                         c_notes = f"大金原廠集中控制器【低階 (拆 {c_qty} 顆控制各區室內機)】"
 
                 accessory_items.append({
