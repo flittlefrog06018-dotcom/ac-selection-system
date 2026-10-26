@@ -741,6 +741,8 @@ function App() {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedControllers, setSelectedControllers] = useState([]);
   const [dcs301Qty, setDcs301Qty] = useState(1); // 低階 DCS301BA61 台數 (1~4)
+  const [dcs301Option, setDcs301Option] = useState(null); // 'split' | 'shared' | null
+  const [dcs301ChoiceModal, setDcs301ChoiceModal] = useState({ show: false, totalUnits: 0, neededQty: 2 }); // 🎯 DCS301BA61 超過 16 台雙方案提示彈窗
   const [selectedLingli, setSelectedLingli] = useState([]); // 伶俐智能管理選配清單
   const [controllerAlertModal, setControllerAlertModal] = useState({ show: false, message: '' });
   const [mobileDrawerRowIndex, setMobileDrawerRowIndex] = useState(null);
@@ -756,11 +758,47 @@ function App() {
 
 
 
+  // 🎯 DCS301BA61 選項 1：決定拆 N 顆 DCS301BA61
+  const handleChooseDcs301Split = (neededQty) => {
+    const qtyToSet = Math.max(parseInt(neededQty, 10) || 2, 2);
+    setDcs301Qty(qtyToSet);
+    setDcs301Option('split');
+    setSelectedControllers(prev => prev.includes('DCS301BA61') ? prev : [...prev, 'DCS301BA61']);
+    setDcs301ChoiceModal({ show: false, totalUnits: 0, neededQty: 2 });
+    toast.success(`✅ 已選定 DCS301BA61：決定拆 ${qtyToSet} 顆集中控制，報價單數量已更新為 ${qtyToSet} 台！`);
+  };
+
+  // 🎯 DCS301BA61 選項 2：部分空間共用線控讓室內機維持 16 台線控控制
+  const handleChooseDcs301Shared = () => {
+    setDcs301Qty(1);
+    setDcs301Option('shared');
+    setSelectedControllers(prev => prev.includes('DCS301BA61') ? prev : [...prev, 'DCS301BA61']);
+    setDcs301ChoiceModal({ show: false, totalUnits: 0, neededQty: 2 });
+    toast.success('✅ 已選定 DCS301BA61：部分空間共用線控，維持 1 顆控制器 (16 台線控控制群組)！');
+  };
+
   // 🎯 集中控制器複選與規則檢核
-  const handleToggleController = (ctrl) => {
+  const handleToggleController = (ctrl, forceChoiceModal = false) => {
     const isCurrentlySelected = selectedControllers.includes(ctrl.model);
+
+    // 🎯 若要求強制打開選擇彈窗 (如點擊已選卡片上的變更方案按鈕)
+    if (forceChoiceModal && ctrl.model === 'DCS301BA61') {
+      const totalUnits = (rows || []).reduce((acc, r) => acc + (parseInt(r.unit_count, 10) || 1), 0);
+      const neededQty = Math.max(Math.ceil(totalUnits / 16), 2);
+      setDcs301ChoiceModal({
+        show: true,
+        totalUnits: totalUnits,
+        neededQty: neededQty
+      });
+      return;
+    }
+
     if (isCurrentlySelected) {
       setSelectedControllers(prev => prev.filter(m => m !== ctrl.model));
+      if (ctrl.model === 'DCS301BA61') {
+        setDcs301Qty(1);
+        setDcs301Option(null);
+      }
       return;
     }
 
@@ -839,6 +877,20 @@ function App() {
       setControllerAlertModal({ show: true, message: msg });
       toast.warn(msg);
       return;
+    }
+
+    // 🎯 規則 7：選定 DCS301BA61 時檢核室內機台數是否超過 16 台上限，若超額則彈窗提供雙方案選擇
+    if (ctrl.model === 'DCS301BA61') {
+      const totalUnits = (rows || []).reduce((acc, r) => acc + (parseInt(r.unit_count, 10) || 1), 0);
+      if (totalUnits > 16) {
+        const neededQty = Math.max(Math.ceil(totalUnits / 16), 2);
+        setDcs301ChoiceModal({
+          show: true,
+          totalUnits: totalUnits,
+          neededQty: neededQty
+        });
+        return; // 等待使用者在 Modal 中做出選擇
+      }
     }
 
     setSelectedControllers(prev => [...prev, ctrl.model]);
@@ -4554,13 +4606,21 @@ function App() {
             const item = CONTROLLER_CANDIDATES.find(c => c.model === ctrlModel);
             if (item) {
               const qty = (ctrlModel === 'DCS301BA61') ? (dcs301Qty || 1) : 1;
+              let ctrlNote = `大金原廠集中控制器【${item.note || item.tier}】`;
+              if (ctrlModel === 'DCS301BA61') {
+                if (dcs301Option === 'split' || (dcs301Qty && dcs301Qty > 1)) {
+                  ctrlNote = `大金原廠集中控制器【低階 (拆 ${qty} 顆控制各區室內機)】`;
+                } else if (dcs301Option === 'shared') {
+                  ctrlNote = `大金原廠集中控制器【低階 (部分空間共用線控，維持16台線控控制)】`;
+                }
+              }
               accessoryItems.push({
                 cat: "控制配件",
                 name: `大金空調${item.name} (${item.model})`,
                 qty: qty,
                 unit: "台",
                 unit_price: item.price || null,
-                notes: `大金原廠集中控制器【${item.note || item.tier}】`,
+                notes: ctrlNote,
               });
             }
           });
@@ -5716,6 +5776,7 @@ function App() {
       selectedControlModes,
       selectedControllers,
       dcs301Qty,
+      dcs301Option,
       selectedLingli,
       userHasCustomGroups,
       outdoorGroups: outdoorGroups || [],
@@ -5761,6 +5822,7 @@ function App() {
       if (snapshot.selectedControlModes) setSelectedControlModes(snapshot.selectedControlModes);
       if (snapshot.selectedControllers) setSelectedControllers(snapshot.selectedControllers);
       if (snapshot.dcs301Qty !== undefined) setDcs301Qty(snapshot.dcs301Qty);
+      if (snapshot.dcs301Option !== undefined) setDcs301Option(snapshot.dcs301Option);
       if (snapshot.selectedLingli) setSelectedLingli(snapshot.selectedLingli);
       if (snapshot.userHasCustomGroups !== undefined) setUserHasCustomGroups(snapshot.userHasCustomGroups);
 
@@ -5978,6 +6040,18 @@ function App() {
         }),
         control_mode: (selectedControlModes && selectedControlModes.length > 0) ? selectedControlModes.join('+') : (fastControlMode || '無'),
         selected_controllers: Array.from(new Set([...(selectedControllers || []), ...(selectedLingli || [])])),
+        dcs301_qty: dcs301Qty || 1,
+        dcs301_option: dcs301Option,
+        controller_quantities: {
+          'DCS301BA61': (selectedControllers.includes('DCS301BA61') ? (dcs301Qty || 1) : 1)
+        },
+        controller_notes: {
+          'DCS301BA61': (dcs301Option === 'split' || (dcs301Qty && dcs301Qty > 1))
+            ? `大金原廠集中控制器【低階 (拆 ${dcs301Qty || 2} 顆控制各區室內機)】`
+            : (dcs301Option === 'shared'
+              ? '大金原廠集中控制器【低階 (部分空間共用線控，維持16台線控控制)】'
+              : '大金原廠集中控制器【低階】')
+        },
         selected_lingli: selectedLingli,
         outdoor_groups: outdoorGroups.map(g => ({
           id: g.id,
@@ -10041,6 +10115,35 @@ function App() {
                           }}>
                             {ctrl.name}
                           </div>
+                          {/* 🎯 DCS301BA61 選定方案標籤 (拆 2 顆 / 共用線控) */}
+                          {ctrl.model === 'DCS301BA61' && isSelected && (
+                            <div style={{ marginTop: '4px' }}>
+                              <span
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleToggleController(ctrl, true);
+                                }}
+                                title="點擊更換 DCS301BA61 配置方案"
+                                style={{
+                                  fontSize: '11px',
+                                  padding: '2px 8px',
+                                  borderRadius: '4px',
+                                  backgroundColor: (dcs301Option === 'split' || (dcs301Qty && dcs301Qty > 1)) ? 'rgba(168, 85, 247, 0.25)' : 'rgba(56, 189, 248, 0.25)',
+                                  color: (dcs301Option === 'split' || (dcs301Qty && dcs301Qty > 1)) ? '#c084fc' : '#38bdf8',
+                                  border: (dcs301Option === 'split' || (dcs301Qty && dcs301Qty > 1)) ? '1px solid #a855f7' : '1px solid #0284c7',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  fontWeight: 'bold',
+                                  transition: 'all 0.15s ease'
+                                }}
+                              >
+                                <span>{(dcs301Option === 'split' || (dcs301Qty && dcs301Qty > 1)) ? `🟣 拆 ${dcs301Qty} 顆集中控制 (${dcs301Qty}台)` : '🔵 部分空間共用線控 (16台群組)'}</span>
+                                <span style={{ fontSize: '10px', textDecoration: 'underline', opacity: 0.85 }}>[更換]</span>
+                              </span>
+                            </div>
+                          )}
                         </div>
 
                         <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '8px' }}>
@@ -10267,6 +10370,208 @@ function App() {
                 }}
               >
                 我知道了
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🎯 大金 DCS301BA61 室內機超過 16 台單機配置提醒與雙方案選擇彈窗 */}
+      {dcs301ChoiceModal.show && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.82)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10002
+          }}
+          onClick={() => setDcs301ChoiceModal({ show: false, totalUnits: 0, neededQty: 2 })}
+        >
+          <div
+            style={{
+              backgroundColor: '#0f172a',
+              borderRadius: '14px',
+              border: '2px solid #f59e0b',
+              boxShadow: '0 25px 60px rgba(0, 0, 0, 0.95), 0 0 30px rgba(245, 158, 11, 0.35)',
+              width: '92%',
+              maxWidth: '560px',
+              padding: '24px 28px',
+              color: '#f8fafc',
+              animation: 'fadeIn 0.2s ease-out'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
+              <div style={{
+                backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                border: '1px solid rgba(245, 158, 11, 0.4)',
+                borderRadius: '8px',
+                width: '42px',
+                height: '42px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '22px',
+                flexShrink: 0
+              }}>
+                ⚠️
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', color: '#fbbf24', fontWeight: 'bold' }}>
+                  DCS301BA61 集中控制器台數超額提醒
+                </h3>
+                <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>
+                  大金原廠低階集中控制器 (單台控制上限 16 台單機/群組)
+                </div>
+              </div>
+            </div>
+
+            {/* Description */}
+            <div style={{
+              backgroundColor: '#1e293b',
+              borderRadius: '8px',
+              padding: '12px 16px',
+              border: '1px solid #334155',
+              fontSize: '13.5px',
+              lineHeight: '1.6',
+              color: '#e2e8f0',
+              marginBottom: '20px'
+            }}>
+              目前規劃室內機台數共有 <strong style={{ color: '#f59e0b', fontSize: '16px' }}>{dcs301ChoiceModal.totalUnits}</strong> 台，已超過 <strong>DCS301BA61</strong> 單機上限 <strong>16 台</strong> 單機控制規格限制。
+              <div style={{ marginTop: '6px', color: '#94a3b8', fontSize: '12.5px' }}>
+                請由以下兩種配置方案擇一執行：
+              </div>
+            </div>
+
+            {/* Two Options */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
+              {/* Option 1 */}
+              <button
+                type="button"
+                onClick={() => handleChooseDcs301Split(dcs301ChoiceModal.neededQty)}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '5px',
+                  textAlign: 'left',
+                  backgroundColor: '#1e1b4b',
+                  border: '1.5px solid #818cf8',
+                  borderRadius: '10px',
+                  padding: '14px 16px',
+                  cursor: 'pointer',
+                  transition: 'all 0.18s ease',
+                  boxShadow: '0 4px 14px rgba(99, 102, 241, 0.25)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#2e1065';
+                  e.currentTarget.style.borderColor = '#c084fc';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#1e1b4b';
+                  e.currentTarget.style.borderColor = '#818cf8';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                  <span style={{ fontSize: '15px', fontWeight: 'bold', color: '#ffffff' }}>
+                    1. 決定拆 {dcs301ChoiceModal.neededQty} 顆 DCS301BA61
+                  </span>
+                  <span style={{
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    backgroundColor: '#4f46e5',
+                    color: '#ffffff'
+                  }}>
+                    推薦配置
+                  </span>
+                </div>
+                <div style={{ fontSize: '12.5px', color: '#c7d2fe', lineHeight: '1.45' }}>
+                  • 依 {dcs301ChoiceModal.totalUnits} 台室內機自動拆分配置 <strong>{dcs301ChoiceModal.neededQty}</strong> 顆 DCS301BA61 分區集中控制。<br />
+                  • 設備報價單數量自動記為 <strong>{dcs301ChoiceModal.neededQty} 台</strong>（單價 $11,800，合計 ${(11800 * dcs301ChoiceModal.neededQty).toLocaleString()}），並標註拆機分區控制。
+                </div>
+              </button>
+
+              {/* Option 2 */}
+              <button
+                type="button"
+                onClick={handleChooseDcs301Shared}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '5px',
+                  textAlign: 'left',
+                  backgroundColor: '#0c4a6e',
+                  border: '1.5px solid #38bdf8',
+                  borderRadius: '10px',
+                  padding: '14px 16px',
+                  cursor: 'pointer',
+                  transition: 'all 0.18s ease',
+                  boxShadow: '0 4px 14px rgba(56, 189, 248, 0.2)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#075985';
+                  e.currentTarget.style.borderColor = '#7dd3fc';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#0c4a6e';
+                  e.currentTarget.style.borderColor = '#38bdf8';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                  <span style={{ fontSize: '15px', fontWeight: 'bold', color: '#ffffff' }}>
+                    2. 部分空間共用線控讓室內機維持 16 台線控控制
+                  </span>
+                  <span style={{
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    backgroundColor: '#0284c7',
+                    color: '#ffffff'
+                  }}>
+                    精省配置
+                  </span>
+                </div>
+                <div style={{ fontSize: '12.5px', color: '#bae6fd', lineHeight: '1.45' }}>
+                  • 維持配置 <strong>1 顆</strong> DCS301BA61（單價 $11,800，報價單數量 1 台）。<br />
+                  • 部分相鄰空間（如走道、客餐廳或套房）共用同一組線控，使受控群組維持在 16 台以內，並於報價單備註說明。
+                </div>
+              </button>
+            </div>
+
+            {/* Modal Footer / Cancel Button */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => setDcs301ChoiceModal({ show: false, totalUnits: 0, neededQty: 2 })}
+                style={{
+                  backgroundColor: '#334155',
+                  color: '#94a3b8',
+                  border: 'none',
+                  padding: '7px 18px',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  transition: 'background-color 0.15s ease'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#475569'; e.currentTarget.style.color = '#ffffff'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#334155'; e.currentTarget.style.color = '#94a3b8'; }}
+              >
+                取消選用 (暫不勾選 DCS301BA61)
               </button>
             </div>
           </div>

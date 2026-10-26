@@ -995,13 +995,32 @@ class EquipmentSummaryService:
                     c_info = CONTROLLER_INFO_MAP.get(ctrl_m, {'name': '控制器', 'price': 0, 'note': '選配'})
                 is_lingli_dev = ctrl_m in ['DCPA01', 'DCPF01', 'DCPH01H']
                 dev_prefix = "伶俐智能管理" if is_lingli_dev else "集中控制器"
+
+                # 🎯 計算集中控制器數量與備註 (DCS301BA61 支援拆顆與共用線控雙方案)
+                c_qty = 1
+                c_notes = f"大金原廠{dev_prefix}【{c_info['note']}】"
+                if ctrl_m == 'DCS301BA61':
+                    import math
+                    total_in_qty = sum(int(r.get("unit_count") or r.get("qty") or 1) for r in rooms_data)
+                    dcs_opt = (hrv_info.get('dcs301_option') if isinstance(hrv_info, dict) else None)
+                    dcs_q = (hrv_info.get('dcs301_qty') if isinstance(hrv_info, dict) else None)
+                    if dcs_opt == 'split' or (dcs_q and int(dcs_q) > 1):
+                        c_qty = int(dcs_q) if dcs_q else max(math.ceil(total_in_qty / 16), 2)
+                        c_notes = f"大金原廠集中控制器【低階 (拆 {c_qty} 顆控制各區室內機)】"
+                    elif dcs_opt == 'shared':
+                        c_qty = 1
+                        c_notes = "大金原廠集中控制器【低階 (部分空間共用線控，維持16台線控控制)】"
+                    elif total_in_qty > 16:
+                        c_qty = max(math.ceil(total_in_qty / 16), 2)
+                        c_notes = f"大金原廠集中控制器【低階 (拆 {c_qty} 顆控制各區室內機)】"
+
                 accessory_items.append({
                     "cat": "控制配件",
                     "name": f"大金空調{c_info['name']} ({ctrl_m})",
-                    "qty": 1,
+                    "qty": c_qty,
                     "unit": "台",
                     "unit_price": c_info['price'],
-                    "notes": f"大金原廠{dev_prefix}【{c_info['note']}】"
+                    "notes": c_notes
                 })
         elif has_central:
             c_info = db_srv.get_controller_info("DCM601B51")
